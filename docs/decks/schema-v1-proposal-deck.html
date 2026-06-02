@@ -287,6 +287,10 @@
       gap: 22px;
     }
 
+    .slide[data-slide="3"] {
+      padding-bottom: 42px;
+    }
+
     .slide-header {
       max-width: 1040px;
       display: grid;
@@ -643,6 +647,30 @@
 
     .term p { margin: 0; font-size: 14px; color: var(--muted); }
 
+    .example-term {
+      grid-column: 1 / -1;
+      background: #101923;
+      color: #dce8ef;
+      border-color: rgba(232, 238, 249, 0.16);
+    }
+
+    .example-term code {
+      color: #9bd6d6;
+      background: rgba(155, 214, 214, 0.12);
+    }
+
+    .example-term pre {
+      margin: 8px 0 0;
+      white-space: pre-wrap;
+      color: #dce8ef;
+      font: 800 11px/1.28 "DeckMono", monospace;
+    }
+
+    .example-term mark {
+      color: #f0d39c;
+      background: transparent;
+    }
+
     .interactive-demo {
       display: grid;
       grid-template-columns: 0.9fr 1.1fr;
@@ -658,6 +686,10 @@
       display: grid;
       gap: 12px;
       min-height: 330px;
+    }
+
+    .slide[data-slide="3"] .demo-page {
+      min-height: 300px;
     }
 
     .fake-browser {
@@ -867,8 +899,13 @@
               <div class="term-grid">
                 <div class="term"><code>target</code><p>The live page location: selector, role, visible text, URL condition, current state, and fallback selectors.</p></div>
                 <div class="term"><code>source</code><p>The files, symbols, selectors, or component names that help a human or agent debug the map.</p></div>
-                <div class="term"><code>fallback selector</code><p>A backup way to find the same thing if the website changes its markup slightly.</p></div>
-                <div class="term"><code>confidence</code><p>Whether the target was observed, inferred, generated, or unknown.</p></div>
+                <div class="term example-term"><code>example</code><pre>{
+  "<mark>target</mark>": { "selector": "#name", "role": "textbox" },
+  "<mark>source</mark>": {
+    "file": "examples/simple-form/index.html",
+    "handler": "formRuntime.submit"
+  }
+}</pre></div>
               </div>
             </div>
           </article>
