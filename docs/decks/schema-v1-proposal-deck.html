@@ -287,7 +287,12 @@
       gap: 22px;
     }
 
-    .slide[data-slide="3"] {
+    .slide.context-slide.active {
+      grid-template-rows: auto auto auto;
+      gap: 16px;
+    }
+
+    .slide[data-slide="4"] {
       padding-bottom: 42px;
     }
 
@@ -339,6 +344,31 @@
 
     .content-grid.single {
       grid-template-columns: minmax(0, 1fr);
+    }
+
+    .content-grid.three.context-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      align-content: start;
+    }
+
+    .context-grid .tile {
+      min-height: 0;
+      padding: 16px;
+    }
+
+    .context-grid .context-card {
+      min-height: 92px;
+    }
+
+    .context-grid .tile h3 {
+      font-size: 19px;
+      margin-bottom: 8px;
+    }
+
+    .context-grid .tile p {
+      font-size: 14px;
+      line-height: 1.42;
     }
 
     .tile {
@@ -809,7 +839,7 @@
       min-height: 330px;
     }
 
-    .slide[data-slide="3"] .demo-page {
+    .slide[data-slide="4"] .demo-page {
       min-height: 300px;
     }
 
@@ -891,6 +921,7 @@
       .stage-wrap { height: 760px; }
       .stage-nav { top: 12px; right: 12px; }
       .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
+      .content-grid.three.context-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .concept-list { grid-template-columns: 1fr; }
       .concept-list.root-concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .concept-chip:hover,
@@ -903,11 +934,14 @@
 
     @media (max-width: 560px) {
       .concept-list.root-concepts { grid-template-columns: 1fr; }
+      .content-grid.three.context-grid { grid-template-columns: 1fr; }
+      .context-grid .context-card { min-height: 104px; }
+      .context-slide .callout { display: none; }
     }
   </style>
 </head>
 <body>
-  <div id="schema-v1-deck" class="deck-shell" data-composition-id="schema-v1-deck" data-width="1920" data-height="1080" data-start="0" data-duration="66" data-track-index="1">
+  <div id="schema-v1-deck" class="deck-shell" data-composition-id="schema-v1-deck" data-width="1920" data-height="1080" data-start="0" data-duration="72" data-track-index="1">
     <aside class="sidebar">
       <div class="brand">
         <div class="brand-mark">aj</div>
@@ -918,14 +952,15 @@
         <button type="button" data-go="0" aria-current="true"><span>01</span><span>What is this?</span></button>
         <button type="button" data-go="1"><span>02</span><span>The map idea</span></button>
         <button type="button" data-go="2"><span>03</span><span>Root shape</span></button>
-        <button type="button" data-go="3"><span>04</span><span>Targets and sources</span></button>
-        <button type="button" data-go="4"><span>05</span><span>State and movement</span></button>
-        <button type="button" data-go="5"><span>06</span><span>Attachments</span></button>
-        <button type="button" data-go="6"><span>07</span><span>Execution steps</span></button>
-        <button type="button" data-go="7"><span>08</span><span>Checks and drift</span></button>
-        <button type="button" data-go="8"><span>09</span><span>Imports and trust</span></button>
-        <button type="button" data-go="9"><span>10</span><span>Signals and protocol</span></button>
-        <button type="button" data-go="10"><span>11</span><span>How to review</span></button>
+        <button type="button" data-go="3"><span>04</span><span>Agent context</span></button>
+        <button type="button" data-go="4"><span>05</span><span>Targets and sources</span></button>
+        <button type="button" data-go="5"><span>06</span><span>State and movement</span></button>
+        <button type="button" data-go="6"><span>07</span><span>Attachments</span></button>
+        <button type="button" data-go="7"><span>08</span><span>Execution steps</span></button>
+        <button type="button" data-go="8"><span>09</span><span>Checks and drift</span></button>
+        <button type="button" data-go="9"><span>10</span><span>Imports and trust</span></button>
+        <button type="button" data-go="10"><span>11</span><span>Signals and protocol</span></button>
+        <button type="button" data-go="11"><span>12</span><span>How to review</span></button>
       </nav>
       <div class="controls">
         <div class="progress" aria-label="Deck progress"><div id="progressBar"></div></div>
@@ -939,7 +974,7 @@
     <main class="stage-wrap">
       <div class="stage-nav" aria-label="Slide navigation">
         <button type="button" id="stagePrevBtn" aria-label="Previous slide">‹</button>
-        <span id="slidePosition">1 / 11</span>
+        <span id="slidePosition">1 / 12</span>
         <button type="button" id="stageNextBtn" aria-label="Next slide">›</button>
       </div>
       <section class="stage">
@@ -993,6 +1028,7 @@
                 <button class="concept-chip" type="button" data-outline-target="outline-surface"><code>surface</code><span>What website or page area are we talking about?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-imports"><code>imports</code><span>What other maps join this one?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-prompt"><code>prompt</code><span>What guidance should the agent receive?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-context"><code>context</code><span>What docs load as the agent moves?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-states"><code>states</code><span>Which situations change action availability?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>How are states connected?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-tools"><code>tools</code><span>What actions may an agent call?</span></button>
@@ -1007,6 +1043,7 @@
                 <section class="outline-section" id="outline-surface"><code>{ "surface": { ... } }</code><p><em>Surface</em> names the origin, page kind, and human-readable context for the map.</p></section>
                 <section class="outline-section" id="outline-imports"><code>{ "imports": [ ... ] }</code><p><em>Imports</em> compose website, private, shared, and public maps under explicit trust rules.</p></section>
                 <section class="outline-section" id="outline-prompt"><code>{ "prompt": { ... } }</code><p><em>Prompt</em> gives the agent page-specific instructions without hiding authority.</p></section>
+                <section class="outline-section" id="outline-context"><code>{ "context": [ ... ] }</code><p><em>Context</em> is scoped documentation loaded as the agent moves through pages, states, targets, and tasks.</p></section>
                 <section class="outline-section" id="outline-states"><code>{ "states": [ ... ] }</code><p><em>States</em> are named facts such as authorized, issue visible, carousel at end, or form ready.</p></section>
                 <section class="outline-section" id="outline-transitions"><code>{ "transitions": [ ... ] }</code><p><em>Transitions</em> connect states and may name the tool to call, plus waits, rate limits, and stop conditions.</p></section>
                 <section class="outline-section" id="outline-tools"><code>{ "tools": [ ... ] }</code><p><em>Tools</em> are declared calls the agent may ask the runtime to execute.</p></section>
@@ -1018,7 +1055,24 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="3">
+          <article class="slide context-slide" data-slide="3">
+            <header class="slide-header">
+              <div class="eyebrow">Agent context</div>
+              <h2>The map also teaches the agent where it is.</h2>
+              <p class="lead">Some of actions.json is not a button or a handler. It is plain-English context that gets loaded when the agent reaches the right page, state, target, or task.</p>
+            </header>
+            <div class="content-grid three context-grid">
+              <div class="tile context-card"><h3>Where am I?</h3><p>Explain the current website area.</p></div>
+              <div class="tile context-card"><h3>What is true?</h3><p>Name the current state before action.</p></div>
+              <div class="tile context-card"><h3>What is available?</h3><p>List relevant tools, signals, and targets.</p></div>
+              <div class="tile context-card"><h3>When to load?</h3><p>Match URL, state, target, or attachment predicates.</p></div>
+              <div class="tile context-card"><h3>What to inspect?</h3><p>Point to diagnostics and observables.</p></div>
+              <div class="tile context-card"><h3>What not to assume?</h3><p>Documentation only; authority comes from tools.</p></div>
+            </div>
+            <div class="callout"><strong>Plain English:</strong> prompt is broad surface guidance. <code>context[]</code> is scoped guidance that follows the agent as it traverses the website.</div>
+          </article>
+
+          <article class="slide" data-slide="4">
             <header class="slide-header">
               <div class="eyebrow">Targets vs sources</div>
               <h2>“Where on the page?” is different from “where in the code?”</h2>
@@ -1047,7 +1101,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="4">
+          <article class="slide" data-slide="5">
             <header class="slide-header">
               <div class="eyebrow">States and transitions</div>
               <h2>Some websites are not sitting still.</h2>
@@ -1071,7 +1125,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="5">
+          <article class="slide" data-slide="6">
             <header class="slide-header">
               <div class="eyebrow">Attachments</div>
               <h2>The map can describe page additions, not just page operations.</h2>
@@ -1085,7 +1139,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="6">
+          <article class="slide" data-slide="7">
             <header class="slide-header">
               <div class="eyebrow">Execution</div>
               <h2>A handler is convenient, but steps make behavior inspectable.</h2>
@@ -1100,7 +1154,7 @@
             <div class="callout"><strong>Plain English:</strong> this is the difference between “ask the app to submit the form” and “find the input, type the name, click Submit, then read the result.”</div>
           </article>
 
-          <article class="slide" data-slide="7">
+          <article class="slide" data-slide="8">
             <header class="slide-header">
               <div class="eyebrow">Checks and drift</div>
               <h2>The map must admit when the road moved.</h2>
@@ -1116,7 +1170,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="8">
+          <article class="slide" data-slide="9">
             <header class="slide-header">
               <div class="eyebrow">Imports and trust</div>
               <h2>One user may combine many maps.</h2>
@@ -1130,7 +1184,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="9">
+          <article class="slide" data-slide="10">
             <header class="slide-header">
               <div class="eyebrow">Signals and protocol</div>
               <h2>Tools are agent requests. Signals are page events.</h2>
@@ -1146,7 +1200,7 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="10">
+          <article class="slide" data-slide="11">
             <header class="slide-header">
               <div class="eyebrow">Review checklist</div>
               <h2>How to review the proposal without getting lost.</h2>
@@ -1154,7 +1208,7 @@
             </header>
             <div class="review-list">
               <div class="review-item"><b>1</b><p>Start with the purpose and design principles. Confirm that “map, not just tool list” feels right.</p></div>
-              <div class="review-item"><b>2</b><p>Review root fields, target descriptors, states, and attachments. These are the biggest conceptual additions.</p></div>
+              <div class="review-item"><b>2</b><p>Review root fields, scoped context, target descriptors, states, and attachments. These are the biggest conceptual additions.</p></div>
               <div class="review-item"><b>3</b><p>Review execution steps and checks. Decide whether these belong inside the manifest or beside it.</p></div>
               <div class="review-item"><b>4</b><p>Review imports and trust. This connects directly to private, shared, and public storage scopes.</p></div>
               <div class="review-item"><b>5</b><p>Read the bridge protocol appendix. It should be specific enough to implement, but not locked to one provider.</p></div>
@@ -1207,7 +1261,7 @@
       fromOne(".eyebrow", { y: 16, opacity: 0, duration: 0.36, ease: "power2.out" });
       fromOne("h2", { y: 34, opacity: 0, duration: 0.52, ease: "expo.out" }, "-=0.18");
       fromOne(".lead", { y: 20, opacity: 0, duration: 0.42, ease: "sine.out" }, "-=0.25");
-      fromMany(".tile, .schema-row, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas", {
+      fromMany(".tile:not(.context-card), .schema-row, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas", {
         y: 22,
         opacity: 0,
         scale: 0.985,
