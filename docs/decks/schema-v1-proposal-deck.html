@@ -610,6 +610,107 @@
     .flow-card b { display: block; font-size: 15px; margin-bottom: 7px; }
     .flow-card span { color: var(--muted); font-size: 13px; line-height: 1.35; }
 
+    .carousel-demo {
+      min-height: 0;
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) auto;
+      gap: 14px;
+    }
+
+    .carousel-shot {
+      position: relative;
+      aspect-ratio: 1855 / 355;
+      min-height: 0;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(232, 238, 249, 0.16);
+      background: #050a12;
+      box-shadow: 0 20px 42px rgba(16, 25, 35, 0.18);
+    }
+
+    .carousel-shot img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .carousel-note {
+      position: absolute;
+      max-width: 230px;
+      padding: 8px 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.94);
+      border: 1px solid rgba(22, 33, 44, 0.14);
+      color: var(--ink);
+      font: 850 11.5px/1.22 "DeckSans", sans-serif;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.24);
+    }
+
+    .carousel-note small {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-weight: 700;
+    }
+
+    .carousel-note.state { left: 18px; top: 44px; }
+    .carousel-note.transition { right: 18px; top: 52px; }
+    .carousel-note.progress { left: 18px; bottom: 24px; }
+
+    .carousel-arrow {
+      position: absolute;
+      right: 150px;
+      top: 50%;
+      width: 120px;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--amber), var(--teal));
+      box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.12);
+    }
+
+    .carousel-arrow::after {
+      content: "";
+      position: absolute;
+      right: -2px;
+      top: 50%;
+      width: 14px;
+      height: 14px;
+      border-top: 4px solid var(--teal);
+      border-right: 4px solid var(--teal);
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    .carousel-concepts {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .carousel-concept {
+      min-width: 0;
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      border: 1px solid var(--line);
+      box-shadow: 0 10px 24px rgba(30, 42, 58, 0.07);
+    }
+
+    .carousel-concept b {
+      display: block;
+      margin-bottom: 5px;
+      color: var(--teal);
+      font-size: 14px;
+      line-height: 1.1;
+    }
+
+    .carousel-concept span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.32;
+    }
+
     .callout {
       border-radius: 14px;
       padding: 20px;
@@ -770,6 +871,7 @@
       .stage-wrap { height: 760px; }
       .stage-nav { top: 12px; right: 12px; }
       .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
+      .carousel-concepts { grid-template-columns: 1fr; }
       .flow { grid-template-columns: 1fr; }
       .flow-card::after { display: none; }
     }
@@ -914,16 +1016,24 @@
             <header class="slide-header">
               <div class="eyebrow">States and transitions</div>
               <h2>Some websites are not sitting still.</h2>
-              <p class="lead">A carousel, a login-only page, and a single-page app all change shape. The schema names the current situation and the safe moves out of it.</p>
+              <p class="lead">The Prime Video carousel makes this concrete: the runtime has to know what is visible, scroll carefully, merge newly revealed cards, and stop.</p>
             </header>
-            <div class="flow">
-              <div class="flow-card"><b>Loaded</b><span>The page exists and the user has authorized the runtime.</span></div>
-              <div class="flow-card"><b>Diagnose</b><span>Inspect the page to see what state it is in right now.</span></div>
-              <div class="flow-card"><b>Transition</b><span>Click, type, scroll, navigate, or install an attachment.</span></div>
-              <div class="flow-card"><b>Observe</b><span>Collect what changed: new cards, result text, or a launcher state.</span></div>
-              <div class="flow-card"><b>Converge</b><span>Stop when no new information appears or a terminal state is reached.</span></div>
+            <div class="carousel-demo">
+              <div class="carousel-shot">
+                <img src="assets/prime-continue-watching-carousel.png" alt="Prime Video Continue Watching carousel showing visible cards">
+                <div class="carousel-note state">Visible state<small>Four cards are currently observable.</small></div>
+                <div class="carousel-note transition">Scroll transition<small>Move right no faster than once per second.</small></div>
+                <div class="carousel-note progress">Progress evidence<small>Bars mark watch progress.</small></div>
+                <div class="carousel-arrow" aria-hidden="true"></div>
+              </div>
+              <div class="carousel-concepts">
+                <div class="carousel-concept"><b>Loaded</b><span>The carousel exists and the user authorized the tab.</span></div>
+                <div class="carousel-concept"><b>Diagnose</b><span>Read visible cards and current scroll position.</span></div>
+                <div class="carousel-concept"><b>Transition</b><span>Scroll right once, then wait for new cards.</span></div>
+                <div class="carousel-concept"><b>Observe</b><span>Merge newly visible titles and covers into storage.</span></div>
+                <div class="carousel-concept"><b>Converge</b><span>Stop when scrolling reveals no unseen cards.</span></div>
+              </div>
             </div>
-            <div class="callout"><strong>Example:</strong> Prime Video carousel collection needs a state machine because you must inspect visible cards, scroll carefully, wait, merge new cards, and stop when no new cards appear.</div>
           </article>
 
           <article class="slide" data-slide="5">
@@ -1046,10 +1156,23 @@
     function animateSlide(index) {
       const slide = slides[index];
       const local = gsap.timeline();
-      local.from(slide.querySelector(".eyebrow"), { y: 16, opacity: 0, duration: 0.36, ease: "power2.out" });
-      local.from(slide.querySelector("h2"), { y: 34, opacity: 0, duration: 0.52, ease: "expo.out" }, "-=0.18");
-      local.from(slide.querySelector(".lead"), { y: 20, opacity: 0, duration: 0.42, ease: "sine.out" }, "-=0.25");
-      local.from(slide.querySelectorAll(".tile, .schema-row, .concept-chip, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas"), {
+      const fromOne = (selector, vars, position) => {
+        const element = slide.querySelector(selector);
+        if (element) local.from(element, vars, position);
+      };
+      const fromMany = (selector, vars, position) => {
+        const elements = slide.querySelectorAll(selector);
+        if (elements.length) local.from(elements, vars, position);
+      };
+      const fromToMany = (selector, fromVars, toVars, position) => {
+        const elements = slide.querySelectorAll(selector);
+        if (elements.length) local.fromTo(elements, fromVars, toVars, position);
+      };
+
+      fromOne(".eyebrow", { y: 16, opacity: 0, duration: 0.36, ease: "power2.out" });
+      fromOne("h2", { y: 34, opacity: 0, duration: 0.52, ease: "expo.out" }, "-=0.18");
+      fromOne(".lead", { y: 20, opacity: 0, duration: 0.42, ease: "sine.out" }, "-=0.25");
+      fromMany(".tile, .schema-row, .concept-chip, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas", {
         y: 22,
         opacity: 0,
         scale: 0.985,
@@ -1057,7 +1180,7 @@
         stagger: 0.055,
         ease: "power3.out"
       }, "-=0.05");
-      local.from(slide.querySelectorAll(".pin"), {
+      fromMany(".pin", {
         y: -10,
         opacity: 0,
         scale: 0.94,
@@ -1065,7 +1188,7 @@
         stagger: 0.12,
         ease: "back.out(1.6)"
       }, "-=0.28");
-      local.fromTo(slide.querySelectorAll(".route"), { scaleX: 0 }, { scaleX: 1, duration: 0.75, ease: "power2.inOut" }, "-=0.25");
+      fromToMany(".route", { scaleX: 0 }, { scaleX: 1, duration: 0.75, ease: "power2.inOut" }, "-=0.25");
     }
 
     function goTo(index) {
