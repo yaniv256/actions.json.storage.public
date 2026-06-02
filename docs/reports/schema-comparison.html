@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ACT-5 x PR #1: actions.json Schema Comparison</title>
+    <title>actions.json Schema Comparison</title>
     <style>
       :root {
         --bg: #f7f8fb;
@@ -519,11 +519,11 @@
         }
 
         .matrix-cell:nth-child(1)::before {
-          content: "ACT-5 principle";
+          content: "Design brief principle";
         }
 
         .matrix-cell:nth-child(2)::before {
-          content: "PR #1 expression";
+          content: "Schema draft expression";
         }
 
         .matrix-cell:nth-child(3)::before {
@@ -574,18 +574,17 @@
           <a href="#matrix">Comparison</a>
           <a href="#workflow">Workflow</a>
           <a href="#schema-deltas">Schema Deltas</a>
-          <a href="#next">Next PR</a>
+          <a href="#next">Next Step</a>
         </nav>
       </header>
 
       <main>
         <section class="hero">
           <div>
-            <h1>Bringing ACT-5 and PR #1 into one schema path.</h1>
-            <p class="lead">
-              ACT-5 frames <code>actions.json</code> as a cartographic model of live DOM
-              capabilities. PR #1 proposes the first portable schema vocabulary. The next
-              step is to preserve PR #1's clean tool bridge while adding state traversal,
+            <h1>Bringing the schema design brief and schema draft into one schema path.</h1>
+            <p class="lead">The design brief frames <code>actions.json</code> as a cartographic model of live DOM
+              capabilities. The schema draft proposes the first portable schema vocabulary. The next
+              step is to preserve the schema draft's clean tool bridge while adding state traversal,
               composition, live validation, and protocol-level clarity.
             </p>
           </div>
@@ -594,14 +593,14 @@
               <div class="source-row">
                 <div class="source-index">A</div>
                 <div>
-                  <strong>ACT-5: Design schema for action.json files</strong>
+                  <strong>Design brief: schema goals</strong>
                   <span>Principles from Linear: maps, state machines, composability, testability, Responses protocol.</span>
                 </div>
               </div>
               <div class="source-row">
                 <div class="source-index">P</div>
                 <div>
-                  <strong>PR #1: RoomJinni-derived schema v1 proposal</strong>
+                  <strong>Schema draft: prototype-derived proposal</strong>
                   <span>Concrete draft: <code>tools[]</code>, <code>signals[]</code>, <code>x_actions</code>, source hints, validation rules.</span>
                 </div>
               </div>
@@ -609,7 +608,7 @@
                 <div class="source-index">N</div>
                 <div>
                   <strong>Recommended synthesis</strong>
-                  <span>Promote PR #1 into a layered schema: catalog, states, composition, tests, and protocol bindings.</span>
+                  <span>Promote the schema draft into a layered schema: catalog, states, composition, tests, and protocol bindings.</span>
                 </div>
               </div>
             </div>
@@ -620,15 +619,15 @@
           <div class="section-intro">
             <h2>What each source contributes</h2>
             <p>
-              The two sources operate at different altitudes. ACT-5 is a design brief and
-              philosophy of operation. PR #1 is an implementation-shaped schema draft.
-              The right workflow should not pick one over the other; it should use ACT-5
-              as evaluation criteria and PR #1 as the first executable grammar.
+              The two sources operate at different altitudes. The design brief provides goals and
+              operating principles. The schema draft provides implementation-shaped vocabulary.
+              The right workflow should not pick one over the other; it should use the design brief
+              as evaluation criteria and the schema draft as the first executable grammar.
             </p>
           </div>
           <div class="two-up">
             <article class="panel">
-              <h3>ACT-5 contributes the design constraints</h3>
+              <h3>The design brief contributes the design constraints</h3>
               <ul>
                 <li>Model websites as maps of where function exists on DOM surfaces.</li>
                 <li>Represent context-dependent availability and state traversal.</li>
@@ -639,7 +638,7 @@
               </ul>
             </article>
             <article class="panel">
-              <h3>PR #1 contributes the first portable vocabulary</h3>
+              <h3>The schema draft contributes the first portable vocabulary</h3>
               <ul>
                 <li><code>protocol</code>, <code>version</code>, <code>surface</code>, <code>prompt</code>, <code>tools</code>, and <code>signals</code>.</li>
                 <li><code>x_actions</code> as vendor-neutral bridge metadata.</li>
@@ -655,8 +654,7 @@
         <section class="section" aria-labelledby="readiness-title">
           <div class="section-intro">
             <h2 id="readiness-title">Readiness snapshot</h2>
-            <p>
-              PR #1 already covers the bridge catalog well. The missing pieces are mostly
+            <p>The schema draft already covers the bridge catalog well. The missing pieces are mostly
               higher-order modeling layers that turn a catalog into a durable operating
               map for a changing application.
             </p>
@@ -690,7 +688,7 @@
             <h2>Prototype evidence: Prime Video carousel</h2>
             <p>
               The Amazon Prime Video Continue Watching prototype is the clearest
-              evidence that PR #1 needs a state-machine layer. The private storage
+              evidence that the schema draft needs a state-machine layer. The private storage
               record was reviewed for schema lessons only; this public report does
               not publish the user's watched titles, detail URLs, or item index.
             </p>
@@ -708,7 +706,7 @@
               </ul>
             </article>
             <article class="panel">
-              <h3>What this means for PR #1</h3>
+              <h3>What this means for the schema draft</h3>
               <ul>
                 <li><code>tools[]</code> can name <code>prime_video.continue_watching.collect</code>, but the tool catalog alone cannot explain when the action is complete.</li>
                 <li><code>source.selectors</code> can point to links and images, but selectors alone cannot model a scroll-revealed state.</li>
@@ -720,8 +718,7 @@
           </div>
           <div class="callout" style="margin-top: 18px;">
             <strong>Schema consequence</strong>
-            <span>
-              PR #1 should remain the callable catalog layer, but the next revision
+            <span>The schema draft should remain the callable catalog layer, but the next revision
               should add a live-surface operation layer: state detection, transition
               methods, rate limits, reveal semantics, result merging, and stop
               conditions. Without those fields, a future agent can know what action
@@ -735,15 +732,15 @@
           <div class="section-intro">
             <h2>Principle-by-principle comparison</h2>
             <p>
-              This matrix treats ACT-5 as the acceptance test. A good next revision
-              should keep PR #1's minimal surface while adding first-class places for
+              This matrix treats the design brief as the acceptance test. A good next revision
+              should keep the schema draft's minimal surface while adding first-class places for
               the missing operational concepts.
             </p>
           </div>
-          <div class="matrix" role="table" aria-label="ACT-5 and PR1 comparison matrix">
+          <div class="matrix" role="table" aria-label="Schema design brief and schema draft comparison matrix">
             <div class="matrix-row matrix-head" role="row">
-              <div class="matrix-cell" role="columnheader">ACT-5 principle</div>
-              <div class="matrix-cell" role="columnheader">PR #1 expression</div>
+              <div class="matrix-cell" role="columnheader">Design brief principle</div>
+              <div class="matrix-cell" role="columnheader">Schema draft expression</div>
               <div class="matrix-cell" role="columnheader">Fit</div>
               <div class="matrix-cell" role="columnheader">Recommended move</div>
             </div>
@@ -773,7 +770,7 @@
                 <p>The schema should name who starts the interaction.</p>
               </div>
               <div class="matrix-cell" role="cell"><code>tools[]</code>, <code>signals[]</code>, <code>direction</code>, <code>event</code>, and <code>ingestion</code>.</div>
-              <div class="matrix-cell" role="cell"><span class="tag good">Strong</span><p>PR #1 expresses this clearly.</p></div>
+              <div class="matrix-cell" role="cell"><span class="tag good">Strong</span><p>The schema draft expresses this clearly.</p></div>
               <div class="matrix-cell" role="cell">Keep this split and define signal-to-Responses event conversion.</div>
             </div>
             <div class="matrix-row" role="row">
@@ -790,7 +787,7 @@
                 <strong>Composable sources.</strong>
                 <p>Users may combine website, local, and third-party action maps.</p>
               </div>
-              <div class="matrix-cell" role="cell">No formal composition layer in PR #1.</div>
+              <div class="matrix-cell" role="cell">No formal composition layer in the schema draft.</div>
               <div class="matrix-cell" role="cell"><span class="tag gap">Gap</span><p>Critical for long-term ecosystem use.</p></div>
               <div class="matrix-cell" role="cell">Add <code>imports[]</code>, namespaces, source trust, conflict rules, and override policy.</div>
             </div>
@@ -808,7 +805,7 @@
                 <strong>Responses-protocol clarity.</strong>
                 <p>Agent/runtime translation should be formally specified.</p>
               </div>
-              <div class="matrix-cell" role="cell">Repo docs mention Responses-style item semantics; PR #1 does not map them.</div>
+              <div class="matrix-cell" role="cell">Repo docs mention Responses-style item semantics; the schema draft does not map them.</div>
               <div class="matrix-cell" role="cell"><span class="tag gap">Gap</span><p>Needs a binding section.</p></div>
               <div class="matrix-cell" role="cell">Add a protocol appendix: tool call item, action result item, signal item, correlation IDs, and error envelopes.</div>
             </div>
@@ -819,7 +816,7 @@
           <div class="section-intro">
             <h2>Ideal user workflow</h2>
             <p>
-              A user bringing ACT-5 and PR #1 together should move from evidence to
+              A user bringing the schema design brief and schema draft together should move from evidence to
               schema changes to live verification. The goal is not just a prettier doc;
               it is a repeatable review loop for each schema revision.
             </p>
@@ -827,19 +824,19 @@
           <div class="workflow">
             <article class="step">
               <h3>Collect evidence</h3>
-              <p>Open the Linear issue, PR, and example manifests. Extract claims into a shared comparison table with source links and exact file references.</p>
+              <p>Open the planning notes, schema draft, and example manifests. Extract claims into a shared comparison table with source links and exact file references.</p>
             </article>
             <article class="step">
               <h3>Translate principles</h3>
-              <p>Turn ACT-5 statements into acceptance criteria: state traversal, composability, deterministic execution, testing, and protocol mapping.</p>
+              <p>Turn the design brief statements into acceptance criteria: state traversal, composability, deterministic execution, testing, and protocol mapping.</p>
             </article>
             <article class="step">
               <h3>Score the proposal</h3>
-              <p>Evaluate each PR #1 field against those criteria. Mark coverage as strong, partial, or gap, with a concrete schema change for every gap.</p>
+              <p>Evaluate each field in the schema draft against those criteria. Mark coverage as strong, partial, or gap, with a concrete schema change for every gap.</p>
             </article>
             <article class="step">
               <h3>Draft schema deltas</h3>
-              <p>Add minimal extensions rather than rewriting the draft: states, imports, checks, and Responses bindings should layer onto PR #1.</p>
+              <p>Add minimal extensions rather than rewriting the draft: states, imports, checks, and Responses bindings should layer onto the schema draft.</p>
             </article>
             <article class="step">
               <h3>Test on real pages</h3>
@@ -850,8 +847,8 @@
               <p>For each failed probe, capture what changed and whether the action can recover through alternative selectors, transition paths, or user handoff.</p>
             </article>
             <article class="step">
-              <h3>Publish a focused PR</h3>
-              <p>Keep PR #1 as the base proposal, then open a follow-up PR that adds the missing model layers and examples.</p>
+              <h3>Publish a focused proposal</h3>
+              <p>Keep the schema draft as the base proposal, then open a follow-up proposal that adds the missing model layers and examples.</p>
             </article>
             <article class="step">
               <h3>Repeat per surface</h3>
@@ -865,7 +862,7 @@
             <h2>Concrete schema deltas</h2>
             <p>
               These are not final syntax decisions. They are sketches of the minimum
-              vocabulary needed to satisfy ACT-5 without losing PR #1's current shape.
+              vocabulary needed to satisfy the design brief without losing schema draft's current shape.
             </p>
           </div>
           <div class="code-grid">
@@ -953,22 +950,22 @@
           <div class="section-intro">
             <h2>Recommended path forward</h2>
             <p>
-              The most useful next move is a follow-up PR that treats PR #1 as the
-              base vocabulary and adds ACT-5's missing operational layers through
+              The most useful next move is a follow-up proposal that treats the schema draft as the
+              base vocabulary and adds the design brief's missing operational layers through
               examples and validation rules.
             </p>
           </div>
           <div class="recommendations">
             <div class="rec">
-              <strong>Keep PR #1</strong>
+              <strong>Keep the schema draft</strong>
               <p>Do not discard the current proposal. Its <code>tools[]</code>, <code>signals[]</code>, <code>x_actions</code>, and source hints are the right portable core.</p>
             </div>
             <div class="rec">
-              <strong>Add an ACT-5 appendix</strong>
-              <p>Convert the Linear principles into a formal acceptance checklist inside the schema docs, so future PRs are judged consistently.</p>
+              <strong>Add an acceptance checklist</strong>
+              <p>Convert the design principles into a formal acceptance checklist inside the schema docs, so future changes are judged consistently.</p>
             </div>
             <div class="rec">
-              <strong>Open PR #2 for model layers</strong>
+              <strong>Open a model-layer follow-up</strong>
               <p>Add state traversal, imports, checks, contingencies, and Responses bindings with one small example for each.</p>
             </div>
             <div class="rec">
@@ -984,8 +981,7 @@
 
         <section class="section">
           <div class="callout">
-            <strong>Working thesis:</strong>
-            PR #1 should become the catalog layer of <code>actions.json</code>. ACT-5 should become
+            <strong>Working thesis:</strong> The schema draft should become the catalog layer of <code>actions.json</code>. The design brief should become
             the evaluation layer and the roadmap for schema depth. The combined standard
             should answer four questions for every action: where is it, when is it available,
             how is it executed, and how do we know it still works?
@@ -994,7 +990,7 @@
       </main>
 
       <footer class="footer">
-        Generated from Linear issue ACT-5 and GitHub PR #1 in
+        Generated from private design notes and a schema draft in
         <code>/Users/yaniv/actions.json.private</code>. This report is a working review artifact,
         not a final schema decision.
       </footer>

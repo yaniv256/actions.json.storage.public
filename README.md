@@ -8,7 +8,7 @@ documentation generated from private design work.
 
 ## Artifacts
 
-- [ACT-5 x PR #1 schema comparison](sites/linear.app/workspace/overlays/act5-pr1-comparison.html)
+- [Schema comparison report](docs/reports/schema-comparison.html)
 - [Schema V1 teaching deck](docs/decks/schema-v1-proposal-deck.html)
 
 ## Policy
