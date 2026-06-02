@@ -889,6 +889,279 @@
       line-height: 1.32;
     }
 
+    .attachment-slide.active {
+      gap: 18px;
+    }
+
+    .attachment-demo {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
+      gap: 18px;
+      min-height: 0;
+      align-items: stretch;
+    }
+
+    .attachment-browser {
+      position: relative;
+      min-height: 440px;
+      border-radius: 18px;
+      overflow: hidden;
+      background: #050a12;
+      color: #fff;
+      box-shadow: 0 22px 46px rgba(16, 25, 35, 0.22);
+      border: 1px solid rgba(232, 238, 249, 0.16);
+    }
+
+    .attachment-topbar {
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      background: rgba(255, 255, 255, 0.06);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.78);
+      font-size: 13px;
+    }
+
+    .attachment-topbar b {
+      color: #fff;
+      font-size: 15px;
+    }
+
+    .attachment-page {
+      position: relative;
+      height: calc(100% - 48px);
+      padding: 26px 26px 34px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 18px;
+      overflow: hidden;
+    }
+
+    .attachment-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 14px;
+      position: relative;
+      z-index: 4;
+    }
+
+    .attachment-title-row h3 {
+      margin: 0;
+      color: #fff;
+      font: 900 28px/1.1 "DeckSans", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .overlay-launcher {
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: #062d34;
+      background: linear-gradient(135deg, #b9eeee, #ffc870);
+      font: 900 12px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+      box-shadow: 0 0 0 6px rgba(151, 214, 214, 0.15), 0 14px 28px rgba(0,0,0,0.26);
+      transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease;
+    }
+
+    .attachment-mini-carousel {
+      align-self: center;
+      position: relative;
+      border-radius: 14px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.04);
+      transform: translateY(6px);
+    }
+
+    .attachment-mini-carousel img {
+      width: 100%;
+      height: auto;
+      display: block;
+      filter: saturate(1.04) contrast(1.02);
+    }
+
+    .attachment-overlay {
+      position: absolute;
+      right: 24px;
+      top: 106px;
+      width: min(300px, 42%);
+      border-radius: 16px;
+      padding: 16px;
+      color: var(--ink);
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 24px 46px rgba(0,0,0,0.34);
+      border: 1px solid rgba(23, 111, 125, 0.22);
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+      pointer-events: none;
+      transition: opacity 240ms ease, transform 240ms ease;
+      z-index: 5;
+    }
+
+    .attachment-overlay h4 {
+      margin: 0 0 8px;
+      font-size: 18px;
+    }
+
+    .attachment-overlay div {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+
+    .attachment-overlay span {
+      border-radius: 9px;
+      padding: 8px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font: 900 11px/1.1 "DeckMono", monospace;
+      text-align: center;
+    }
+
+    .dom-wipe {
+      position: absolute;
+      inset: 48px 0 0;
+      background:
+        linear-gradient(90deg, rgba(5,10,18,0), rgba(255,255,255,0.18), rgba(5,10,18,0)),
+        rgba(5, 10, 18, 0.76);
+      opacity: 0;
+      transform: translateX(-100%);
+      pointer-events: none;
+      z-index: 6;
+    }
+
+    .reattach-ring {
+      position: absolute;
+      left: 222px;
+      top: 93px;
+      width: 42px;
+      height: 42px;
+      border-radius: 999px;
+      border: 3px solid var(--amber);
+      box-shadow: 0 0 0 12px rgba(255, 200, 112, 0.17);
+      opacity: 0;
+      pointer-events: none;
+      z-index: 7;
+    }
+
+    .attachment-demo[data-attach-step="open"] .attachment-overlay,
+    .attachment-demo[data-attach-step="observe"] .attachment-overlay,
+    .attachment-demo[data-attach-step="reinstall"] .attachment-overlay {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+
+    .attachment-demo[data-attach-step="navigate"] .overlay-launcher {
+      opacity: 0.22;
+      filter: grayscale(0.8);
+    }
+
+    .attachment-demo[data-attach-step="navigate"] .dom-wipe {
+      opacity: 1;
+      animation: domWipe 1.35s ease-in-out infinite;
+    }
+
+    .attachment-demo[data-attach-step="reinstall"] .overlay-launcher {
+      transform: translateY(-2px) scale(1.08);
+    }
+
+    .attachment-demo[data-attach-step="reinstall"] .reattach-ring {
+      opacity: 1;
+      animation: reattachPulse 1.2s ease-in-out infinite;
+    }
+
+    .attachment-panel {
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
+      min-height: 0;
+    }
+
+    .attachment-detail {
+      border-radius: 14px;
+      border: 1px solid rgba(23, 111, 125, 0.24);
+      background: linear-gradient(135deg, #fff, rgba(222, 241, 241, 0.72));
+      padding: 16px;
+      box-shadow: 0 12px 28px rgba(30,42,58,0.08);
+    }
+
+    .attachment-detail small {
+      display: inline-block;
+      margin-bottom: 8px;
+      border-radius: 999px;
+      padding: 6px 9px;
+      color: var(--teal);
+      background: var(--teal-soft);
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+    }
+
+    .attachment-detail h3 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      line-height: 1.1;
+    }
+
+    .attachment-detail p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.4;
+    }
+
+    .attachment-steps {
+      display: grid;
+      gap: 9px;
+    }
+
+    .attachment-step {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      background: #fff;
+      text-align: left;
+      cursor: pointer;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .attachment-step:hover,
+    .attachment-step:focus,
+    .attachment-step.is-active {
+      transform: translateX(4px);
+      border-color: rgba(23, 111, 125, 0.42);
+      background: linear-gradient(135deg, #fff, var(--teal-soft));
+      outline: none;
+    }
+
+    .attachment-step b {
+      display: block;
+      color: var(--teal);
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .attachment-step span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.3;
+    }
+
+    @keyframes domWipe {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    @keyframes reattachPulse {
+      0%, 100% { transform: scale(0.9); opacity: 0.42; }
+      50% { transform: scale(1.16); opacity: 1; }
+    }
+
     @keyframes carouselPulse {
       0%, 100% { opacity: 0.25; transform: scale(0.9); }
       50% { opacity: 0.85; transform: scale(1.12); }
@@ -1072,6 +1345,8 @@
       .concept-chip.is-active { transform: none; }
       .carousel-lab { grid-template-columns: 1fr; }
       .carousel-concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .attachment-demo { grid-template-columns: 1fr; }
+      .attachment-browser { min-height: 380px; }
       .flow { grid-template-columns: 1fr; }
       .flow-card::after { display: none; }
     }
@@ -1083,6 +1358,8 @@
       .context-slide .callout { display: none; }
       .carousel-concepts { grid-template-columns: 1fr; }
       .carousel-hotspot { width: 28px; height: 28px; font-size: 11px; }
+      .attachment-overlay { width: 72%; right: 14px; }
+      .attachment-title-row h3 { font-size: 22px; }
     }
   </style>
 </head>
@@ -1282,17 +1559,45 @@
             </div>
           </article>
 
-          <article class="slide" data-slide="6">
+          <article class="slide attachment-slide" data-slide="6">
             <header class="slide-header">
               <div class="eyebrow">Attachments</div>
-              <h2>The map can describe page additions, not just page operations.</h2>
-              <p class="lead">An attachment is a user-visible thing a runtime adds to the website, like a button beside a Linear issue title that reopens a review overlay.</p>
+              <h2>The map can keep useful buttons alive.</h2>
+              <p class="lead">For the carousel overlay, the runtime adds a Categories button beside Continue watching. If navigation rebuilds the page, the runtime watches for the carousel and installs the button again.</p>
             </header>
-            <div class="content-grid">
-              <div class="tile"><h3>Target</h3><p>Where should the attachment appear? For example, the target might be the main issue title, only when the URL and title match the intended page.</p></div>
-              <div class="tile"><h3>Affordance</h3><p>The visible thing: label, tooltip, placement, and what it opens or triggers.</p></div>
-              <div class="tile"><h3>Lifecycle</h3><p>When to install, remove, reattach, or report drift. This matters when a single-page app replaces DOM nodes.</p></div>
-              <div class="tile"><h3>Signals</h3><p>Events from the attachment, like “launcher opened” or “attachment drifted.”</p></div>
+            <div class="attachment-demo" data-attachment-demo data-attach-step="install">
+              <div class="attachment-browser">
+                <div class="attachment-topbar"><b>Prime Video</b><span data-attach-route>Home route</span></div>
+                <div class="attachment-page">
+                  <div class="attachment-title-row">
+                    <h3>Continue watching</h3>
+                    <button class="overlay-launcher" type="button">Categories</button>
+                  </div>
+                  <div class="attachment-mini-carousel">
+                    <img src="assets/prime-continue-watching-carousel.png?attachment=1" alt="Prime Video Continue Watching carousel used as an attachment example">
+                  </div>
+                  <div class="attachment-overlay" aria-hidden="true">
+                    <h4>Continue watching categories</h4>
+                    <div><span>Drama</span><span>Comedy</span><span>Documentary</span><span>Musical</span></div>
+                  </div>
+                  <div class="dom-wipe" aria-hidden="true"></div>
+                  <div class="reattach-ring" aria-hidden="true"></div>
+                </div>
+              </div>
+              <div class="attachment-panel">
+                <div class="attachment-detail" aria-live="polite">
+                  <small data-attach-kicker>target</small>
+                  <h3 data-attach-title>Find the carousel title</h3>
+                  <p data-attach-body>The attachment target is not a whole page. It is the visible Continue watching heading and its nearby title row.</p>
+                </div>
+                <div class="attachment-steps" aria-label="Attachment lifecycle steps">
+                  <button class="attachment-step is-active" type="button" data-attach-step="install"><b>Install launcher</b><span>Add the Categories button next to the carousel title.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="open"><b>Open overlay</b><span>The button reopens the saved categorization overlay.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="navigate"><b>Navigation changes DOM</b><span>Moving around the app may destroy that title row.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="observe"><b>Watch for return</b><span>URL, route, or DOM signals say the carousel is back.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="reinstall"><b>Reinstall if missing</b><span>If the launcher is gone, attach it again at the same target.</span></button>
+                </div>
+              </div>
             </div>
           </article>
 
@@ -1544,6 +1849,75 @@
       const nextStep = carouselOrder[(carouselIndex + 1) % carouselOrder.length];
       setCarouselStep(nextStep);
     }, 2400);
+
+    const attachmentStepDetails = {
+      install: {
+        kicker: "target",
+        title: "Find the carousel title",
+        body: "The attachment target is not a whole page. It is the visible Continue watching heading and its nearby title row.",
+        route: "Home route"
+      },
+      open: {
+        kicker: "affordance",
+        title: "Open the overlay",
+        body: "The launcher is a small visible affordance. Its job is to reopen the categorization overlay the agent prepared.",
+        route: "Overlay open"
+      },
+      navigate: {
+        kicker: "lifecycle",
+        title: "Navigation can erase it",
+        body: "Single-page apps often replace DOM nodes without a full page load. The button can disappear even though the user returns later.",
+        route: "Movies route"
+      },
+      observe: {
+        kicker: "signals",
+        title: "Watch for the carousel again",
+        body: "The runtime listens for route changes, DOM mutations, or title matches that prove Continue watching is visible again.",
+        route: "Home route detected"
+      },
+      reinstall: {
+        kicker: "maintenance",
+        title: "Reinstall if missing",
+        body: "When the target exists and the launcher is absent, the runtime puts the button back without needing a new agent command.",
+        route: "Launcher restored"
+      }
+    };
+    const attachmentOrder = Object.keys(attachmentStepDetails);
+    const attachmentDemo = document.querySelector("[data-attachment-demo]");
+    const attachmentControls = Array.from(document.querySelectorAll(".attachment-step[data-attach-step]"));
+    const attachmentKicker = document.querySelector("[data-attach-kicker]");
+    const attachmentTitle = document.querySelector("[data-attach-title]");
+    const attachmentBody = document.querySelector("[data-attach-body]");
+    const attachmentRoute = document.querySelector("[data-attach-route]");
+    let attachmentIndex = 0;
+
+    function setAttachmentStep(step) {
+      const details = attachmentStepDetails[step];
+      if (!details || !attachmentDemo) return;
+      attachmentIndex = attachmentOrder.indexOf(step);
+      attachmentDemo.dataset.attachStep = step;
+      attachmentControls.forEach((control) => {
+        control.classList.toggle("is-active", control.dataset.attachStep === step);
+      });
+      attachmentKicker.textContent = details.kicker;
+      attachmentTitle.textContent = details.title;
+      attachmentBody.textContent = details.body;
+      attachmentRoute.textContent = details.route;
+    }
+
+    attachmentControls.forEach((control) => {
+      const step = control.dataset.attachStep;
+      control.addEventListener("mouseenter", () => setAttachmentStep(step));
+      control.addEventListener("focus", () => setAttachmentStep(step));
+      control.addEventListener("click", () => setAttachmentStep(step));
+    });
+
+    window.setInterval(() => {
+      const activeSlide = slides[current];
+      if (!activeSlide || !activeSlide.classList.contains("attachment-slide")) return;
+      const nextStep = attachmentOrder[(attachmentIndex + 1) % attachmentOrder.length];
+      setAttachmentStep(nextStep);
+    }, 2800);
 
     document.addEventListener("keydown", (event) => {
       if (event.key === " " && event.target !== document.body && event.target !== document.documentElement) return;
