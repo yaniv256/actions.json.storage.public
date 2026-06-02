@@ -660,6 +660,7 @@
     .json-outline {
       min-height: 0; height: 100%; max-height: 470px; overflow: auto; border-radius: 14px;
       border: 1px solid rgba(22, 33, 44, 0.16); background: #101923;
+      overscroll-behavior: contain;
       box-shadow: 0 20px 42px rgba(16, 25, 35, 0.18); scroll-behavior: smooth; scrollbar-width: thin;
       scrollbar-color: rgba(232, 238, 249, 0.48) rgba(255,255,255,0.08);
     }
@@ -1823,7 +1824,30 @@
       .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
       .content-grid.three.context-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .concept-list { grid-template-columns: 1fr; }
-      .concept-list.root-concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .outline-demo {
+        grid-template-rows: auto minmax(280px, 1fr);
+        gap: 12px;
+      }
+      .concept-list.root-concepts {
+        display: flex;
+        gap: 8px;
+        min-height: 82px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 2px 2px 8px;
+        scroll-snap-type: x proximity;
+        scrollbar-width: thin;
+      }
+      .root-concepts .concept-chip {
+        flex: 0 0 min(220px, 62vw);
+        min-height: 68px;
+        scroll-snap-align: start;
+      }
+      .json-outline {
+        height: auto;
+        min-height: 300px;
+        max-height: 360px;
+      }
       .concept-chip:hover,
       .concept-chip:focus,
       .concept-chip.is-active { transform: none; }
@@ -1969,7 +1993,6 @@
 
     @media (max-width: 560px) {
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      .concept-list.root-concepts { grid-template-columns: 1fr; }
       .content-grid.three.context-grid { grid-template-columns: 1fr; }
       .context-grid .context-card { min-height: 104px; }
       .context-slide .callout { display: none; }
@@ -2509,7 +2532,11 @@
       document.querySelectorAll(".outline-section").forEach((section) => {
         section.classList.toggle("is-active", section === target);
       });
-      target.scrollIntoView({ block: "center", behavior: "smooth" });
+      const outline = target.closest(".json-outline");
+      if (!outline) return;
+      const targetTop = target.offsetTop - outline.offsetTop;
+      const centeredTop = targetTop - (outline.clientHeight - target.clientHeight) / 2;
+      outline.scrollTo({ top: Math.max(0, centeredTop), behavior: "smooth" });
     }
 
     outlineChips.forEach((chip) => {
