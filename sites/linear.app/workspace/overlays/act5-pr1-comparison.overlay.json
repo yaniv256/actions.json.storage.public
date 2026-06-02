@@ -5,7 +5,8 @@
   "html_artifact": "sites/linear.app/workspace/overlays/act5-pr1-comparison.html",
   "source_material": [
     "Linear ACT-5 design principles",
-    "actions.json.private PR #1 schema proposal"
+    "actions.json.private PR #1 schema proposal",
+    "Private Amazon Prime Video carousel action map and run log, generalized without item titles or URLs"
   ],
   "purpose": "Compare ACT-5's cartographic/state-machine schema principles with PR #1's RoomJinni-derived catalog proposal.",
   "visibility": {
@@ -18,6 +19,7 @@
   "key_findings": [
     "PR #1 is strong as a tool catalog and bridge vocabulary.",
     "ACT-5 requires stronger runtime cartography, state traversal, testability, composition, and protocol binding layers.",
+    "The Amazon carousel prototype showed that visible-card diagnostics, horizontal scroll transitions, rate limits, reveal semantics, result merging, and convergence conditions need structured schema support.",
     "The next schema iteration should add states, transitions, preconditions, reveals, imports, checks, contingencies, and Responses-style bindings without discarding PR #1."
   ],
   "created_by": "codex",

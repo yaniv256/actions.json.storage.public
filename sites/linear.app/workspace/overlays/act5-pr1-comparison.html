@@ -570,6 +570,7 @@
         </div>
         <nav class="nav" aria-label="Report sections">
           <a href="#sources">Sources</a>
+          <a href="#prototype-evidence">Prototype Evidence</a>
           <a href="#matrix">Comparison</a>
           <a href="#workflow">Workflow</a>
           <a href="#schema-deltas">Schema Deltas</a>
@@ -681,6 +682,52 @@
               <strong>Live-site testing</strong>
               <span>Validation rules exist, but no probes, drift checks, or contingency plans.</span>
             </div>
+          </div>
+        </section>
+
+        <section id="prototype-evidence" class="section">
+          <div class="section-intro">
+            <h2>Prototype evidence: Prime Video carousel</h2>
+            <p>
+              The Amazon Prime Video Continue Watching prototype is the clearest
+              evidence that PR #1 needs a state-machine layer. The private storage
+              record was reviewed for schema lessons only; this public report does
+              not publish the user's watched titles, detail URLs, or item index.
+            </p>
+          </div>
+          <div class="two-up">
+            <article class="panel">
+              <h3>What the prototype proved</h3>
+              <ul>
+                <li>The carousel was not a static list. It exposed a changing visible slice of cards.</li>
+                <li>The agent needed diagnostics for visible cards, stable detail URLs, cover URLs, and whether new cards appeared.</li>
+                <li>Cover image URLs were not all available up front; some appeared only after a card entered the active carousel state.</li>
+                <li>A failed left-side click strategy had to be corrected to horizontal scroll gestures.</li>
+                <li>Scroll transitions needed an explicit rate limit of at least one second between movements.</li>
+                <li>Completion required convergence: stop only after allowed scrolls no longer revealed new stable card identities.</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>What this means for PR #1</h3>
+              <ul>
+                <li><code>tools[]</code> can name <code>prime_video.continue_watching.collect</code>, but the tool catalog alone cannot explain when the action is complete.</li>
+                <li><code>source.selectors</code> can point to links and images, but selectors alone cannot model a scroll-revealed state.</li>
+                <li><code>x_actions.handler</code> can delegate execution, but reviewers still need inspectable diagnostics and transitions.</li>
+                <li><code>prompt.state_summary</code> is useful prose, but the runtime needs structured <code>states[]</code>, <code>transitions[]</code>, <code>preconditions</code>, <code>rate_limit_ms</code>, and <code>reveals</code>.</li>
+                <li>The storage run log became part of schema design: failed attempts, user corrections, extraction lessons, and convergence criteria all informed the next action map.</li>
+              </ul>
+            </article>
+          </div>
+          <div class="callout" style="margin-top: 18px;">
+            <strong>Schema consequence</strong>
+            <span>
+              PR #1 should remain the callable catalog layer, but the next revision
+              should add a live-surface operation layer: state detection, transition
+              methods, rate limits, reveal semantics, result merging, and stop
+              conditions. Without those fields, a future agent can know what action
+              exists but not how to operate the page until the desired collection is
+              actually complete.
+            </span>
           </div>
         </section>
 
