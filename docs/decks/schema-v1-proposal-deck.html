@@ -526,11 +526,21 @@
       gap: 12px; align-content: start; align-items: stretch;
     }
 
+    .concept-list.root-concepts {
+      gap: 8px;
+    }
+
     .concept-chip {
       min-width: 0; min-height: 98px; border: 1px solid var(--line); border-radius: 12px;
       padding: 13px; background: #fff; box-shadow: 0 10px 24px rgba(30, 42, 58, 0.07);
       box-sizing: border-box; text-align: left; color: var(--ink); display: grid; gap: 6px; align-content: start; cursor: pointer;
       transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .root-concepts .concept-chip {
+      min-height: 73px;
+      padding: 9px 10px;
+      gap: 4px;
     }
 
     .concept-chip:hover,
@@ -546,8 +556,18 @@
       padding: 6px 8px; border-radius: 7px; font-weight: 900;
     }
 
+    .root-concepts .concept-chip code {
+      padding: 5px 7px;
+      font-size: 13px;
+    }
+
     .concept-chip span {
       color: var(--muted); font-size: 13px; line-height: 1.35;
+    }
+
+    .root-concepts .concept-chip span {
+      font-size: 11.5px;
+      line-height: 1.25;
     }
 
     .json-outline {
@@ -872,12 +892,17 @@
       .stage-nav { top: 12px; right: 12px; }
       .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
       .concept-list { grid-template-columns: 1fr; }
+      .concept-list.root-concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .concept-chip:hover,
       .concept-chip:focus,
       .concept-chip.is-active { transform: none; }
       .carousel-concepts { grid-template-columns: 1fr; }
       .flow { grid-template-columns: 1fr; }
       .flow-card::after { display: none; }
+    }
+
+    @media (max-width: 560px) {
+      .concept-list.root-concepts { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -962,18 +987,24 @@
               <p class="lead">Each root field answers one plain question. You do not need to read every advanced section to understand a small map.</p>
             </header>
             <div class="outline-demo">
-              <div class="concept-list" aria-label="actions.json root concepts">
-                <button class="concept-chip is-active" type="button" data-outline-target="outline-surface"><code>surface</code><span>What website or page area are we talking about?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-imports"><code>imports</code><span>What other maps should be combined with this one?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-states"><code>states</code><span>What situations change which actions are available?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>Which tools move the page from one state to another?</span></button>
+              <div class="concept-list root-concepts" aria-label="actions.json root concepts">
+                <button class="concept-chip is-active" type="button" data-outline-target="outline-protocol"><code>protocol</code><span>What standard is this file using?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-version"><code>version</code><span>Which schema rules apply?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-surface"><code>surface</code><span>What website or page area are we talking about?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-imports"><code>imports</code><span>What other maps join this one?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-prompt"><code>prompt</code><span>What guidance should the agent receive?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-states"><code>states</code><span>Which situations change action availability?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>Which tools move state?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-tools"><code>tools</code><span>What actions may an agent call?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-signals"><code>signals</code><span>What page events may become structured context?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-attachments"><code>attachments</code><span>What visible page additions should the runtime install?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-checks"><code>checks</code><span>How do we test whether this map still matches the live site?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-signals"><code>signals</code><span>Which page events become context?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-attachments"><code>attachments</code><span>What page additions should install?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-checks"><code>checks</code><span>How do we test live-site fit?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-provenance"><code>provenance</code><span>Where did this map come from?</span></button>
               </div>
               <div class="json-outline" aria-label="actions.json outline">
-                <section class="outline-section is-active" id="outline-surface"><code>{ "surface": { ... } }</code><p><em>Surface</em> names the origin, page kind, and human-readable context for the map.</p></section>
+                <section class="outline-section is-active" id="outline-protocol"><code>{ "protocol": "actions.json" }</code><p><em>Protocol</em> tells the runtime which manifest standard this file follows.</p></section>
+                <section class="outline-section" id="outline-version"><code>{ "version": 1 }</code><p><em>Version</em> tells validators which schema rules to apply.</p></section>
+                <section class="outline-section" id="outline-surface"><code>{ "surface": { ... } }</code><p><em>Surface</em> names the origin, page kind, and human-readable context for the map.</p></section>
                 <section class="outline-section" id="outline-imports"><code>{ "imports": [ ... ] }</code><p><em>Imports</em> compose website, private, shared, and public maps under explicit trust rules.</p></section>
                 <section class="outline-section" id="outline-prompt"><code>{ "prompt": { ... } }</code><p><em>Prompt</em> gives the agent page-specific instructions without hiding authority.</p></section>
                 <section class="outline-section" id="outline-states"><code>{ "states": [ ... ] }</code><p><em>States</em> are named facts such as authorized, issue visible, carousel at end, or form ready.</p></section>
