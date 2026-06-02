@@ -946,11 +946,11 @@
               <p class="lead">The earlier draft described tools. This version expands that into a live map: places, conditions, routes, warnings, and repair checks.</p>
             </header>
             <div class="content-grid three">
-              <div class="tile term-tile" tabindex="0"><h3>Tools</h3><p>Things the agent may ask the website to do, like submit a form or open an overlay.</p><div class="info-bar"><span>Think of these as approved verbs: call only what the map declares.</span></div></div>
+              <div class="tile term-tile" tabindex="0"><h3>Tools</h3><p>Things the agent may ask the website to do, like submit a form or open an overlay.</p><div class="info-bar"><span>Think of these as approved verbs. Some tools are transition tools because they change page state.</span></div></div>
               <div class="tile term-tile" tabindex="0"><h3>Signals</h3><p>Things the page tells the agent, like “the user clicked this launcher.”</p><div class="info-bar"><span>These are page events turned into structured context, not free-form chat.</span></div></div>
               <div class="tile term-tile" tabindex="0"><h3>Checks</h3><p>Questions the runtime can ask: “Does this selector still exist?” “Is this the right page?”</p><div class="info-bar"><span>Checks catch drift before an action touches the wrong element.</span></div></div>
               <div class="tile term-tile" tabindex="0"><h3>States</h3><p>Named situations, like “carousel visible” or “form ready.”</p><div class="info-bar"><span>State names explain what is true before an action is available.</span></div></div>
-              <div class="tile term-tile" tabindex="0"><h3>Transitions</h3><p>Safe moves between states, like scrolling a carousel no faster than once per second.</p><div class="info-bar"><span>Transitions describe safe movement, including waits, limits, and stop rules.</span></div></div>
+              <div class="tile term-tile" tabindex="0"><h3>Transitions</h3><p>The state-changing effect of a tool, like scrolling a carousel no faster than once per second.</p><div class="info-bar"><span>The agent still calls a tool. The transition explains the before state, after state, limits, and stop rules.</span></div></div>
               <div class="tile term-tile" tabindex="0"><h3>Attachments</h3><p>Page additions, like a button that reopens an agent-created overlay.</p><div class="info-bar"><span>Attachments are visible add-ons that can be reinstalled after navigation.</span></div></div>
             </div>
           </article>
@@ -966,7 +966,7 @@
                 <button class="concept-chip is-active" type="button" data-outline-target="outline-surface"><code>surface</code><span>What website or page area are we talking about?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-imports"><code>imports</code><span>What other maps should be combined with this one?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-states"><code>states</code><span>What situations change which actions are available?</span></button>
-                <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>How can the page move from one state to another?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>Which tools move the page from one state to another?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-tools"><code>tools</code><span>What actions may an agent call?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-signals"><code>signals</code><span>What page events may become structured context?</span></button>
                 <button class="concept-chip" type="button" data-outline-target="outline-attachments"><code>attachments</code><span>What visible page additions should the runtime install?</span></button>
@@ -977,7 +977,7 @@
                 <section class="outline-section" id="outline-imports"><code>{ "imports": [ ... ] }</code><p><em>Imports</em> compose website, private, shared, and public maps under explicit trust rules.</p></section>
                 <section class="outline-section" id="outline-prompt"><code>{ "prompt": { ... } }</code><p><em>Prompt</em> gives the agent page-specific instructions without hiding authority.</p></section>
                 <section class="outline-section" id="outline-states"><code>{ "states": [ ... ] }</code><p><em>States</em> are named facts such as authorized, issue visible, carousel at end, or form ready.</p></section>
-                <section class="outline-section" id="outline-transitions"><code>{ "transitions": [ ... ] }</code><p><em>Transitions</em> describe movement between states, including waits, rate limits, and stop conditions.</p></section>
+                <section class="outline-section" id="outline-transitions"><code>{ "transitions": [ ... ] }</code><p><em>Transitions</em> index the state changes that tools cause, including waits, rate limits, and stop conditions.</p></section>
                 <section class="outline-section" id="outline-tools"><code>{ "tools": [ ... ] }</code><p><em>Tools</em> are declared calls the agent may ask the runtime to execute.</p></section>
                 <section class="outline-section" id="outline-signals"><code>{ "signals": [ ... ] }</code><p><em>Signals</em> are page-originated events that can become structured agent context.</p></section>
                 <section class="outline-section" id="outline-attachments"><code>{ "attachments": [ ... ] }</code><p><em>Attachments</em> describe runtime-installed UI, like overlay launchers that reattach after navigation.</p></section>
@@ -1026,14 +1026,14 @@
               <div class="carousel-shot">
                 <img src="assets/prime-continue-watching-carousel.png" alt="Prime Video Continue Watching carousel showing visible cards">
                 <div class="carousel-note state">Visible state<small>Four cards are currently observable.</small></div>
-                <div class="carousel-note transition">Scroll transition<small>Move right no faster than once per second.</small></div>
+                <div class="carousel-note transition">Scroll tool<small>Move right no faster than once per second.</small></div>
                 <div class="carousel-note progress">Progress evidence<small>Bars mark watch progress.</small></div>
                 <div class="carousel-arrow" aria-hidden="true"></div>
               </div>
               <div class="carousel-concepts">
                 <div class="carousel-concept"><b>Loaded</b><span>The carousel exists and the user authorized the tab.</span></div>
                 <div class="carousel-concept"><b>Diagnose</b><span>Read visible cards and current scroll position.</span></div>
-                <div class="carousel-concept"><b>Transition</b><span>Scroll right once, then wait for new cards.</span></div>
+                <div class="carousel-concept"><b>Transition tool</b><span>Call the scroll tool once, then wait for new cards.</span></div>
                 <div class="carousel-concept"><b>Observe</b><span>Merge newly visible titles and covers into storage.</span></div>
                 <div class="carousel-concept"><b>Converge</b><span>Stop when scrolling reveals no unseen cards.</span></div>
               </div>
