@@ -523,13 +523,13 @@
 
     .concept-list {
       min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px; align-content: start;
+      gap: 12px; align-content: start; align-items: stretch;
     }
 
     .concept-chip {
       min-width: 0; min-height: 98px; border: 1px solid var(--line); border-radius: 12px;
       padding: 13px; background: #fff; box-shadow: 0 10px 24px rgba(30, 42, 58, 0.07);
-      text-align: left; color: var(--ink); display: grid; gap: 6px; cursor: pointer;
+      box-sizing: border-box; text-align: left; color: var(--ink); display: grid; gap: 6px; align-content: start; cursor: pointer;
       transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
     }
 
@@ -871,6 +871,10 @@
       .stage-wrap { height: 760px; }
       .stage-nav { top: 12px; right: 12px; }
       .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
+      .concept-list { grid-template-columns: 1fr; }
+      .concept-chip:hover,
+      .concept-chip:focus,
+      .concept-chip.is-active { transform: none; }
       .carousel-concepts { grid-template-columns: 1fr; }
       .flow { grid-template-columns: 1fr; }
       .flow-card::after { display: none; }
@@ -1172,7 +1176,7 @@
       fromOne(".eyebrow", { y: 16, opacity: 0, duration: 0.36, ease: "power2.out" });
       fromOne("h2", { y: 34, opacity: 0, duration: 0.52, ease: "expo.out" }, "-=0.18");
       fromOne(".lead", { y: 20, opacity: 0, duration: 0.42, ease: "sine.out" }, "-=0.25");
-      fromMany(".tile, .schema-row, .concept-chip, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas", {
+      fromMany(".tile, .schema-row, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas", {
         y: 22,
         opacity: 0,
         scale: 0.985,
