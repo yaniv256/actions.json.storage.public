@@ -1092,13 +1092,15 @@
     .overlay-launcher {
       border: 0;
       border-radius: 999px;
+      max-width: 140px;
       padding: 10px 14px;
       color: #062d34;
       background: linear-gradient(135deg, #b9eeee, #ffc870);
       font: 900 12px/1 "DeckMono", monospace;
       text-transform: uppercase;
       box-shadow: 0 0 0 6px rgba(151, 214, 214, 0.15), 0 14px 28px rgba(0,0,0,0.26);
-      transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease;
+      overflow: hidden;
+      transition: transform 220ms ease, opacity 220ms ease, filter 220ms ease, max-width 220ms ease, padding 220ms ease;
     }
 
     .attachment-mini-carousel {
@@ -1170,8 +1172,8 @@
 
     .reattach-ring {
       position: absolute;
-      left: 222px;
-      top: 93px;
+      left: 314px;
+      top: 74px;
       width: 42px;
       height: 42px;
       border-radius: 999px;
@@ -1286,9 +1288,254 @@
       line-height: 1.3;
     }
 
+    .attachment-page {
+      grid-template-rows: minmax(0, 1fr);
+      padding: 0;
+    }
+
+    .attach-home-page,
+    .attach-movie-page {
+      position: absolute;
+      inset: 0;
+      padding: 24px 26px 30px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 16px;
+      opacity: 0;
+      transform: translateX(18px);
+      pointer-events: none;
+      transition: opacity 240ms ease, transform 240ms ease;
+    }
+
+    .attachment-demo:not([data-attach-step="navigate"]) .attach-home-page {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .attachment-demo[data-attach-step="navigate"] .attach-movie-page {
+      opacity: 1;
+      transform: translateX(0);
+      pointer-events: auto;
+    }
+
+    .attachment-demo[data-attach-step="missing"] .overlay-launcher,
+    .attachment-demo[data-attach-step="observe"] .overlay-launcher,
+    .attachment-demo[data-attach-step="navigate"] .overlay-launcher {
+      opacity: 0;
+      transform: translateX(-10px) scale(0.9);
+      max-width: 0;
+      padding-left: 0;
+      padding-right: 0;
+      pointer-events: none;
+    }
+
+    .attachment-demo[data-attach-step="install"] .overlay-launcher,
+    .attachment-demo[data-attach-step="reinstall"] .overlay-launcher {
+      animation: launcherInstall 1.1s ease-in-out infinite alternate;
+    }
+
+    .attach-note {
+      position: absolute;
+      left: 28px;
+      bottom: 18px;
+      max-width: 420px;
+      border-radius: 12px;
+      padding: 11px 13px;
+      color: #062d34;
+      background: rgba(231, 243, 242, 0.96);
+      border: 1px solid rgba(151, 214, 214, 0.46);
+      box-shadow: 0 14px 28px rgba(0,0,0,0.2);
+      font: 850 13px/1.25 "DeckSans", sans-serif;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 180ms ease, transform 180ms ease;
+      z-index: 8;
+    }
+
+    .attach-note b {
+      display: block;
+      margin-bottom: 3px;
+      color: var(--teal);
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+    }
+
+    .attachment-demo[data-attach-step="missing"] [data-attach-note="missing"],
+    .attachment-demo[data-attach-step="install"] [data-attach-note="install"],
+    .attachment-demo[data-attach-step="open"] [data-attach-note="open"],
+    .attachment-demo[data-attach-step="navigate"] [data-attach-note="navigate"],
+    .attachment-demo[data-attach-step="observe"] [data-attach-note="observe"],
+    .attachment-demo[data-attach-step="reinstall"] [data-attach-note="reinstall"] {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .launcher-arrow {
+      position: absolute;
+      left: 292px;
+      top: 78px;
+      width: 92px;
+      height: 34px;
+      border-top: 4px solid var(--amber);
+      border-right: 4px solid var(--amber);
+      border-radius: 0 16px 0 0;
+      opacity: 0;
+      z-index: 8;
+      pointer-events: none;
+    }
+
+    .launcher-arrow::after {
+      content: "";
+      position: absolute;
+      right: -7px;
+      top: 24px;
+      width: 13px;
+      height: 13px;
+      border-right: 4px solid var(--amber);
+      border-bottom: 4px solid var(--amber);
+      transform: rotate(45deg);
+    }
+
+    .attachment-demo[data-attach-step="install"] .launcher-arrow,
+    .attachment-demo[data-attach-step="reinstall"] .launcher-arrow {
+      opacity: 1;
+      animation: launcherArrow 1.05s ease-in-out infinite alternate;
+    }
+
+    .attachment-overlay {
+      right: 18px;
+      top: 66px;
+      width: min(590px, 70%);
+      padding: 14px;
+      max-height: 342px;
+      overflow: hidden;
+    }
+
+    .attachment-overlay h4 {
+      margin-bottom: 10px;
+    }
+
+    .overlay-categories {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .attachment-overlay .overlay-section {
+      display: grid;
+      gap: 7px;
+    }
+
+    .overlay-section strong {
+      color: var(--teal);
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+    }
+
+    .attachment-overlay .overlay-card-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+    }
+
+    .overlay-card {
+      min-width: 0;
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 8px;
+      align-items: center;
+      border-radius: 10px;
+      padding: 6px;
+      background: rgba(231, 243, 242, 0.7);
+      border: 1px solid rgba(23, 111, 125, 0.14);
+    }
+
+    .overlay-card img {
+      width: 58px;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      border-radius: 6px;
+    }
+
+    .overlay-card span {
+      padding: 0;
+      background: transparent;
+      color: var(--ink);
+      font: 850 11px/1.16 "DeckSans", sans-serif;
+      text-align: left;
+    }
+
+    .movie-hero {
+      position: relative;
+      height: 100%;
+      min-height: 0;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #050a12;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .movie-hero img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      display: block;
+    }
+
+    .movie-hero::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(5,10,18,0.05), rgba(5,10,18,0.18));
+      pointer-events: none;
+    }
+
+    .movie-page-note {
+      position: absolute;
+      right: 22px;
+      bottom: 22px;
+      z-index: 2;
+      max-width: 360px;
+      border-radius: 13px;
+      padding: 12px 14px;
+      color: #062d34;
+      background: rgba(255, 200, 112, 0.94);
+      box-shadow: 0 16px 32px rgba(0,0,0,0.3);
+      font: 850 13px/1.28 "DeckSans", sans-serif;
+    }
+
+    .movie-page-note b {
+      display: block;
+      margin-bottom: 4px;
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+    }
+
+    .attachment-demo[data-attach-step="navigate"] .dom-wipe {
+      display: none;
+    }
+
+    .attachment-demo[data-attach-step="observe"] .attachment-overlay,
+    .attachment-demo[data-attach-step="reinstall"] .attachment-overlay {
+      opacity: 0;
+      transform: translateY(12px) scale(0.98);
+    }
+
     @keyframes domWipe {
       0% { transform: translateX(-100%); }
       100% { transform: translateX(100%); }
+    }
+
+    @keyframes launcherInstall {
+      0% { transform: translateX(-5px) scale(0.98); }
+      100% { transform: translateX(0) scale(1.06); }
+    }
+
+    @keyframes launcherArrow {
+      0% { transform: translateX(-8px); }
+      100% { transform: translateX(8px); }
     }
 
     @keyframes reattachPulse {
@@ -1724,36 +1971,74 @@
               <h2>The map can keep useful buttons alive.</h2>
               <p class="lead">For the carousel overlay, the runtime adds a Categories button beside Continue watching. If navigation rebuilds the page, the runtime watches for the carousel and installs the button again.</p>
             </header>
-            <div class="attachment-demo" data-attachment-demo data-attach-step="install">
+            <div class="attachment-demo" data-attachment-demo data-attach-step="missing">
               <div class="attachment-browser">
                 <div class="attachment-topbar"><b>Prime Video</b><span data-attach-route>Home route</span></div>
                 <div class="attachment-page">
-                  <div class="attachment-title-row">
-                    <h3>Continue watching</h3>
-                    <button class="overlay-launcher" type="button">Categories</button>
+                  <div class="attach-home-page">
+                    <div class="attachment-title-row">
+                      <h3>Continue watching</h3>
+                      <button class="overlay-launcher" type="button">Categories</button>
+                    </div>
+                    <div class="attachment-mini-carousel">
+                      <img src="assets/prime-continue-watching-carousel.png?attachment=1" alt="Prime Video Continue Watching carousel used as an attachment example">
+                    </div>
                   </div>
-                  <div class="attachment-mini-carousel">
-                    <img src="assets/prime-continue-watching-carousel.png?attachment=1" alt="Prime Video Continue Watching carousel used as an attachment example">
+                  <div class="attach-movie-page">
+                    <div class="movie-hero">
+                      <img src="assets/prime-a-complete-unknown-page.png" alt="Prime Video movie detail page for A Complete Unknown">
+                      <div class="movie-page-note"><b>Different page</b>The carousel title row is gone, so the Categories launcher has nowhere to attach.</div>
+                    </div>
                   </div>
                   <div class="attachment-overlay" aria-hidden="true">
                     <h4>Continue watching categories</h4>
-                    <div><span>Drama</span><span>Comedy</span><span>Documentary</span><span>Musical</span></div>
+                    <div class="overlay-categories">
+                      <div class="overlay-section">
+                        <strong>Nature & Wildlife</strong>
+                        <div class="overlay-card-row">
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/01-planet-earth-mammals.jpg?overlay=1" alt="Planet Earth: Mammals cover"><span>Planet Earth: Mammals</span></div>
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/08-frozen-planet-ii.jpg?overlay=1" alt="Frozen Planet II cover"><span>Frozen Planet II</span></div>
+                        </div>
+                      </div>
+                      <div class="overlay-section">
+                        <strong>Arts, Music & Stage</strong>
+                        <div class="overlay-card-row">
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/02-oklahoma.png?overlay=1" alt="Oklahoma! cover"><span>Oklahoma!</span></div>
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/05-great-performances-now-hear-this.jpg?overlay=1" alt="Great Performances cover"><span>Great Performances</span></div>
+                        </div>
+                      </div>
+                      <div class="overlay-section">
+                        <strong>Film & Sci-Fi</strong>
+                        <div class="overlay-card-row">
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/03-a-complete-unknown.jpg?overlay=1" alt="A Complete Unknown cover"><span>A Complete Unknown</span></div>
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/06-westworld.jpg?overlay=1" alt="Westworld cover"><span>Westworld</span></div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                   <div class="dom-wipe" aria-hidden="true"></div>
                   <div class="reattach-ring" aria-hidden="true"></div>
+                  <div class="launcher-arrow" aria-hidden="true"></div>
+                  <div class="attach-note" data-attach-note="missing"><b>Notice</b>The carousel is visible, but there is no Categories launcher yet.</div>
+                  <div class="attach-note" data-attach-note="install"><b>Install</b>The runtime inserts a small button at the carousel title row.</div>
+                  <div class="attach-note" data-attach-note="open"><b>Overlay</b>The button opens a useful categorization overlay with real linkable cards.</div>
+                  <div class="attach-note" data-attach-note="navigate"><b>Navigate</b>The user opens A Complete Unknown. This is a different page; the carousel DOM is gone.</div>
+                  <div class="attach-note" data-attach-note="observe"><b>Return</b>The carousel is back, but the injected launcher is missing again.</div>
+                  <div class="attach-note" data-attach-note="reinstall"><b>Repair</b>The runtime sees the target again and reinstalls the launcher.</div>
                 </div>
               </div>
               <div class="attachment-panel">
                 <div class="attachment-detail" aria-live="polite">
-                  <small data-attach-kicker>target</small>
-                  <h3 data-attach-title>Find the carousel title</h3>
-                  <p data-attach-body>The attachment target is not a whole page. It is the visible Continue watching heading and its nearby title row.</p>
+                  <small data-attach-kicker>before</small>
+                  <h3 data-attach-title>No launcher yet</h3>
+                  <p data-attach-body>The carousel is visible, but the page has no durable way to reopen the categorization overlay.</p>
                 </div>
                 <div class="attachment-steps" aria-label="Attachment lifecycle steps">
-                  <button class="attachment-step is-active" type="button" data-attach-step="install"><b>Install launcher</b><span>Add the Categories button next to the carousel title.</span></button>
+                  <button class="attachment-step is-active" type="button" data-attach-step="missing"><b>No launcher yet</b><span>The carousel is visible but the Categories button is absent.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="install"><b>Install launcher</b><span>Add the Categories button next to the carousel title.</span></button>
                   <button class="attachment-step" type="button" data-attach-step="open"><b>Open overlay</b><span>The button reopens the saved categorization overlay.</span></button>
-                  <button class="attachment-step" type="button" data-attach-step="navigate"><b>Navigation changes DOM</b><span>Moving around the app may destroy that title row.</span></button>
-                  <button class="attachment-step" type="button" data-attach-step="observe"><b>Watch for return</b><span>URL, route, or DOM signals say the carousel is back.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="navigate"><b>Navigate to a movie</b><span>Open A Complete Unknown; the carousel DOM is gone.</span></button>
+                  <button class="attachment-step" type="button" data-attach-step="observe"><b>Watch for return</b><span>The carousel returns, but the injected launcher is absent.</span></button>
                   <button class="attachment-step" type="button" data-attach-step="reinstall"><b>Reinstall if missing</b><span>If the launcher is gone, attach it again at the same target.</span></button>
                 </div>
               </div>
@@ -2010,28 +2295,34 @@
     });
 
     const attachmentStepDetails = {
-      install: {
-        kicker: "target",
-        title: "Find the carousel title",
-        body: "The attachment target is not a whole page. It is the visible Continue watching heading and its nearby title row.",
+      missing: {
+        kicker: "before",
+        title: "No launcher yet",
+        body: "The carousel is visible, but the page has no durable way to reopen the categorization overlay.",
         route: "Home route"
+      },
+      install: {
+        kicker: "install",
+        title: "Attach the launcher",
+        body: "The runtime finds the Continue watching title row and inserts a small Categories button beside it.",
+        route: "Launcher inserted"
       },
       open: {
         kicker: "affordance",
         title: "Open the overlay",
-        body: "The launcher is a small visible affordance. Its job is to reopen the categorization overlay the agent prepared.",
+        body: "The launcher opens the categorized overlay, with real cards grouped by theme instead of a flat carousel.",
         route: "Overlay open"
       },
       navigate: {
         kicker: "lifecycle",
-        title: "Navigation can erase it",
-        body: "Single-page apps often replace DOM nodes without a full page load. The button can disappear even though the user returns later.",
-        route: "Movies route"
+        title: "Navigate to a movie",
+        body: "Opening A Complete Unknown replaces the carousel surface with a movie detail page, so the attachment target is gone.",
+        route: "Movie detail route"
       },
       observe: {
         kicker: "signals",
-        title: "Watch for the carousel again",
-        body: "The runtime listens for route changes, DOM mutations, or title matches that prove Continue watching is visible again.",
+        title: "Watch for return",
+        body: "The user returns to the carousel page. The title row exists again, but the injected launcher is missing.",
         route: "Home route detected"
       },
       reinstall: {
@@ -2070,13 +2361,6 @@
       control.addEventListener("focus", () => setAttachmentStep(step));
       control.addEventListener("click", () => setAttachmentStep(step));
     });
-
-    window.setInterval(() => {
-      const activeSlide = slides[current];
-      if (!activeSlide || !activeSlide.classList.contains("attachment-slide")) return;
-      const nextStep = attachmentOrder[(attachmentIndex + 1) % attachmentOrder.length];
-      setAttachmentStep(nextStep);
-    }, 2800);
 
     document.addEventListener("keydown", (event) => {
       if (event.key === " " && event.target !== document.body && event.target !== document.documentElement) return;
