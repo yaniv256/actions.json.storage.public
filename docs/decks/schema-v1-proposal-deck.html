@@ -661,20 +661,29 @@
     .flow-card span { color: var(--muted); font-size: 13px; line-height: 1.35; }
 
     .state-slide.active {
-      gap: 18px;
+      gap: 14px;
+    }
+
+    .state-slide h2 {
+      font-size: clamp(40px, 4.6vw, 68px);
+    }
+
+    .state-slide .lead {
+      max-width: 920px;
+      font-size: clamp(18px, 1.8vw, 23px);
     }
 
     .carousel-demo {
       min-height: 0;
       display: grid;
       grid-template-rows: auto auto;
-      gap: 12px;
+      gap: 10px;
       isolation: isolate;
     }
 
     .carousel-shot {
       position: relative;
-      aspect-ratio: 1881 / 466;
+      height: min(292px, 40vh);
       min-height: 0;
       overflow: hidden;
       border-radius: 14px;
@@ -683,18 +692,142 @@
       box-shadow: 0 20px 42px rgba(16, 25, 35, 0.18);
     }
 
-    .carousel-shot img {
+    .carousel-stage-head {
+      position: relative;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 28px 6px;
+      color: #fff;
+    }
+
+    .carousel-stage-head h3 {
+      margin: 0;
+      color: #fff;
+      font: 900 24px/1.1 "DeckSans", sans-serif;
+      letter-spacing: 0;
+    }
+
+    .carousel-status {
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.82);
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+    }
+
+    .carousel-viewport {
+      position: absolute;
+      left: 28px;
+      right: 28px;
+      bottom: 34px;
+      height: 64%;
+      overflow: hidden;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+
+    .carousel-track {
+      height: 100%;
+      display: flex;
+      gap: 18px;
+      transform: translateX(var(--track-x, 0%));
+      transition: transform 680ms cubic-bezier(.2,.8,.2,1);
+      will-change: transform;
+    }
+
+    .carousel-card {
+      position: relative;
+      flex: 0 0 26%;
+      min-width: 0;
+      overflow: hidden;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.28);
+    }
+
+    .carousel-card img {
       width: 100%;
       height: 100%;
-      object-fit: contain;
+      object-fit: cover;
       display: block;
       transition: transform 420ms ease, filter 420ms ease;
     }
 
-    .carousel-demo[data-step="diagnose"] .carousel-shot img,
-    .carousel-demo[data-step="observe"] .carousel-shot img {
+    .carousel-card::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0;
+      height: 42%;
+      background: linear-gradient(transparent, rgba(0,0,0,0.78));
+    }
+
+    .carousel-card b {
+      position: absolute;
+      left: 12px;
+      right: 12px;
+      bottom: 30px;
+      z-index: 1;
+      color: #fff;
+      font-size: 13px;
+      line-height: 1.15;
+    }
+
+    .carousel-card span {
+      position: absolute;
+      left: 12px;
+      bottom: 12px;
+      z-index: 1;
+      width: 42%;
+      height: 4px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #fff 68%, rgba(255,255,255,0.28) 68%);
+    }
+
+    .carousel-demo[data-step="diagnose"] .carousel-card:nth-child(-n+4) img,
+    .carousel-demo[data-step="observe"] .carousel-card:nth-child(n+5):nth-child(-n+8) img {
       transform: scale(1.025);
       filter: saturate(1.08) contrast(1.04);
+    }
+
+    .carousel-demo[data-step="loaded"],
+    .carousel-demo[data-step="diagnose"] {
+      --track-x: 0%;
+    }
+
+    .carousel-demo[data-step="observe"] {
+      --track-x: -27%;
+    }
+
+    .carousel-demo[data-step="converge"] {
+      --track-x: -53%;
+    }
+
+    .carousel-demo[data-step="transition"] .carousel-track {
+      animation: carouselTrackScroll 1.55s ease-in-out infinite alternate;
+    }
+
+    .carousel-end-badge {
+      position: absolute;
+      right: 24px;
+      bottom: 18px;
+      z-index: 2;
+      border-radius: 999px;
+      padding: 8px 12px;
+      color: #062d34;
+      background: linear-gradient(135deg, #b9eeee, #ffc870);
+      font: 900 11px/1 "DeckMono", monospace;
+      text-transform: uppercase;
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 220ms ease, transform 220ms ease;
+    }
+
+    .carousel-demo[data-step="converge"] .carousel-end-badge {
+      opacity: 1;
+      transform: translateY(0);
     }
 
     .carousel-hotspot {
@@ -732,7 +865,7 @@
       outline: none;
     }
 
-    .carousel-hotspot.loaded { left: 7%; top: 26%; }
+    .carousel-hotspot.loaded { left: 5%; top: 42%; }
     .carousel-hotspot.diagnose { left: 23%; bottom: 10%; }
     .carousel-hotspot.transition { right: 14%; top: 44%; }
     .carousel-hotspot.observe { right: 31%; bottom: 11%; }
@@ -856,7 +989,7 @@
     .carousel-concept {
       min-width: 0;
       border-radius: 12px;
-      padding: 12px;
+      padding: 10px;
       background: #fff;
       border: 1px solid var(--line);
       box-shadow: 0 10px 24px rgba(30, 42, 58, 0.07);
@@ -878,14 +1011,14 @@
       display: block;
       margin-bottom: 5px;
       color: var(--teal);
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.1;
     }
 
     .carousel-concept span {
       display: block;
       color: var(--muted);
-      font-size: 12px;
+      font-size: 11.5px;
       line-height: 1.32;
     }
 
@@ -1170,6 +1303,11 @@
     @keyframes carouselScan {
       0% { transform: translateX(-22%); }
       100% { transform: translateX(22%); }
+    }
+
+    @keyframes carouselTrackScroll {
+      0% { transform: translateX(-8%); }
+      100% { transform: translateX(-27%); }
     }
 
     @keyframes carouselArrow {
@@ -1528,11 +1666,30 @@
             <header class="slide-header">
               <div class="eyebrow">States and transitions</div>
               <h2>Some websites are not sitting still.</h2>
-              <p class="lead">The Prime Video carousel makes this concrete: the runtime has to know what is visible, scroll carefully, merge newly revealed cards, and stop.</p>
+              <p class="lead">Take the Continue watching carousel on Prime Video as an example: the runtime has to know what is visible, scroll carefully, merge newly revealed cards, and stop at the edge.</p>
             </header>
             <div class="carousel-demo" data-carousel-demo data-step="loaded">
               <div class="carousel-shot">
-                <img src="assets/prime-continue-watching-carousel.png" alt="Prime Video Continue Watching carousel showing visible cards">
+                <div class="carousel-stage-head">
+                  <h3>Continue watching</h3>
+                  <span class="carousel-status" data-carousel-status>visible window</span>
+                </div>
+                <div class="carousel-viewport" aria-label="Animated Prime Video Continue Watching carousel">
+                  <div class="carousel-track">
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/01-planet-earth-mammals.jpg" alt="Planet Earth: Mammals cover"><b>Planet Earth: Mammals</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/03-a-complete-unknown.jpg" alt="A Complete Unknown cover"><b>A Complete Unknown</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/02-oklahoma.png" alt="Oklahoma! cover"><b>Oklahoma!</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/04-8.png" alt="8 1/2 cover"><b>8½</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/05-great-performances-now-hear-this.jpg" alt="Great Performances: Now Hear This cover"><b>Great Performances</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/06-westworld.jpg" alt="Westworld cover"><b>Westworld</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/07-nick-digiovanni.jpg" alt="Nick DiGiovanni cover"><b>Nick DiGiovanni</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/08-frozen-planet-ii.jpg" alt="Frozen Planet II cover"><b>Frozen Planet II</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/09-american-girl-school-rules.jpg" alt="American Girl: School Rules! cover"><b>American Girl</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/10-art-s-wildest-movement-mannerism.jpg" alt="Art's Wildest Movement: Mannerism cover"><b>Art's Wildest Movement</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/11-planet-earth-iii.jpg" alt="Planet Earth III cover"><b>Planet Earth III</b><span></span></div>
+                    <div class="carousel-card"><img src="assets/prime-carousel-covers/12-fallout.png" alt="Fallout cover"><b>Fallout</b><span></span></div>
+                  </div>
+                </div>
                 <button class="carousel-hotspot loaded is-active" type="button" data-carousel-step="loaded" aria-label="Show loaded state"><span>1</span></button>
                 <button class="carousel-hotspot diagnose" type="button" data-carousel-step="diagnose" aria-label="Show diagnose step"><span>2</span></button>
                 <button class="carousel-hotspot transition" type="button" data-carousel-step="transition" aria-label="Show transition edge"><span>3</span></button>
@@ -1540,6 +1697,7 @@
                 <button class="carousel-hotspot converge" type="button" data-carousel-step="converge" aria-label="Show convergence step"><span>5</span></button>
                 <div class="carousel-scan-line" aria-hidden="true"></div>
                 <div class="carousel-scroll-path" aria-hidden="true"></div>
+                <div class="carousel-end-badge" aria-hidden="true">edge detected</div>
               </div>
               <div class="carousel-lab">
                 <div class="carousel-detail" aria-live="polite">
@@ -1786,31 +1944,36 @@
         kicker: "state",
         title: "Loaded",
         body: "The carousel exists, the tab is authorized, and visible cards can be inspected.",
-        code: "state: continue_watching_visible"
+        code: "state: continue_watching_visible",
+        status: "visible window"
       },
       diagnose: {
         kicker: "diagnostic",
         title: "Diagnose visible cards",
         body: "Read titles, covers, progress bars, and the current scroll position before moving.",
-        code: "check: visible_cards + scroll_position"
+        code: "check: visible_cards + scroll_position",
+        status: "reading visible cards"
       },
       transition: {
         kicker: "transition edge",
         title: "Scroll carefully",
         body: "The transition names the scroll tool, its target, and the one-per-second rate limit.",
-        code: "tool: continue_watching.scroll_right"
+        code: "tool: continue_watching.scroll_right",
+        status: "scrolling right"
       },
       observe: {
         kicker: "observation",
         title: "Merge new evidence",
         body: "Collect newly revealed titles and covers into storage without duplicating known detail links.",
-        code: "store: visible_detail_urls"
+        code: "store: visible_detail_urls",
+        status: "new cards revealed"
       },
       converge: {
         kicker: "stop rule",
         title: "Stop on no new cards",
         body: "When scrolling reveals no unseen cards, the traversal has reached a terminal state.",
-        code: "complete_when: no_new_detail_urls"
+        code: "complete_when: no_new_detail_urls",
+        status: "edge detected"
       }
     };
     const carouselOrder = Object.keys(carouselStepDetails);
@@ -1820,6 +1983,7 @@
     const carouselTitle = document.querySelector("[data-carousel-title]");
     const carouselBody = document.querySelector("[data-carousel-body]");
     const carouselCode = document.querySelector("[data-carousel-code]");
+    const carouselStatus = document.querySelector("[data-carousel-status]");
     let carouselIndex = 0;
 
     function setCarouselStep(step) {
@@ -1834,6 +1998,7 @@
       carouselTitle.textContent = details.title;
       carouselBody.textContent = details.body;
       carouselCode.textContent = details.code;
+      carouselStatus.textContent = details.status;
     }
 
     carouselControls.forEach((control) => {
@@ -1842,13 +2007,6 @@
       control.addEventListener("focus", () => setCarouselStep(step));
       control.addEventListener("click", () => setCarouselStep(step));
     });
-
-    window.setInterval(() => {
-      const activeSlide = slides[current];
-      if (!activeSlide || !activeSlide.classList.contains("state-slide")) return;
-      const nextStep = carouselOrder[(carouselIndex + 1) % carouselOrder.length];
-      setCarouselStep(nextStep);
-    }, 2400);
 
     const attachmentStepDetails = {
       install: {
