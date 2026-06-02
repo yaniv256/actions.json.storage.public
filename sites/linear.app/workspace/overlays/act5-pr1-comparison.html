@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ACT-5 x PR #1: actions.json Schema Comparison</title>
+    <style>
+      :root {
+        --bg: #f7f8fb;
+        --ink: #15171d;
+        --muted: #5d6372;
+        --subtle: #858c9b;
+        --line: #dce1ea;
+        --paper: #ffffff;
+        --paper-2: #f0f4f8;
+        --accent: #156c80;
+        --accent-2: #8a4a12;
+        --green: #24744a;
+        --yellow: #a36700;
+        --red: #b64040;
+        --blue-soft: #e6f5f8;
+        --amber-soft: #fff1dd;
+        --green-soft: #eaf7ef;
+        --red-soft: #fff0f0;
+        --shadow: 0 16px 40px rgba(27, 36, 52, 0.08);
+        --radius: 8px;
+        --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+        --sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        background:
+          linear-gradient(180deg, rgba(21, 108, 128, 0.08), transparent 320px),
+          var(--bg);
+        color: var(--ink);
+        font-family: var(--sans);
+        line-height: 1.55;
+      }
+
+      a {
+        color: inherit;
+      }
+
+      .shell {
+        width: 100%;
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 32px 24px 64px;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+        min-height: 48px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--muted);
+        font-weight: 700;
+      }
+
+      .mark {
+        width: 32px;
+        height: 32px;
+        border-radius: 7px;
+        background: conic-gradient(from 180deg, #156c80, #2a986d, #e3a72f, #156c80);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.55);
+      }
+
+      .nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+
+      .nav a {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 700;
+        padding: 8px 10px;
+        border-radius: 7px;
+        text-decoration: none;
+      }
+
+      .nav a:hover {
+        background: rgba(21, 108, 128, 0.08);
+        color: var(--accent);
+      }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+        gap: 36px;
+        align-items: end;
+        padding: 72px 0 44px;
+      }
+
+      h1,
+      h2,
+      h3 {
+        margin: 0;
+        letter-spacing: 0;
+      }
+
+      h1 {
+        max-width: 860px;
+        font-size: clamp(44px, 6vw, 82px);
+        line-height: 0.98;
+        font-weight: 780;
+      }
+
+      h2 {
+        font-size: clamp(28px, 4vw, 44px);
+        line-height: 1.08;
+        font-weight: 760;
+      }
+
+      h3 {
+        font-size: 18px;
+        line-height: 1.2;
+        font-weight: 760;
+      }
+
+      .lead {
+        margin: 26px 0 0;
+        max-width: 760px;
+        color: var(--muted);
+        font-size: 19px;
+      }
+
+      .hero-panel {
+        background: rgba(255, 255, 255, 0.76);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 18px;
+      }
+
+      .source-list {
+        display: grid;
+        gap: 10px;
+      }
+
+      .source-row {
+        display: grid;
+        grid-template-columns: 34px 1fr;
+        gap: 12px;
+        align-items: start;
+        padding: 12px;
+        border-radius: 7px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+      }
+
+      .source-index {
+        display: grid;
+        place-items: center;
+        height: 34px;
+        border-radius: 7px;
+        background: var(--blue-soft);
+        color: var(--accent);
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .source-row strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .source-row span {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .section {
+        padding: 44px 0;
+        border-top: 1px solid var(--line);
+      }
+
+      .section-intro {
+        display: grid;
+        grid-template-columns: minmax(260px, 0.42fr) minmax(0, 0.58fr);
+        gap: 32px;
+        margin-bottom: 24px;
+      }
+
+      .section-intro p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 16px;
+      }
+
+      .two-up {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .panel {
+        min-width: 0;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: 0 8px 24px rgba(27, 36, 52, 0.05);
+        padding: 22px;
+      }
+
+      .panel p {
+        color: var(--muted);
+      }
+
+      .panel p:last-child,
+      .panel ul:last-child,
+      .panel ol:last-child {
+        margin-bottom: 0;
+      }
+
+      .quiet {
+        color: var(--muted);
+      }
+
+      .callout {
+        background: var(--blue-soft);
+        border: 1px solid rgba(21, 108, 128, 0.18);
+        border-radius: var(--radius);
+        padding: 18px;
+      }
+
+      .callout strong {
+        color: var(--accent);
+      }
+
+      .score-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .score {
+        min-width: 0;
+        min-height: 132px;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+      }
+
+      .score .value {
+        margin-bottom: 12px;
+        font-size: 32px;
+        line-height: 1;
+        font-weight: 820;
+      }
+
+      .score .value.good {
+        color: var(--green);
+      }
+
+      .score .value.partial {
+        color: var(--yellow);
+      }
+
+      .score .value.gap {
+        color: var(--red);
+      }
+
+      .score strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .score span {
+        display: block;
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .matrix {
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+        box-shadow: var(--shadow);
+      }
+
+      .matrix-row {
+        display: grid;
+        grid-template-columns: 1.05fr 1fr 1fr 1.08fr;
+        border-top: 1px solid var(--line);
+      }
+
+      .matrix-row:first-child {
+        border-top: 0;
+      }
+
+      .matrix-head {
+        background: #18202c;
+        color: white;
+        font-size: 12px;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .matrix-cell {
+        min-width: 0;
+        padding: 16px;
+        border-left: 1px solid var(--line);
+      }
+
+      .matrix-head .matrix-cell {
+        border-color: rgba(255, 255, 255, 0.14);
+      }
+
+      .matrix-cell:first-child {
+        border-left: 0;
+      }
+
+      .matrix-cell p {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 22px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .tag.good {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .tag.partial {
+        background: var(--amber-soft);
+        color: var(--yellow);
+      }
+
+      .tag.gap {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .workflow {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        counter-reset: step;
+      }
+
+      .step {
+        position: relative;
+        min-width: 0;
+        min-height: 230px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+      }
+
+      .step::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        place-items: center;
+        width: 32px;
+        height: 32px;
+        margin-bottom: 16px;
+        border-radius: 7px;
+        background: #18202c;
+        color: white;
+        font-family: var(--mono);
+        font-size: 13px;
+        font-weight: 800;
+      }
+
+      .step p {
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .code-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      pre {
+        max-width: 100%;
+        overflow: auto;
+        margin: 16px 0 0;
+        padding: 16px;
+        border-radius: 7px;
+        background: #111821;
+        color: #e6edf3;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.55;
+      }
+
+      code {
+        font-family: var(--mono);
+      }
+
+      :not(pre) > code {
+        overflow-wrap: anywhere;
+      }
+
+      .recommendations {
+        display: grid;
+        gap: 12px;
+      }
+
+      .rec {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 16px;
+        align-items: start;
+        min-width: 0;
+        padding: 18px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--paper);
+      }
+
+      .rec strong {
+        color: var(--accent);
+      }
+
+      .rec p {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .footer {
+        padding-top: 30px;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      @media (max-width: 920px) {
+        .hero,
+        .section-intro,
+        .two-up,
+        .code-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .score-grid,
+        .workflow {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .matrix {
+          display: grid;
+          gap: 12px;
+          border: 0;
+          background: transparent;
+          box-shadow: none;
+        }
+
+        .matrix-row {
+          grid-template-columns: 1fr;
+          border: 1px solid var(--line);
+          border-radius: var(--radius);
+          overflow: hidden;
+          background: var(--paper);
+        }
+
+        .matrix-head {
+          display: none;
+        }
+
+        .matrix-cell {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+
+        .matrix-cell:first-child {
+          border-top: 0;
+        }
+
+        .matrix-cell::before {
+          display: block;
+          margin-bottom: 6px;
+          color: var(--subtle);
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+        }
+
+        .matrix-cell:nth-child(1)::before {
+          content: "ACT-5 principle";
+        }
+
+        .matrix-cell:nth-child(2)::before {
+          content: "PR #1 expression";
+        }
+
+        .matrix-cell:nth-child(3)::before {
+          content: "Fit";
+        }
+
+        .matrix-cell:nth-child(4)::before {
+          content: "Next move";
+        }
+      }
+
+      @media (max-width: 640px) {
+        .shell {
+          padding: 20px 16px 48px;
+        }
+
+        .topbar {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .nav {
+          justify-content: flex-start;
+        }
+
+        .hero {
+          padding-top: 48px;
+        }
+
+        .score-grid,
+        .workflow,
+        .rec {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark" aria-hidden="true"></div>
+          <span>actions.json schema review</span>
+        </div>
+        <nav class="nav" aria-label="Report sections">
+          <a href="#sources">Sources</a>
+          <a href="#matrix">Comparison</a>
+          <a href="#workflow">Workflow</a>
+          <a href="#schema-deltas">Schema Deltas</a>
+          <a href="#next">Next PR</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero">
+          <div>
+            <h1>Bringing ACT-5 and PR #1 into one schema path.</h1>
+            <p class="lead">
+              ACT-5 frames <code>actions.json</code> as a cartographic model of live DOM
+              capabilities. PR #1 proposes the first portable schema vocabulary. The next
+              step is to preserve PR #1's clean tool bridge while adding state traversal,
+              composition, live validation, and protocol-level clarity.
+            </p>
+          </div>
+          <aside class="hero-panel" aria-label="Source summary">
+            <div class="source-list">
+              <div class="source-row">
+                <div class="source-index">A</div>
+                <div>
+                  <strong>ACT-5: Design schema for action.json files</strong>
+                  <span>Principles from Linear: maps, state machines, composability, testability, Responses protocol.</span>
+                </div>
+              </div>
+              <div class="source-row">
+                <div class="source-index">P</div>
+                <div>
+                  <strong>PR #1: RoomJinni-derived schema v1 proposal</strong>
+                  <span>Concrete draft: <code>tools[]</code>, <code>signals[]</code>, <code>x_actions</code>, source hints, validation rules.</span>
+                </div>
+              </div>
+              <div class="source-row">
+                <div class="source-index">N</div>
+                <div>
+                  <strong>Recommended synthesis</strong>
+                  <span>Promote PR #1 into a layered schema: catalog, states, composition, tests, and protocol bindings.</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+        </section>
+
+        <section id="sources" class="section">
+          <div class="section-intro">
+            <h2>What each source contributes</h2>
+            <p>
+              The two sources operate at different altitudes. ACT-5 is a design brief and
+              philosophy of operation. PR #1 is an implementation-shaped schema draft.
+              The right workflow should not pick one over the other; it should use ACT-5
+              as evaluation criteria and PR #1 as the first executable grammar.
+            </p>
+          </div>
+          <div class="two-up">
+            <article class="panel">
+              <h3>ACT-5 contributes the design constraints</h3>
+              <ul>
+                <li>Model websites as maps of where function exists on DOM surfaces.</li>
+                <li>Represent context-dependent availability and state traversal.</li>
+                <li>Separate agent-initiated targets from UI-originated signals.</li>
+                <li>Make files composable across website, local, and third-party sources.</li>
+                <li>Test schemas against the living site and plan for drift.</li>
+                <li>Clarify how runtimes translate entries into OpenAI Responses semantics.</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>PR #1 contributes the first portable vocabulary</h3>
+              <ul>
+                <li><code>protocol</code>, <code>version</code>, <code>surface</code>, <code>prompt</code>, <code>tools</code>, and <code>signals</code>.</li>
+                <li><code>x_actions</code> as vendor-neutral bridge metadata.</li>
+                <li>Safe dotted identifiers for tools, handlers, and events.</li>
+                <li>Input, result, and payload schemas with validation rules.</li>
+                <li>Source hints: files, symbols, selectors, and components.</li>
+                <li>Runtime errors for invalid input, missing handlers, timeouts, and invalid results.</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+
+        <section class="section" aria-labelledby="readiness-title">
+          <div class="section-intro">
+            <h2 id="readiness-title">Readiness snapshot</h2>
+            <p>
+              PR #1 already covers the bridge catalog well. The missing pieces are mostly
+              higher-order modeling layers that turn a catalog into a durable operating
+              map for a changing application.
+            </p>
+          </div>
+          <div class="score-grid">
+            <div class="score">
+              <div class="value good">80%</div>
+              <strong>Callable action catalog</strong>
+              <span>Strong basis through <code>tools[]</code>, handlers, schemas, and result validation.</span>
+            </div>
+            <div class="score">
+              <div class="value partial">45%</div>
+              <strong>DOM cartography</strong>
+              <span>Source hints exist, but not enough to describe target visibility or routes.</span>
+            </div>
+            <div class="score">
+              <div class="value gap">20%</div>
+              <strong>Composable sources</strong>
+              <span>No import, namespace, precedence, trust, or provenance model yet.</span>
+            </div>
+            <div class="score">
+              <div class="value partial">35%</div>
+              <strong>Live-site testing</strong>
+              <span>Validation rules exist, but no probes, drift checks, or contingency plans.</span>
+            </div>
+          </div>
+        </section>
+
+        <section id="matrix" class="section">
+          <div class="section-intro">
+            <h2>Principle-by-principle comparison</h2>
+            <p>
+              This matrix treats ACT-5 as the acceptance test. A good next revision
+              should keep PR #1's minimal surface while adding first-class places for
+              the missing operational concepts.
+            </p>
+          </div>
+          <div class="matrix" role="table" aria-label="ACT-5 and PR1 comparison matrix">
+            <div class="matrix-row matrix-head" role="row">
+              <div class="matrix-cell" role="columnheader">ACT-5 principle</div>
+              <div class="matrix-cell" role="columnheader">PR #1 expression</div>
+              <div class="matrix-cell" role="columnheader">Fit</div>
+              <div class="matrix-cell" role="columnheader">Recommended move</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Cartography: actions are maps of DOM function.</strong>
+                <p>Entries should orient an agent, not merely invoke code.</p>
+              </div>
+              <div class="matrix-cell" role="cell">
+                <code>source.files</code>, <code>source.symbols</code>, <code>source.selectors</code>, and <code>component</code>.
+              </div>
+              <div class="matrix-cell" role="cell"><span class="tag partial">Partial</span><p>Good source map, weak runtime geography.</p></div>
+              <div class="matrix-cell" role="cell">Add target descriptors: visible selector, semantic role/name, owning state, and fallback selector.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>State-machine traversal.</strong>
+                <p>Targets may only exist after menus, modals, routes, or filters appear.</p>
+              </div>
+              <div class="matrix-cell" role="cell"><code>prompt.state_summary</code> and <code>x_actions.scope</code>.</div>
+              <div class="matrix-cell" role="cell"><span class="tag gap">Gap</span><p>Hints are not formal transitions.</p></div>
+              <div class="matrix-cell" role="cell">Introduce <code>states[]</code>, <code>transitions[]</code>, <code>preconditions</code>, and <code>reveals</code>.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Agent vs UI initiation.</strong>
+                <p>The schema should name who starts the interaction.</p>
+              </div>
+              <div class="matrix-cell" role="cell"><code>tools[]</code>, <code>signals[]</code>, <code>direction</code>, <code>event</code>, and <code>ingestion</code>.</div>
+              <div class="matrix-cell" role="cell"><span class="tag good">Strong</span><p>PR #1 expresses this clearly.</p></div>
+              <div class="matrix-cell" role="cell">Keep this split and define signal-to-Responses event conversion.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Deterministic execution path.</strong>
+                <p>Entries should support repeatable operations on the DOM.</p>
+              </div>
+              <div class="matrix-cell" role="cell"><code>x_actions.handler</code> delegates to page code.</div>
+              <div class="matrix-cell" role="cell"><span class="tag partial">Partial</span><p>Handlers are stable but opaque.</p></div>
+              <div class="matrix-cell" role="cell">Allow <code>execution.steps</code> as an inspectable fallback or testable trace beside handlers.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Composable sources.</strong>
+                <p>Users may combine website, local, and third-party action maps.</p>
+              </div>
+              <div class="matrix-cell" role="cell">No formal composition layer in PR #1.</div>
+              <div class="matrix-cell" role="cell"><span class="tag gap">Gap</span><p>Critical for long-term ecosystem use.</p></div>
+              <div class="matrix-cell" role="cell">Add <code>imports[]</code>, namespaces, source trust, conflict rules, and override policy.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Living-site testability.</strong>
+                <p>The map should be checked against current reality.</p>
+              </div>
+              <div class="matrix-cell" role="cell">Static validation and runtime errors.</div>
+              <div class="matrix-cell" role="cell"><span class="tag partial">Partial</span><p>Validation exists, probes do not.</p></div>
+              <div class="matrix-cell" role="cell">Define <code>checks[]</code> with selector assertions, setup steps, expected results, and drift severity.</div>
+            </div>
+            <div class="matrix-row" role="row">
+              <div class="matrix-cell" role="cell">
+                <strong>Responses-protocol clarity.</strong>
+                <p>Agent/runtime translation should be formally specified.</p>
+              </div>
+              <div class="matrix-cell" role="cell">Repo docs mention Responses-style item semantics; PR #1 does not map them.</div>
+              <div class="matrix-cell" role="cell"><span class="tag gap">Gap</span><p>Needs a binding section.</p></div>
+              <div class="matrix-cell" role="cell">Add a protocol appendix: tool call item, action result item, signal item, correlation IDs, and error envelopes.</div>
+            </div>
+          </div>
+        </section>
+
+        <section id="workflow" class="section">
+          <div class="section-intro">
+            <h2>Ideal user workflow</h2>
+            <p>
+              A user bringing ACT-5 and PR #1 together should move from evidence to
+              schema changes to live verification. The goal is not just a prettier doc;
+              it is a repeatable review loop for each schema revision.
+            </p>
+          </div>
+          <div class="workflow">
+            <article class="step">
+              <h3>Collect evidence</h3>
+              <p>Open the Linear issue, PR, and example manifests. Extract claims into a shared comparison table with source links and exact file references.</p>
+            </article>
+            <article class="step">
+              <h3>Translate principles</h3>
+              <p>Turn ACT-5 statements into acceptance criteria: state traversal, composability, deterministic execution, testing, and protocol mapping.</p>
+            </article>
+            <article class="step">
+              <h3>Score the proposal</h3>
+              <p>Evaluate each PR #1 field against those criteria. Mark coverage as strong, partial, or gap, with a concrete schema change for every gap.</p>
+            </article>
+            <article class="step">
+              <h3>Draft schema deltas</h3>
+              <p>Add minimal extensions rather than rewriting the draft: states, imports, checks, and Responses bindings should layer onto PR #1.</p>
+            </article>
+            <article class="step">
+              <h3>Test on real pages</h3>
+              <p>Use simple-form first, then Linear-like onboarding flows. Validate selectors, state transitions, handler resolution, and expected results.</p>
+            </article>
+            <article class="step">
+              <h3>Record drift handling</h3>
+              <p>For each failed probe, capture what changed and whether the action can recover through alternative selectors, transition paths, or user handoff.</p>
+            </article>
+            <article class="step">
+              <h3>Publish a focused PR</h3>
+              <p>Keep PR #1 as the base proposal, then open a follow-up PR that adds the missing model layers and examples.</p>
+            </article>
+            <article class="step">
+              <h3>Repeat per surface</h3>
+              <p>Run the same loop on Kanban, chess, slide deck, and live SaaS forms until the schema survives multiple interaction styles.</p>
+            </article>
+          </div>
+        </section>
+
+        <section id="schema-deltas" class="section">
+          <div class="section-intro">
+            <h2>Concrete schema deltas</h2>
+            <p>
+              These are not final syntax decisions. They are sketches of the minimum
+              vocabulary needed to satisfy ACT-5 without losing PR #1's current shape.
+            </p>
+          </div>
+          <div class="code-grid">
+            <article class="panel">
+              <h3>State traversal layer</h3>
+              <p class="quiet">Describe where targets are available and how to reveal them.</p>
+              <pre><code>{
+  "states": [
+    {
+      "name": "workspace.create",
+      "detect": {
+        "selectors": ["input#name", "button[type='submit']"]
+      },
+      "targets": ["workspace.fill_name", "workspace.create"]
+    }
+  ],
+  "transitions": [
+    {
+      "name": "open.region_menu",
+      "from": "workspace.create",
+      "to": "workspace.region_menu",
+      "action": "region.open",
+      "reveals": ["region.select"]
+    }
+  ]
+}</code></pre>
+            </article>
+            <article class="panel">
+              <h3>Composable source layer</h3>
+              <p class="quiet">Make website, local, and third-party maps explicit.</p>
+              <pre><code>{
+  "imports": [
+    {
+      "namespace": "linear",
+      "source": "https://linear.app/actions.json",
+      "trust": "site"
+    },
+    {
+      "namespace": "team",
+      "source": "./actions.local.json",
+      "trust": "user"
+    }
+  ],
+  "conflicts": {
+    "strategy": "namespace_required"
+  }
+}</code></pre>
+            </article>
+            <article class="panel">
+              <h3>Live check layer</h3>
+              <p class="quiet">Let validators compare the map against the living page.</p>
+              <pre><code>{
+  "checks": [
+    {
+      "name": "workspace_name_available",
+      "setup": ["state.workspace.create"],
+      "assert": [
+        { "selector": "input#name", "visible": true },
+        { "tool": "workspace.fill_name", "input": { "name": "test" } }
+      ],
+      "on_failure": "schema_drift"
+    }
+  ]
+}</code></pre>
+            </article>
+            <article class="panel">
+              <h3>Responses binding layer</h3>
+              <p class="quiet">Define exact transport semantics for tools and signals.</p>
+              <pre><code>{
+  "protocol_bindings": {
+    "openai.responses": {
+      "tool_call_item": "actions.call",
+      "tool_result_item": "actions.result",
+      "signal_item": "actions.signal",
+      "correlation": "call_id",
+      "errors": "structured"
+    }
+  }
+}</code></pre>
+            </article>
+          </div>
+        </section>
+
+        <section id="next" class="section">
+          <div class="section-intro">
+            <h2>Recommended path forward</h2>
+            <p>
+              The most useful next move is a follow-up PR that treats PR #1 as the
+              base vocabulary and adds ACT-5's missing operational layers through
+              examples and validation rules.
+            </p>
+          </div>
+          <div class="recommendations">
+            <div class="rec">
+              <strong>Keep PR #1</strong>
+              <p>Do not discard the current proposal. Its <code>tools[]</code>, <code>signals[]</code>, <code>x_actions</code>, and source hints are the right portable core.</p>
+            </div>
+            <div class="rec">
+              <strong>Add an ACT-5 appendix</strong>
+              <p>Convert the Linear principles into a formal acceptance checklist inside the schema docs, so future PRs are judged consistently.</p>
+            </div>
+            <div class="rec">
+              <strong>Open PR #2 for model layers</strong>
+              <p>Add state traversal, imports, checks, contingencies, and Responses bindings with one small example for each.</p>
+            </div>
+            <div class="rec">
+              <strong>Update simple-form</strong>
+              <p>Keep the handler path, but add an optional deterministic trace or check so the example demonstrates more than handler dispatch.</p>
+            </div>
+            <div class="rec">
+              <strong>Validate on a live form</strong>
+              <p>Use the Linear workspace setup flow as a real-world test bed for input fields, derived slugs, dropdown state, submission, and handoff boundaries.</p>
+            </div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="callout">
+            <strong>Working thesis:</strong>
+            PR #1 should become the catalog layer of <code>actions.json</code>. ACT-5 should become
+            the evaluation layer and the roadmap for schema depth. The combined standard
+            should answer four questions for every action: where is it, when is it available,
+            how is it executed, and how do we know it still works?
+          </div>
+        </section>
+      </main>
+
+      <footer class="footer">
+        Generated from Linear issue ACT-5 and GitHub PR #1 in
+        <code>/Users/yaniv/actions.json.private</code>. This report is a working review artifact,
+        not a final schema decision.
+      </footer>
+    </div>
+  </body>
+</html>
