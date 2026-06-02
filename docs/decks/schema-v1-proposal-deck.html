@@ -183,6 +183,45 @@
       gap: 10px;
     }
 
+    .menu-toggle {
+      display: none;
+      appearance: none;
+      width: 100%;
+      border: 1px solid rgba(23, 111, 125, 0.22);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--ink);
+      font: 850 13px/1 "DeckSans", sans-serif;
+      letter-spacing: 0;
+      padding: 11px 12px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(30, 42, 58, 0.07);
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .menu-toggle span:first-child {
+      color: var(--teal);
+      font-family: "DeckMono", monospace;
+    }
+
+    .menu-toggle::after {
+      content: "+";
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font: 900 16px/1 "DeckMono", monospace;
+    }
+
+    .sidebar.is-open .menu-toggle::after {
+      content: "-";
+    }
+
     .progress {
       height: 8px;
       border-radius: 999px;
@@ -1769,6 +1808,33 @@
       .attachment-overlay { width: 72%; right: 14px; }
       .attachment-title-row h3 { font-size: 22px; }
     }
+
+    @media (max-width: 700px) {
+      .sidebar { padding: 10px 14px 12px; gap: 8px; }
+      .brand { grid-template-columns: auto 1fr; gap: 6px 10px; padding-bottom: 2px; }
+      .brand-mark { width: 32px; height: 32px; border-radius: 7px; font-size: 13px; }
+      .brand h1 { font-size: 16px; }
+      .brand p { font-size: 10.5px; line-height: 1.2; }
+      .menu-toggle { display: flex; }
+      .sidebar:not(.is-open) .nav,
+      .sidebar:not(.is-open) .controls {
+        display: none;
+      }
+      .sidebar.is-open .nav {
+        animation: menuReveal 180ms ease both;
+      }
+      .stage-wrap {
+        height: min(760px, calc(100vh - 118px));
+        min-height: 560px;
+        padding: 14px;
+      }
+      .stage-nav { top: 22px; right: 22px; }
+    }
+
+    @keyframes menuReveal {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -1779,7 +1845,8 @@
         <h1>Schema V1 teaching deck</h1>
         <p>Plain-English walkthrough of the actions.json map proposal.</p>
       </div>
-      <nav class="nav" aria-label="Slides">
+      <button class="menu-toggle" id="menuToggle" type="button" aria-expanded="false" aria-controls="slideMenu"><span>Slides</span><span id="menuCurrent">1 / 12</span></button>
+      <nav class="nav" id="slideMenu" aria-label="Slides">
         <button type="button" data-go="0" aria-current="true"><span>01</span><span>What is this?</span></button>
         <button type="button" data-go="1"><span>02</span><span>The map idea</span></button>
         <button type="button" data-go="2"><span>03</span><span>Root shape</span></button>
@@ -2161,6 +2228,9 @@
     const stagePrevBtn = document.getElementById("stagePrevBtn");
     const stageNextBtn = document.getElementById("stageNextBtn");
     const slidePosition = document.getElementById("slidePosition");
+    const sidebar = document.querySelector(".sidebar");
+    const menuToggle = document.getElementById("menuToggle");
+    const menuCurrent = document.getElementById("menuCurrent");
     let current = 0;
 
     const tl = gsap.timeline({ paused: true });
@@ -2220,11 +2290,24 @@
       stagePrevBtn.disabled = current === 0;
       stageNextBtn.disabled = current === slides.length - 1;
       slidePosition.textContent = `${current + 1} / ${slides.length}`;
+      menuCurrent.textContent = `${current + 1} / ${slides.length}`;
       animateSlide(current);
     }
 
+    function setMenuOpen(open) {
+      sidebar.classList.toggle("is-open", open);
+      menuToggle.setAttribute("aria-expanded", open ? "true" : "false");
+    }
+
+    menuToggle.addEventListener("click", () => {
+      setMenuOpen(!sidebar.classList.contains("is-open"));
+    });
+
     navButtons.forEach((button) => {
-      button.addEventListener("click", () => goTo(Number(button.dataset.go)));
+      button.addEventListener("click", () => {
+        goTo(Number(button.dataset.go));
+        if (window.matchMedia("(max-width: 700px)").matches) setMenuOpen(false);
+      });
     });
     prevBtn.addEventListener("click", () => goTo(current - 1));
     nextBtn.addEventListener("click", () => goTo(current + 1));
