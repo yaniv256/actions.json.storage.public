@@ -1080,20 +1080,21 @@
     }
 
     .attachment-slide.active {
-      gap: 18px;
+      gap: 12px;
     }
 
     .attachment-demo {
       display: grid;
-      grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
-      gap: 18px;
+      grid-template-rows: auto minmax(0, 1fr);
+      gap: 12px;
       min-height: 0;
       align-items: stretch;
     }
 
     .attachment-browser {
       position: relative;
-      min-height: 440px;
+      min-height: 0;
+      height: 100%;
       border-radius: 18px;
       overflow: hidden;
       background: #050a12;
@@ -1178,40 +1179,29 @@
 
     .attachment-overlay {
       position: absolute;
-      right: 24px;
-      top: 106px;
-      width: min(300px, 42%);
+      left: 50%;
+      right: auto;
+      top: 86px;
+      bottom: 18px;
+      width: min(760px, 82%);
       border-radius: 16px;
-      padding: 16px;
+      padding: 18px;
       color: var(--ink);
       background: rgba(255, 255, 255, 0.96);
       box-shadow: 0 24px 46px rgba(0,0,0,0.34);
       border: 1px solid rgba(23, 111, 125, 0.22);
       opacity: 0;
-      transform: translateY(12px) scale(0.98);
+      transform: translate(-50%, 12px) scale(0.98);
       pointer-events: none;
       transition: opacity 240ms ease, transform 240ms ease;
       z-index: 5;
+      overflow: auto;
     }
 
     .attachment-overlay h4 {
-      margin: 0 0 8px;
-      font-size: 18px;
-    }
-
-    .attachment-overlay div {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
-    }
-
-    .attachment-overlay span {
-      border-radius: 9px;
-      padding: 8px;
-      color: var(--teal);
-      background: var(--teal-soft);
-      font: 900 11px/1.1 "DeckMono", monospace;
-      text-align: center;
+      margin: 0 0 12px;
+      font-size: 22px;
+      line-height: 1.05;
     }
 
     .dom-wipe {
@@ -1244,7 +1234,7 @@
     .attachment-demo[data-attach-step="observe"] .attachment-overlay,
     .attachment-demo[data-attach-step="reinstall"] .attachment-overlay {
       opacity: 1;
-      transform: translateY(0) scale(1);
+      transform: translate(-50%, 0) scale(1);
     }
 
     .attachment-demo[data-attach-step="navigate"] .overlay-launcher {
@@ -1268,53 +1258,55 @@
 
     .attachment-panel {
       display: grid;
-      grid-template-rows: auto minmax(0, 1fr);
-      gap: 12px;
+      grid-template-columns: minmax(220px, 0.38fr) minmax(0, 1fr);
+      gap: 10px;
       min-height: 0;
+      order: -1;
     }
 
     .attachment-detail {
       border-radius: 14px;
       border: 1px solid rgba(23, 111, 125, 0.24);
       background: linear-gradient(135deg, #fff, rgba(222, 241, 241, 0.72));
-      padding: 16px;
+      padding: 12px;
       box-shadow: 0 12px 28px rgba(30,42,58,0.08);
     }
 
     .attachment-detail small {
       display: inline-block;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       border-radius: 999px;
-      padding: 6px 9px;
+      padding: 5px 8px;
       color: var(--teal);
       background: var(--teal-soft);
-      font: 900 11px/1 "DeckMono", monospace;
+      font: 900 10px/1 "DeckMono", monospace;
       text-transform: uppercase;
     }
 
     .attachment-detail h3 {
-      margin: 0 0 8px;
-      font-size: 24px;
+      margin: 0 0 5px;
+      font-size: 19px;
       line-height: 1.1;
     }
 
     .attachment-detail p {
       margin: 0;
       color: var(--muted);
-      font-size: 15px;
-      line-height: 1.4;
+      font-size: 13px;
+      line-height: 1.3;
     }
 
     .attachment-steps {
       display: grid;
-      gap: 9px;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 7px;
     }
 
     .attachment-step {
       width: 100%;
       border: 1px solid var(--line);
       border-radius: 12px;
-      padding: 12px;
+      padding: 9px;
       background: #fff;
       text-align: left;
       cursor: pointer;
@@ -1324,7 +1316,7 @@
     .attachment-step:hover,
     .attachment-step:focus,
     .attachment-step.is-active {
-      transform: translateX(4px);
+      transform: translateY(-2px);
       border-color: rgba(23, 111, 125, 0.42);
       background: linear-gradient(135deg, #fff, var(--teal-soft));
       outline: none;
@@ -1333,15 +1325,16 @@
     .attachment-step b {
       display: block;
       color: var(--teal);
-      font-size: 14px;
+      font-size: 12px;
+      line-height: 1.1;
       margin-bottom: 4px;
     }
 
     .attachment-step span {
       display: block;
       color: var(--muted);
-      font-size: 12px;
-      line-height: 1.3;
+      font-size: 10.5px;
+      line-height: 1.25;
     }
 
     .attachment-page {
@@ -1395,7 +1388,7 @@
       position: absolute;
       left: 28px;
       bottom: 18px;
-      max-width: 420px;
+      max-width: 360px;
       border-radius: 12px;
       padding: 11px 13px;
       color: #062d34;
@@ -1406,7 +1399,7 @@
       opacity: 0;
       transform: translateY(10px);
       transition: opacity 180ms ease, transform 180ms ease;
-      z-index: 8;
+      z-index: 4;
     }
 
     .attach-note b {
@@ -1460,12 +1453,17 @@
     }
 
     .attachment-overlay {
-      right: 18px;
-      top: 66px;
-      width: min(590px, 70%);
-      padding: 14px;
-      max-height: 342px;
-      overflow: hidden;
+      top: 74px;
+    }
+
+    .attachment-demo[data-attach-step="open"] .attachment-overlay {
+      top: 44px;
+      bottom: 12px;
+      width: min(820px, 88%);
+    }
+
+    .attachment-demo[data-attach-step="open"] [data-attach-note="open"] {
+      display: none;
     }
 
     .attachment-overlay h4 {
@@ -1474,13 +1472,14 @@
 
     .overlay-categories {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
     }
 
     .attachment-overlay .overlay-section {
       display: grid;
-      gap: 7px;
+      gap: 8px;
+      align-content: start;
     }
 
     .overlay-section strong {
@@ -1491,16 +1490,16 @@
 
     .attachment-overlay .overlay-card-row {
       display: grid;
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       gap: 8px;
     }
 
     .overlay-card {
       min-width: 0;
       display: grid;
-      grid-template-columns: 58px 1fr;
-      gap: 8px;
-      align-items: center;
+      grid-template-rows: auto minmax(28px, auto);
+      gap: 5px;
+      align-items: start;
       border-radius: 10px;
       padding: 6px;
       background: rgba(231, 243, 242, 0.7);
@@ -1508,17 +1507,18 @@
     }
 
     .overlay-card img {
-      width: 58px;
+      width: 100%;
       aspect-ratio: 16 / 9;
       object-fit: cover;
       border-radius: 6px;
+      display: block;
     }
 
     .overlay-card span {
       padding: 0;
       background: transparent;
       color: var(--ink);
-      font: 850 11px/1.16 "DeckSans", sans-serif;
+      font: 850 10px/1.14 "DeckSans", sans-serif;
       text-align: left;
     }
 
@@ -1880,7 +1880,7 @@
         min-height: 82px;
       }
       .attachment-browser {
-        min-height: 410px;
+        min-height: 0;
       }
       .review-list {
         gap: 7px;
@@ -1932,7 +1932,7 @@
         height: min(220px, 31vh);
       }
       .attachment-browser {
-        min-height: 360px;
+        min-height: 0;
       }
     }
 
@@ -2229,17 +2229,24 @@
                         </div>
                       </div>
                       <div class="overlay-section">
-                        <strong>Arts, Music & Stage</strong>
+                        <strong>Arts & Stage</strong>
                         <div class="overlay-card-row">
                           <div class="overlay-card"><img src="assets/prime-carousel-covers/02-oklahoma.png?overlay=1" alt="Oklahoma! cover"><span>Oklahoma!</span></div>
                           <div class="overlay-card"><img src="assets/prime-carousel-covers/05-great-performances-now-hear-this.jpg?overlay=1" alt="Great Performances cover"><span>Great Performances</span></div>
                         </div>
                       </div>
                       <div class="overlay-section">
-                        <strong>Film & Sci-Fi</strong>
+                        <strong>Film</strong>
                         <div class="overlay-card-row">
                           <div class="overlay-card"><img src="assets/prime-carousel-covers/03-a-complete-unknown.jpg?overlay=1" alt="A Complete Unknown cover"><span>A Complete Unknown</span></div>
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/04-8.png?overlay=1" alt="8 1/2 cover"><span>8½</span></div>
+                        </div>
+                      </div>
+                      <div class="overlay-section">
+                        <strong>Sci-Fi</strong>
+                        <div class="overlay-card-row">
                           <div class="overlay-card"><img src="assets/prime-carousel-covers/06-westworld.jpg?overlay=1" alt="Westworld cover"><span>Westworld</span></div>
+                          <div class="overlay-card"><img src="assets/prime-carousel-covers/12-fallout.png?overlay=1" alt="Fallout cover"><span>Fallout</span></div>
                         </div>
                       </div>
                     </div>
@@ -2249,7 +2256,7 @@
                   <div class="launcher-arrow" aria-hidden="true"></div>
                   <div class="attach-note" data-attach-note="missing"><b>Notice</b>The carousel is visible, but there is no Categories launcher yet.</div>
                   <div class="attach-note" data-attach-note="install"><b>Install</b>The runtime inserts a small button at the carousel title row.</div>
-                  <div class="attach-note" data-attach-note="open"><b>Overlay</b>The button opens a useful categorization overlay with real linkable cards.</div>
+                  <div class="attach-note" data-attach-note="open"><b>Overlay</b>The saved overlay opens with categorized, linkable poster cards.</div>
                   <div class="attach-note" data-attach-note="navigate"><b>Navigate</b>The user opens A Complete Unknown. This is a different page; the carousel DOM is gone.</div>
                   <div class="attach-note" data-attach-note="observe"><b>Return</b>The carousel is back, but the injected launcher is missing again.</div>
                   <div class="attach-note" data-attach-note="reinstall"><b>Repair</b>The runtime sees the target again and reinstalls the launcher.</div>
