@@ -218,6 +218,7 @@
       height: 100%;
       padding: 24px;
       display: grid;
+      position: relative;
     }
 
     .stage {
@@ -227,6 +228,42 @@
       border: 1px solid rgba(22, 33, 44, 0.12);
       background: rgba(255, 255, 255, 0.75);
       box-shadow: var(--shadow);
+    }
+
+    .stage-nav {
+      position: absolute;
+      top: 36px;
+      right: 36px;
+      z-index: 5;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(22, 33, 44, 0.12);
+      background: rgba(255, 255, 255, 0.88);
+      box-shadow: 0 12px 28px rgba(30, 42, 58, 0.12);
+      backdrop-filter: blur(12px);
+    }
+
+    .stage-nav button {
+      width: 34px;
+      height: 34px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--teal-soft);
+      color: var(--teal);
+      font: 900 18px/1 "DeckSans", sans-serif;
+      cursor: pointer;
+    }
+
+    .stage-nav button:disabled { opacity: 0.38; cursor: default; }
+
+    .stage-nav span {
+      min-width: 54px;
+      text-align: center;
+      color: var(--ink);
+      font: 800 13px/1 "DeckMono", monospace;
     }
 
     #schema-v1-deck {
@@ -472,6 +509,72 @@
       font-size: 15px;
     }
 
+    .outline-demo {
+      min-height: 0;
+      display: grid;
+      grid-template-columns: 0.82fr 1.18fr;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .concept-list {
+      min-width: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px; align-content: start;
+    }
+
+    .concept-chip {
+      min-width: 0; min-height: 98px; border: 1px solid var(--line); border-radius: 12px;
+      padding: 13px; background: #fff; box-shadow: 0 10px 24px rgba(30, 42, 58, 0.07);
+      text-align: left; color: var(--ink); display: grid; gap: 6px; cursor: pointer;
+      transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease, background 180ms ease;
+    }
+
+    .concept-chip:hover,
+    .concept-chip:focus,
+    .concept-chip.is-active {
+      transform: translateY(-2px); border-color: rgba(23, 111, 125, 0.42);
+      background: linear-gradient(135deg, #fff, var(--teal-soft));
+      box-shadow: 0 18px 34px rgba(30, 42, 58, 0.12); outline: none;
+    }
+
+    .concept-chip code {
+      width: max-content; max-width: 100%; color: var(--teal); background: var(--teal-soft);
+      padding: 6px 8px; border-radius: 7px; font-weight: 900;
+    }
+
+    .concept-chip span {
+      color: var(--muted); font-size: 13px; line-height: 1.35;
+    }
+
+    .json-outline {
+      min-height: 0; height: 100%; max-height: 470px; overflow: auto; border-radius: 14px;
+      border: 1px solid rgba(22, 33, 44, 0.16); background: #101923;
+      box-shadow: 0 20px 42px rgba(16, 25, 35, 0.18); scroll-behavior: smooth; scrollbar-width: thin;
+      scrollbar-color: rgba(232, 238, 249, 0.48) rgba(255,255,255,0.08);
+    }
+
+    .outline-section {
+      display: grid; gap: 5px; padding: 15px 17px; border-bottom: 1px solid rgba(232, 238, 249, 0.1);
+      color: #dce8ef; transition: background 180ms ease, box-shadow 180ms ease; scroll-margin-top: 8px;
+    }
+
+    .outline-section.is-active {
+      background: linear-gradient(90deg, rgba(23, 111, 125, 0.34), rgba(166, 105, 16, 0.16));
+      box-shadow: inset 4px 0 0 var(--amber);
+    }
+
+    .outline-section code {
+      color: #9bd6d6; font: 900 15px/1 "DeckMono", monospace;
+    }
+
+    .outline-section p {
+      margin: 0; color: #b9c8d1; font-size: 13px; line-height: 1.35;
+    }
+
+    .outline-section em {
+      color: #f0d39c; font-style: normal;
+    }
+
     .flow {
       display: grid;
       grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -633,7 +736,8 @@
       .sidebar { height: auto; border-right: 0; border-bottom: 1px solid rgba(22, 33, 44, 0.12); }
       .nav { grid-template-columns: repeat(2, minmax(0, 1fr)); max-height: none; }
       .stage-wrap { height: 760px; }
-      .content-grid, .content-grid.three, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
+      .stage-nav { top: 12px; right: 12px; }
+      .content-grid, .content-grid.three, .outline-demo, .interactive-demo, .term-grid { grid-template-columns: 1fr; }
       .flow { grid-template-columns: 1fr; }
       .flow-card::after { display: none; }
     }
@@ -670,6 +774,11 @@
     </aside>
 
     <main class="stage-wrap">
+      <div class="stage-nav" aria-label="Slide navigation">
+        <button type="button" id="stagePrevBtn" aria-label="Previous slide">‹</button>
+        <span id="slidePosition">1 / 11</span>
+        <button type="button" id="stageNextBtn" aria-label="Next slide">›</button>
+      </div>
       <section class="stage">
         <div class="slides">
           <article class="slide active" data-slide="0">
@@ -714,13 +823,29 @@
               <h2>The top-level file says what kind of map this is.</h2>
               <p class="lead">Each root field answers one plain question. You do not need to read every advanced section to understand a small map.</p>
             </header>
-            <div class="schema-stack">
-              <div class="schema-row"><code>surface</code><p>What website or page area are we talking about?</p></div>
-              <div class="schema-row"><code>tools</code><p>What actions may an agent call?</p></div>
-              <div class="schema-row"><code>signals</code><p>What page events may become structured context for the agent?</p></div>
-              <div class="schema-row"><code>states</code><p>What situations change which actions are available?</p></div>
-              <div class="schema-row"><code>checks</code><p>How do we test whether this map still matches the live site?</p></div>
-              <div class="schema-row"><code>imports</code><p>What other maps should be combined with this one?</p></div>
+            <div class="outline-demo">
+              <div class="concept-list" aria-label="actions.json root concepts">
+                <button class="concept-chip is-active" type="button" data-outline-target="outline-surface"><code>surface</code><span>What website or page area are we talking about?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-imports"><code>imports</code><span>What other maps should be combined with this one?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-states"><code>states</code><span>What situations change which actions are available?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-transitions"><code>transitions</code><span>How can the page move from one state to another?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-tools"><code>tools</code><span>What actions may an agent call?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-signals"><code>signals</code><span>What page events may become structured context?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-attachments"><code>attachments</code><span>What visible page additions should the runtime install?</span></button>
+                <button class="concept-chip" type="button" data-outline-target="outline-checks"><code>checks</code><span>How do we test whether this map still matches the live site?</span></button>
+              </div>
+              <div class="json-outline" aria-label="actions.json outline">
+                <section class="outline-section is-active" id="outline-surface"><code>{ "surface": { ... } }</code><p><em>Surface</em> names the origin, page kind, and human-readable context for the map.</p></section>
+                <section class="outline-section" id="outline-imports"><code>{ "imports": [ ... ] }</code><p><em>Imports</em> compose website, private, shared, and public maps under explicit trust rules.</p></section>
+                <section class="outline-section" id="outline-prompt"><code>{ "prompt": { ... } }</code><p><em>Prompt</em> gives the agent page-specific instructions without hiding authority.</p></section>
+                <section class="outline-section" id="outline-states"><code>{ "states": [ ... ] }</code><p><em>States</em> are named facts such as authorized, issue visible, carousel at end, or form ready.</p></section>
+                <section class="outline-section" id="outline-transitions"><code>{ "transitions": [ ... ] }</code><p><em>Transitions</em> describe movement between states, including waits, rate limits, and stop conditions.</p></section>
+                <section class="outline-section" id="outline-tools"><code>{ "tools": [ ... ] }</code><p><em>Tools</em> are declared calls the agent may ask the runtime to execute.</p></section>
+                <section class="outline-section" id="outline-signals"><code>{ "signals": [ ... ] }</code><p><em>Signals</em> are page-originated events that can become structured agent context.</p></section>
+                <section class="outline-section" id="outline-attachments"><code>{ "attachments": [ ... ] }</code><p><em>Attachments</em> describe runtime-installed UI, like overlay launchers that reattach after navigation.</p></section>
+                <section class="outline-section" id="outline-checks"><code>{ "checks": [ ... ] }</code><p><em>Checks</em> probe selectors, state, and execution paths so drift is caught before action.</p></section>
+                <section class="outline-section" id="outline-provenance"><code>{ "provenance": { ... } }</code><p><em>Provenance</em> records where the map came from and when it was updated.</p></section>
+              </div>
             </div>
           </article>
 
@@ -867,6 +992,9 @@
     const progressBar = document.getElementById("progressBar");
     const prevBtn = document.getElementById("prevBtn");
     const nextBtn = document.getElementById("nextBtn");
+    const stagePrevBtn = document.getElementById("stagePrevBtn");
+    const stageNextBtn = document.getElementById("stageNextBtn");
+    const slidePosition = document.getElementById("slidePosition");
     let current = 0;
 
     const tl = gsap.timeline({ paused: true });
@@ -884,7 +1012,7 @@
       local.from(slide.querySelector(".eyebrow"), { y: 16, opacity: 0, duration: 0.36, ease: "power2.out" });
       local.from(slide.querySelector("h2"), { y: 34, opacity: 0, duration: 0.52, ease: "expo.out" }, "-=0.18");
       local.from(slide.querySelector(".lead"), { y: 20, opacity: 0, duration: 0.42, ease: "sine.out" }, "-=0.25");
-      local.from(slide.querySelectorAll(".tile, .schema-row, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas"), {
+      local.from(slide.querySelectorAll(".tile, .schema-row, .concept-chip, .json-outline, .flow-card, .term, .review-item, .callout, .demo-page, .map-canvas"), {
         y: 22,
         opacity: 0,
         scale: 0.985,
@@ -910,6 +1038,9 @@
       progressBar.style.width = `${((current + 1) / slides.length) * 100}%`;
       prevBtn.disabled = current === 0;
       nextBtn.disabled = current === slides.length - 1;
+      stagePrevBtn.disabled = current === 0;
+      stageNextBtn.disabled = current === slides.length - 1;
+      slidePosition.textContent = `${current + 1} / ${slides.length}`;
       animateSlide(current);
     }
 
@@ -918,7 +1049,29 @@
     });
     prevBtn.addEventListener("click", () => goTo(current - 1));
     nextBtn.addEventListener("click", () => goTo(current + 1));
+    stagePrevBtn.addEventListener("click", () => goTo(current - 1));
+    stageNextBtn.addEventListener("click", () => goTo(current + 1));
+
+    const outlineChips = Array.from(document.querySelectorAll("[data-outline-target]"));
+    function activateOutline(targetId) {
+      const target = document.getElementById(targetId);
+      if (!target) return;
+      const activeChip = outlineChips.find((chip) => chip.dataset.outlineTarget === targetId);
+      outlineChips.forEach((chip) => chip.classList.toggle("is-active", chip === activeChip));
+      document.querySelectorAll(".outline-section").forEach((section) => {
+        section.classList.toggle("is-active", section === target);
+      });
+      target.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
+
+    outlineChips.forEach((chip) => {
+      chip.addEventListener("mouseenter", () => activateOutline(chip.dataset.outlineTarget));
+      chip.addEventListener("focus", () => activateOutline(chip.dataset.outlineTarget));
+      chip.addEventListener("click", () => activateOutline(chip.dataset.outlineTarget));
+    });
+
     document.addEventListener("keydown", (event) => {
+      if (event.key === " " && event.target !== document.body && event.target !== document.documentElement) return;
       if (event.key === "ArrowRight" || event.key === " ") goTo(current + 1);
       if (event.key === "ArrowLeft") goTo(current - 1);
     });
