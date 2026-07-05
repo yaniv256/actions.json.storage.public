@@ -1,0 +1,747 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.2-working",
+  "surface": {
+    "origin": "https://www.linkedin.com",
+    "name": "LinkedIn Messaging",
+    "surface_id": "linkedin.messaging",
+    "observed_url": "https://www.linkedin.com/messaging/"
+  },
+  "observed_at": "2026-07-02T14:05:00-05:00",
+  "prompt": {
+    "title": "LinkedIn Messaging outreach survey and sync actions",
+    "instructions": "Operate only a user-authorized LinkedIn Messaging tab. Treat message content, phone numbers, email addresses, meeting details, and relationship notes as private. Survey and summarize conversations for the user's outreach workflow, but do not send LinkedIn messages unless the user explicitly asks for a separate send action and confirms the exact text. For Trello or Linear sync, prepare bounded structured transfer payloads rather than mutating other apps from the LinkedIn surface. When a task depends on facts agreed in a conversation — a meeting's DATE, TIME, or PLACE, a commitment, a price, a deadline — you MUST read the ENTIRE thread and reconcile those facts across every message, not just the latest one. Agreed details are commonly ESTABLISHED in an earlier message and only CONFIRMED (often partially) in the last one: e.g. one message proposes the day, a later message confirms only the time. Never draw a conclusion, or act on one, from the last message or a preview snippet alone. If the thread is long, open it and read all of it before deciding what was agreed.",
+    "state_summary": "LinkedIn Messaging exposes a conversation list, active conversation thread, conversation header/profile link, and compose box. Prior validation showed visible conversation cards can be extracted, a visible named conversation can be opened with locator geometry plus pointer.click, the active thread and header can be read, and the compose box can be located without sending a message.",
+    "navigation_note": "Reach the inbox via a FULL page load of https://www.linkedin.com/messaging/ (top-bar 'Messaging' is a soft-nav overlay that does not mount the messaging app). Every page load rotates the extension runtime_id; route by target_url_contains 'linkedin.com/messaging', never a captured runtime_id."
+  },
+  "requires": {
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "browser.extract_elements",
+        "locator.element_info",
+        "pointer.click",
+        "transfer.write",
+        "state.read"
+      ],
+      "optional_primitives": [
+        "dom.list_sections",
+        "dom.snapshot_text",
+        "viewport.scroll",
+        "overlay.open",
+        "overlay.menu.hide",
+        "overlay.menu.show"
+      ],
+      "forbidden_by_default": [
+        "text.insert",
+        "keyboard.press"
+      ]
+    }
+  },
+  "answer_context": {
+    "purpose": "Help GPT Realtime survey warm LinkedIn conversations and turn them into explicit follow-up work for Linear or Trello.",
+    "privacy_model": "Private account surface. Read and summarize only after the user authorizes the tab/session. Do not copy raw thread text into public/shared artifacts. Prefer short, redacted previews and structured follow-up records.",
+    "default_flow": [
+      "Read visible conversations.",
+      "Open one conversation by a user-provided person name.",
+      "Read the FULL active thread (every message, oldest to newest), not just the last message or the list snippet.",
+      "Reconcile agreed facts across the whole thread: date, time, place, open ask, commitments. A fact set in an earlier message and only confirmed later still counts — combine them.",
+      "Classify relationship status, last contact, open ask, next action, preferred channel, and deadline from the reconciled facts.",
+      "Write a bounded transfer payload labeled linkedin-warm-outreach for Trello/Linear import."
+    ],
+    "sync_boundary": "This map prepares transfer-buffer payloads. Trello and Linear maps should consume those payloads in their own authorized tabs.",
+    "send_boundary": "No action in this map sends a message. Compose-box discovery is read-only and used to verify that the active thread is ready if a human wants to draft manually."
+  },
+  "states": [
+    {
+      "name": "messaging_page_visible",
+      "description": "LinkedIn Messaging is visible with the conversation list.",
+      "observables": [
+        "URL contains linkedin.com/messaging",
+        "page text includes Messaging",
+        "conversation list items present (.msg-conversation-listitem)"
+      ]
+    },
+    {
+      "name": "conversation_list_visible",
+      "description": "The left-side LinkedIn conversation list is visible and can be extracted.",
+      "observables": [
+        "conversation cards",
+        "contact names",
+        "latest snippets",
+        "timestamps"
+      ]
+    },
+    {
+      "name": "thread_active",
+      "description": "A conversation is selected and the message thread is visible.",
+      "observables": [
+        "active conversation marker",
+        "thread header/profile link",
+        "message events",
+        "compose box"
+      ]
+    },
+    {
+      "name": "followup_payload_prepared",
+      "description": "A structured LinkedIn outreach follow-up payload has been staged in transfer memory.",
+      "observables": [
+        "transfer label linkedin-warm-outreach",
+        "safe preview",
+        "record count"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "linkedin.messaging.map",
+      "description": "Return operating guidance for the LinkedIn Messaging outreach survey map, including privacy and sync boundaries.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "linkedin.com",
+          "surface": "messaging",
+          "private_surface": true,
+          "recommended_sequence": [
+            "linkedin.messaging.conversations.visible.read",
+            "linkedin.messaging.conversation.by_name.open",
+            "linkedin.messaging.thread.active.read",
+            "linkedin.messaging.thread.header.read",
+            "linkedin.messaging.transfer.followups.prepare"
+          ],
+          "send_messages": "not_supported_by_default",
+          "transfer_label": "linkedin-warm-outreach",
+          "appointment_extraction": "Extract day/date, time, and place as separate fields reconciled from the WHOLE thread. The last message rarely contains the complete agreement. Resolve relative day words ('Saturday', 'tomorrow') against message dates. Carry all three fields with you to any calendar check."
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.page.sections.read",
+      "description": "Read coarse visible page sections from LinkedIn Messaging. Use this for orientation when the conversation list or active thread selectors stop matching.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "dom.list_sections",
+        "binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "selector": "main,section,aside,[role=main],[aria-label],.msg-conversation-listitem,.msg-s-message-list__event",
+            "heading_selector": "h1,h2,h3,[role=heading],button,a,.msg-thread__link-to-profile",
+            "max_sections": 120,
+            "max_heading_length": 200
+          }
+        },
+        "source": {
+          "component": "LinkedInMessagingPageSections"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.conversations.visible.read",
+      "description": "Extract visible LinkedIn Messaging conversation cards from the current conversation list, including contact names, timestamps, snippets, and active/offline labels visible in the card text. Deduplicate repeated card wrappers before reasoning.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.extract_elements",
+        "binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "scope": {
+              "selector": "main",
+              "text_contains": "Conversation List",
+              "root_strategy": "scope"
+            },
+            "item_selector": ".msg-conversation-listitem, .msg-conversations-container__convo-item, .msg-conversation-card",
+            "fields": [
+              {
+                "name": "text",
+                "selector": ":scope",
+                "attribute": "text"
+              },
+              {
+                "name": "class",
+                "selector": ":scope",
+                "attribute": "class"
+              }
+            ]
+          }
+        },
+        "source": {
+          "component": "LinkedInVisibleConversationCards"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.conversation.by_name.info",
+      "description": "Resolve a visible LinkedIn conversation card by contact name and return its geometry. Use before opening a conversation by name. If it returns no clickable center, scroll the conversation list or use conversations.visible.read to verify the contact is visible.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Visible contact or conversation name to locate, for example Jordan Rivera."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findConversation",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".msg-conversation-listitem, .msg-conversations-container__convo-item, .msg-conversation-card",
+                "text_contains": "{% input.name %}"
+              }
+            }
+          }
+        ],
+        "output": "{% steps.findConversation.output %}"
+      },
+      "x_actions": {
+        "source": {
+          "component": "LinkedInConversationCard",
+          "selectors": [
+            ".msg-conversation-listitem",
+            ".msg-conversations-container__convo-item",
+            ".msg-conversation-card"
+          ]
+        },
+        "previous_binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "locator": {
+              "selector": ".msg-conversation-listitem, .msg-conversations-container__convo-item, .msg-conversation-card",
+              "text_contains": "{% input.name %}"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.conversation.by_name.open",
+      "description": "Open a visible LinkedIn Messaging conversation by contact name, then verify the active thread contains that name. This does not send any message.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Visible contact or conversation name to open."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "findConversation",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".msg-conversation-listitem, .msg-conversations-container__convo-item, .msg-conversation-card",
+                "text_contains": "{% input.name %}"
+              }
+            },
+            "retry_until": "{% $exists(steps.findConversation.output.clickable_center.x) %}",
+            "max_attempts": 3,
+            "after_each": {
+              "primitive": "viewport.scroll",
+              "args": {
+                "delta_x": 0,
+                "delta_y": 420,
+                "scope": {
+                  "selector": "main",
+                  "text_contains": "Conversation List",
+                  "root_strategy": "scope"
+                }
+              }
+            }
+          },
+          {
+            "id": "clickConversation",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findConversation.output.clickable_center.x %}",
+              "y": "{% steps.findConversation.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 1000
+            }
+          },
+          {
+            "id": "verifyHeader",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".msg-thread__link-to-profile",
+                "text_contains": "{% input.name %}"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'opened_name': input.name, 'conversation': steps.findConversation.output, 'verified': $exists(steps.verifyHeader.output.text), 'header': steps.verifyHeader.output} %}"
+      },
+      "x_actions": {
+        "source": {
+          "component": "LinkedInConversationOpenWorkflow"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.thread.active.read",
+      "description": "Extract visible message events from the active LinkedIn Messaging thread. Use for summarizing last contact, open asks, preferred channel, promised follow-up, and next action. Treat raw output as private. This intentionally avoids generic li selectors because LinkedIn's conversation list and active thread share the same main region. EXTRACTION DISCIPLINE: when pulling an agreement (meeting, call, appointment) out of the thread, extract each element SEPARATELY — day/date, time, and place — scanning ALL messages, not just the latest. Final confirmation messages usually restate only one or two elements ('9:30 works!') while the day was fixed in an earlier message ('Saturday morning'). Resolve weekday words to concrete dates using the message timestamps. State the full reconciled tuple before acting on it.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.extract_elements",
+        "binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "scope": {
+              "selector": "main",
+              "text_contains": "Conversation List",
+              "root_strategy": "scope"
+            },
+            "item_selector": ".msg-s-message-list__event, .msg-s-event-listitem",
+            "fields": [
+              {
+                "name": "text",
+                "selector": ":scope",
+                "attribute": "text"
+              }
+            ]
+          }
+        },
+        "source": {
+          "component": "LinkedInActiveThreadEvents"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.thread.header.read",
+      "description": "Extract the active LinkedIn thread header/profile link for the selected conversation.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.extract_elements",
+        "binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "scope": {
+              "selector": "main",
+              "text_contains": "Conversation List",
+              "root_strategy": "scope"
+            },
+            "item_selector": ".msg-thread__link-to-profile",
+            "fields": [
+              {
+                "name": "text",
+                "selector": ":scope",
+                "attribute": "text"
+              },
+              {
+                "name": "href",
+                "selector": ":scope",
+                "attribute": "href"
+              }
+            ]
+          }
+        },
+        "source": {
+          "component": "LinkedInActiveThreadHeader"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.compose.info",
+      "description": "Locate the active thread compose box without inserting text or sending a message. The returned text may be empty placeholder text or an existing unsent draft. Use only as a readiness check for a human-approved manual draft flow.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/messaging",
+          "arguments": {
+            "locator": {
+              "selector": ".msg-form__contenteditable, [contenteditable='true']"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInMessageComposer"
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.outreach.summary_context",
+      "description": "Return the summary schema the agent should use after reading a LinkedIn thread. This is judgment guidance, not a page read.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "summary_fields": [
+            "person",
+            "linkedin_profile_url",
+            "relationship_context",
+            "last_contact_date",
+            "last_contact_channel",
+            "open_ask",
+            "promised_follow_up",
+            "preferred_channel",
+            "next_action",
+            "deadline_or_timing",
+            "priority",
+            "linear_task_candidate",
+            "trello_card_candidate",
+            "evidence_excerpt_private"
+          ],
+          "priority_guidance": {
+            "urgent": "external deadline or explicit committed follow-up is due today or overdue",
+            "high": "warm opportunity, explicit ask, or likely engaged user/client",
+            "normal": "relationship maintenance or unclear opportunity",
+            "low": "no current ask, informational only"
+          },
+          "redaction": "Keep evidence_excerpt_private short. Do not put raw full thread content into public or shared storage."
+        }
+      }
+    },
+    {
+      "name": "linkedin.messaging.transfer.followups.prepare",
+      "description": "Write a structured LinkedIn outreach follow-up payload into extension transfer memory for Trello or Linear import. Caller supplies already-reviewed summaries derived from the active thread, not raw full thread text.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "records"
+        ],
+        "properties": {
+          "records": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 10,
+            "items": {
+              "type": "object",
+              "required": [
+                "person",
+                "next_action"
+              ],
+              "properties": {
+                "person": {
+                  "type": "string"
+                },
+                "linkedin_profile_url": {
+                  "type": "string"
+                },
+                "relationship_context": {
+                  "type": "string"
+                },
+                "last_contact_date": {
+                  "type": "string"
+                },
+                "open_ask": {
+                  "type": "string"
+                },
+                "preferred_channel": {
+                  "type": "string"
+                },
+                "next_action": {
+                  "type": "string"
+                },
+                "deadline_or_timing": {
+                  "type": "string"
+                },
+                "priority": {
+                  "type": "string",
+                  "enum": [
+                    "urgent",
+                    "high",
+                    "normal",
+                    "low"
+                  ]
+                },
+                "target": {
+                  "type": "string",
+                  "enum": [
+                    "linear",
+                    "trello",
+                    "both",
+                    "undecided"
+                  ]
+                },
+                "evidence_excerpt_private": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "safe_preview": {
+            "type": "string",
+            "description": "Short redacted preview for logs, for example '3 LinkedIn outreach follow-ups'."
+          },
+          "ttl_seconds": {
+            "type": "number",
+            "default": 7200
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "writeTransfer",
+            "primitive": "transfer.write",
+            "args": {
+              "label": "linkedin-warm-outreach",
+              "format": "application/json",
+              "value": "{% input.records %}",
+              "metadata": {
+                "purpose": "linkedin_to_trello_or_linear_outreach",
+                "record_count": "{% $count(input.records) %}",
+                "source_surface": "linkedin.messaging",
+                "sync_boundary": "Prepared from LinkedIn; consume from authorized Trello or Linear tabs."
+              },
+              "ttl_seconds": "{% input.ttl_seconds ? input.ttl_seconds : 7200 %}",
+              "redaction": {
+                "log_payload": false,
+                "safe_preview": "{% input.safe_preview ? input.safe_preview : $string($count(input.records)) & ' LinkedIn outreach follow-up records' %}"
+              }
+            }
+          }
+        ],
+        "output": "{% {'label': 'linkedin-warm-outreach', 'record_count': $count(input.records), 'transfer': steps.writeTransfer.output} %}"
+      },
+      "x_actions": {
+        "source": {
+          "component": "LinkedInOutreachTransferPayload",
+          "spec_reference": "actions.json.dev/specs/010-extension-interaction-primitives/spec.md#fr-6-extension-local-transfer-buffer"
+        }
+      }
+    }
+  ],
+  "attachments": [
+    {
+      "id": "linkedin-messaging-skill",
+      "type": "skill",
+      "path": "SKILL.md",
+      "description": "Operational guidance for surveying LinkedIn conversations and preparing Trello/Linear follow-up payloads."
+    }
+  ],
+  "known_limits": [
+    "Conversation list extraction can return duplicate wrappers for the same visible conversation; deduplicate by contact name plus latest snippet.",
+    "This map reads visible/currently loaded conversations only. It does not guarantee complete historical inbox coverage.",
+    "This map does not send messages. Add a separate confirmed send workflow only if the user explicitly approves that scope.",
+    "LinkedIn DOM class names can drift; use page.sections.read to recover if primary selectors fail."
+  ],
+  "state_projections": [
+    {
+      "name": "linkedin.inbox",
+      "description": "The prospect conversations visible in the LinkedIn Messaging left rail. Each row carries the participant name, latest snippet, timestamp, unread flag, and — crucially — who spoke last (the CRM progression signal). This is the agent's screenshot-free eyes on the pipeline of warm conversations. REQUIRES the full /messaging/ page to be loaded (a soft-nav from the top bar leaves the feed DOM mounted and the list empty); if count is 0, force a full page load and re-read.",
+      "scope": {
+        "url_matches": "https://www.linkedin.com/messaging*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "conversations",
+            "selector": ".msg-conversation-listitem",
+            "many": true,
+            "fields": {
+              "name": {
+                "selector": ".msg-conversation-listitem__participant-names, .msg-conversation-card__participant-names",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              },
+              "time": {
+                "selector": ".msg-conversation-listitem__time-stamp, .msg-conversation-card__time-stamp, time",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              },
+              "snippet": {
+                "selector": ".msg-conversation-card__message-snippet, .msg-conversation-listitem__message-snippet",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              },
+              "unread": {
+                "selector": ".notification-badge--show, [class*='unread']",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% ( $rows := $filter(records.conversations, function($c){ $c.name != null and $c.name != '' }); {'conversations': $append([], $map($rows, function($c){ ( $snip := $c.snippet != null ? $c.snippet : ''; $last_speaker := $substring($snip,0,4) = 'You:' ? 'you' : 'them'; $noise := $contains($c.name, 'LinkedIn') or $contains($snip, 'Sponsored') or $contains($snip, 'sent a post'); {'name': $c.name, 'time': $c.time, 'snippet': $snip, 'unread': $c.unread != null and $c.unread != '', 'last_speaker': $last_speaker, 'is_noise': $noise } ) })), 'count': $count($rows), 'waiting_on_you': $count($filter($rows, function($c){ $substring(($c.snippet!=null?$c.snippet:''),0,4) != 'You:' and $not($contains($c.name,'LinkedIn')) })) } ) %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "conversations",
+            "count"
+          ],
+          "properties": {
+            "conversations": {
+              "type": "array"
+            },
+            "count": {
+              "type": "number"
+            },
+            "waiting_on_you": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 4000,
+          "expression": "{% {'count': state.count, 'waiting_on_you': state.waiting_on_you, 'conversations': $append([], $map($filter(state.conversations, function($c){ $not($c.is_noise) }), function($c){ {'name': $c.name, 'last_speaker': $c.last_speaker, 'time': $c.time, 'snippet': $substring($c.snippet, 0, 100)} }))} %}"
+        },
+        {
+          "name": "crm_digest",
+          "max_bytes": 4000,
+          "expression": "{% ( $rows := $filter(state.conversations, function($c){ $not($c.is_noise) }); { 'total': $count($rows), 'waiting_on_you': $count($filter($rows, function($c){ $c.last_speaker = 'them' })), 'waiting_on_them': $count($filter($rows, function($c){ $c.last_speaker = 'you' })), 'prospects': $append([], $map($rows, function($c){ ( $s := $lowercase($c.snippet); $stage := ($contains($s, 'confirming') or $contains($s, 'confirmed')) ? 'Meeting Set' : ( ($contains($s,'coffee') or $contains($s,'call') or $contains($s,'meet') or $contains($s,'tuesday') or $contains($s,'next week')) ? 'Replied (wants to meet)' : ( $c.last_speaker = 'you' ? 'Awaiting their reply' : 'Replied') ); { 'name': $c.name, 'stage': $stage, 'last_speaker': $c.last_speaker, 'action': $c.last_speaker = 'them' ? 'Reply / schedule' : 'Waiting on them', 'snippet': $substring($c.snippet,0,90) } ) })) } ) %}"
+        }
+      ],
+      "postconditions": "count matches the conversation rows a human sees in the left rail. If count is 0, the messaging SPA likely did not mount (soft-nav overlay) — force a full page load of /messaging/ and re-read. Trailing null-name rows are lazy-load placeholders; scroll the rail to hydrate more."
+    },
+    {
+      "name": "linkedin.thread",
+      "description": "The currently open LinkedIn conversation thread: the participant and the message history with direction. 'outgoing' = sent by the logged-in account owner (LinkedIn marks the OTHER party's messages structurally; owner messages lack that marker); 'incoming' = from the other participant. Use this to understand where a conversation stands before drafting a reply or syncing it to a CRM card. Returns ALL visible messages; reconcile agreed facts (meeting date/time/place, commitments) across the whole exchange — details are frequently established earlier and only confirmed in the last message. Do not conclude from the newest message alone.",
+      "scope": {
+        "url_matches": "https://www.linkedin.com/messaging/thread/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "header",
+            "selector": "main",
+            "fields": {
+              "participant": {
+                "selector": ".msg-thread .msg-entity-lockup__entity-title, .msg-title-bar h2, .msg-thread__link-to-profile",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              }
+            }
+          },
+          {
+            "id": "messages",
+            "selector": ".msg-s-event-listitem",
+            "many": true,
+            "fields": {
+              "text": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "class": {
+                "property": "className",
+                "trim": true,
+                "default": ""
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% ( $rawp := records.header.participant; $pstr := $type($rawp) = 'array' ? ($count($rawp) > 0 ? $string($rawp[0]) : '') : ($rawp != null ? $string($rawp) : ''); $part := $trim($split($pstr, /\\n/)[0]); $hdr := ($part = '' or $part = 'Conversation List') ? null : $part; $incoming := $filter(records.messages, function($m){ $contains($m.class, 'msg-s-event-listitem--other') }); $partName := $hdr != null ? $hdr : ($count($incoming) > 0 ? $trim($split($incoming[0].text, /\\n/)[0]) : null); {'participant': $partName, 'messages': $append([], $map(records.messages, function($m){ ( $lines := $split($m.text, /\\n/); $direction := $contains($m.class, 'msg-s-event-listitem--other') ? 'incoming' : 'outgoing'; $body := $trim($join($filter($lines, function($l,$i){ $i > 0 }), ' ')); {'sender': $trim($lines[0]), 'direction': $direction, 'body': $body != '' ? $body : $trim($m.text)} ) })), 'message_count': $count(records.messages), 'last_direction': $count(records.messages) > 0 ? ($contains(records.messages[$count(records.messages)-1].class, 'msg-s-event-listitem--other') ? 'incoming' : 'outgoing') : null} ) %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "participant",
+            "messages",
+            "message_count"
+          ],
+          "properties": {
+            "participant": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "messages": {
+              "type": "array"
+            },
+            "message_count": {
+              "type": "number"
+            },
+            "last_direction": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 3000,
+          "expression": "{% {'participant': state.participant, 'last_direction': state.last_direction, 'messages': $append([], $map(state.messages, function($m){ {'direction': $m.direction, 'body': $substring($m.body, 0, 160)} }))} %}"
+        }
+      ],
+      "postconditions": "message_count matches the visible message bubbles. If participant is null, the thread header did not render — the thread may still be loading."
+    }
+  ]
+}
