@@ -1,0 +1,257 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": {
+    "origin": "https://www.linkedin.com",
+    "name": "LinkedIn profile page",
+    "surface_id": "linkedin.com.profile",
+    "observed_url": "https://www.linkedin.com/in/<your-profile>/"
+  },
+  "observed_at": "2026-06-20T09:22:00-05:00",
+  "prompt": {
+    "title": "LinkedIn profile read and navigation actions",
+    "instructions": "Operate only user-authorized LinkedIn profile pages. Prefer these profile-specific actions before generic DOM or viewport fallback. For LinkedIn profile pages, the visible document may not scroll through window or body; scroll the main content container instead.",
+    "state_summary": "LinkedIn profile pages render the profile header, About, Featured, and Activity inside a scrollable main element. The default viewport scroll primitive can report moved=false with window scrollY remaining 0. A scoped viewport.scroll targeting main moves the profile content and reveals lower sections."
+  },
+  "requires": {
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "dom.snapshot_text",
+        "dom.list_sections",
+        "viewport.scroll",
+        "browser.extract_elements"
+      ],
+      "optional_primitives": [
+        "locator.element_info",
+        "browser.screenshot"
+      ]
+    }
+  },
+  "states": [
+    {
+      "name": "linkedin_profile_visible",
+      "description": "A LinkedIn profile page is visible.",
+      "observables": [
+        "url_contains_/in/",
+        "profile_name",
+        "headline",
+        "about_section",
+        "profile_links"
+      ]
+    },
+    {
+      "name": "linkedin_profile_main_scroll_container",
+      "description": "The profile content scrolls inside the main element rather than the top-level viewport.",
+      "observables": [
+        "main_scroll_y",
+        "visible_sections",
+        "section_offsets"
+      ]
+    },
+    {
+      "name": "linkedin_profile_lower_sections_visible",
+      "description": "Lower profile content such as Activity, posts, profile language, and public profile URL has been revealed by scrolling the main container.",
+      "observables": [
+        "activity",
+        "posts",
+        "profile_language",
+        "public_profile_url"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "linkedin.profile.visible_text.read",
+      "description": "Read visible text from the current LinkedIn profile page. Use for profile header, About, Featured, Activity, and post text currently mounted in the page.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "dom.snapshot_text",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "max_chars": 12000
+          }
+        },
+        "source": {
+          "component": "LinkedInProfileVisibleText",
+          "target_url_contains": "linkedin.com/in/"
+        }
+      }
+    },
+    {
+      "name": "linkedin.profile.sections.list",
+      "description": "List rendered LinkedIn profile sections with inferred headings, offsets, and visibility. Use before and after scrolling the profile main container.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "dom.list_sections",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "max_sections": 60,
+            "max_heading_length": 140
+          }
+        },
+        "source": {
+          "component": "LinkedInProfileSections",
+          "selectors": [
+            "section",
+            "[role='region']"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.profile.main.scroll",
+      "description": "Scroll the LinkedIn profile's main content container down by 900 CSS pixels. Use this instead of unscoped viewport.scroll on profile pages; default viewport scroll can fail with moved=false.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "viewport.scroll",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "delta_y": 900,
+            "scope": {
+              "selectors": [
+                "main",
+                ".scaffold-layout__main",
+                ".scaffold-layout__content",
+                ".application-outlet",
+                ".authentication-outlet"
+              ],
+              "root_strategy": "scope",
+              "max_ancestor_depth": 3
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInProfileMainScrollContainer"
+        }
+      }
+    },
+    {
+      "name": "linkedin.profile.main.scroll_up",
+      "description": "Scroll the LinkedIn profile's main content container up by 900 CSS pixels. Use this to return toward the profile header after reading lower sections.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "viewport.scroll",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "delta_y": -900,
+            "scope": {
+              "selectors": [
+                "main",
+                ".scaffold-layout__main",
+                ".scaffold-layout__content",
+                ".application-outlet",
+                ".authentication-outlet"
+              ],
+              "root_strategy": "scope",
+              "max_ancestor_depth": 3
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInProfileMainScrollContainer"
+        }
+      }
+    },
+    {
+      "name": "linkedin.profile.links.read",
+      "description": "Extract visible LinkedIn profile links from the current profile page, including profile, company, school, featured, and post links that are mounted in the DOM.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.extract_elements",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "scope": {
+              "selector": "main",
+              "root_strategy": "scope"
+            },
+            "item_selector": "a[href]",
+            "fields": [
+              {
+                "name": "text",
+                "selector": ":scope",
+                "attributes": [
+                  "aria-label",
+                  "text"
+                ]
+              },
+              {
+                "name": "url",
+                "selector": ":scope",
+                "attribute": "href"
+              }
+            ]
+          }
+        },
+        "source": {
+          "component": "LinkedInProfileVisibleLinks",
+          "item_selector": "main a[href]"
+        }
+      }
+    },
+    {
+      "name": "linkedin.profile.capture_authoring_screenshot",
+      "description": "Capture a rendered screenshot of the current LinkedIn profile viewport for authoring diagnostics. This is privileged in the extension and user-consented in bookmarklet/embed-style runtimes.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.screenshot",
+        "binding": {
+          "target_url_contains": "linkedin.com/in/",
+          "arguments": {
+            "format": "jpeg",
+            "max_width": 1280,
+            "max_kilobytes": 256,
+            "delay_ms": 0
+          }
+        }
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "collect_profile_bio_context",
+      "description": "Read visible profile text, list rendered sections, scroll the main profile container, then read visible text and sections again. Use this workflow before drafting a short or long speaker bio from a LinkedIn profile.",
+      "inputs": [
+        "profile_url"
+      ],
+      "steps": [
+        "linkedin.profile.visible_text.read",
+        "linkedin.profile.sections.list",
+        "linkedin.profile.main.scroll",
+        "linkedin.profile.visible_text.read",
+        "linkedin.profile.sections.list"
+      ],
+      "note": "If lower sections such as Experience and Education are not mounted after one scroll, repeat linkedin.profile.main.scroll with delta_y 900 and re-run linkedin.profile.sections.list. Do not use unscoped viewport.scroll for this surface."
+    }
+  ]
+}

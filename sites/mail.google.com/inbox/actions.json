@@ -1,0 +1,288 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": "inbox",
+  "observed_at": "2026-07-03T21:40:00Z",
+  "requires": {
+    "authorization": "user-claimed tab on mail.google.com"
+  },
+  "notes": {
+    "read_only": "This map is deliberately READ-ONLY. No compose, reply, send, forward, archive, delete, label, or mark actions exist and none may be added without explicit user approval.",
+    "soft_nav": "Gmail navigates by location.hash (#inbox, #inbox/<threadid>, #search/<query>) in the TOP document; no preload-iframe trap observed. browser.navigate to a hash URL works for returning to #inbox."
+  },
+  "tools": [
+    {
+      "name": "gmail.map",
+      "description": "Return operating guidance for the Gmail read-only survey map. Call this FIRST on Gmail.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "mail.google.com",
+          "surface": "inbox",
+          "private_surface": true,
+          "read_only": "HARD BOUNDARY: never compose, reply, send, forward, archive, delete, or mark mail as read/unread. Reading is always allowed. SANCTIONED EXCEPTION (approved by the account owner): LABEL management (create/nest/apply labels) and FILTER management (create filters that apply labels) are permitted — these organize mail without altering or transmitting any message. Everything else remains read-only. If a flow ever opens a compose window, press Escape and report.",
+          "recommended_sequence": [
+            "gmail.search (returns the how-to: search runs via browser.navigate to a #search/ URL)",
+            "state_read gmail.inbox — rows show sender, subject, snippet, date, unread",
+            "gmail.thread.open_by_text — open a conversation by its visible subject/sender text",
+            "state_read gmail.thread — full messages with sender email, date, body",
+            "browser.navigate to https://mail.google.com/mail/u/0/#inbox to return"
+          ],
+          "crm_notes": "Prospect conversations often MIGRATE here from LinkedIn as they advance. When sweeping for prospects: search each known prospect name AND scan the inbox for personal (non-newsletter) senders. A personal gmail/company address with a conversational subject is a prospect signal even if the name is not yet in the CRM. Match people across platforms by name and company, then keep ONE Trello card per person tracking both channels.",
+          "search_tips": "Search by NAVIGATING, not typing: browser.navigate to https://mail.google.com/mail/u/0/#search/<URL-encoded Gmail query> (e.g. from%3Aalex%20newer_than%3A60d), then read gmail.inbox. The search box does not accept synthetic typing."
+        }
+      }
+    },
+    {
+      "name": "gmail.search",
+      "description": "HOW TO SEARCH GMAIL (instruction, not an executor): call the standalone browser.navigate tool yourself with url https://mail.google.com/mail/u/0/#search/<URL-ENCODED QUERY> (encode spaces as %20, ':' as %3A, '@' as %40). Example: from:alex newer_than:60d → https://mail.google.com/mail/u/0/#search/from%3Aalex%20newer_than%3A60d . Then read the gmail.inbox projection — result rows use the same markup. Full Gmail query syntax works (from:, subject:, newer_than:60d, OR). Do NOT try to type into the search box.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "how_to_search": "browser.navigate to https://mail.google.com/mail/u/0/#search/<URL-ENCODED QUERY>, then state_read gmail.inbox",
+          "example": "https://mail.google.com/mail/u/0/#search/from%3Aalex.doe%20newer_than%3A60d",
+          "return_to_inbox": "browser.navigate to https://mail.google.com/mail/u/0/#inbox"
+        }
+      }
+    },
+    {
+      "name": "gmail.thread.open_by_text",
+      "description": "Open a Gmail conversation from the current row list (inbox or search results) by a distinctive visible substring of its subject or sender. Postcondition proves the thread view (subject header) opened. Read it with the gmail.thread projection. NOTE: opening a thread marks it as read in Gmail — acceptable for the CRM sweep, but be aware.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "row_text"
+        ],
+        "properties": {
+          "row_text": {
+            "type": "string",
+            "description": "Distinctive substring of the row's visible subject or sender, e.g. 'Alex Doe' or a subject fragment."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "row list visible (inbox or search results)",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "findRow",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "div[role='main'] tr.zA",
+                "text_contains": "{% input.row_text %}"
+              }
+            }
+          },
+          {
+            "id": "openRow",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findRow.output.clickable_center.x %}",
+              "y": "{% steps.findRow.output.clickable_center.y %}"
+            }
+          },
+          {
+            "id": "threadOpen",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "div[role='main'] h2.hP"
+              },
+              "state": "visible",
+              "timeout_ms": 10000
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'opened_row': input.row_text, 'thread_open': $exists(steps.threadOpen.output), 'note': 'Read the gmail.thread projection for the messages. Return to the list with browser.navigate to .../#inbox or by re-running gmail.search.'} %}"
+      }
+    }
+  ],
+  "state_projections": [
+    {
+      "name": "gmail.inbox",
+      "description": "The visible Gmail row list (inbox OR search results — same markup): per row sender name/email, subject, snippet, date, unread flag. The agent's eyes on the mailbox. Rows are the currently rendered page (~50-100); older mail needs gmail.search with newer_than/older_than.",
+      "scope": {
+        "url_matches": "https://mail.google.com/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "rows",
+            "selector": "div[role='main'] tr.zA",
+            "many": true,
+            "fields": {
+              "sender": {
+                "selector": ".yW span[email]",
+                "attribute": "name",
+                "default": null
+              },
+              "sender_email": {
+                "selector": ".yW span[email]",
+                "attribute": "email",
+                "default": null
+              },
+              "sender_text": {
+                "selector": ".yW",
+                "property": "textContent",
+                "trim": true,
+                "default": null
+              },
+              "subject": {
+                "selector": ".bog",
+                "property": "textContent",
+                "trim": true,
+                "default": null
+              },
+              "snippet": {
+                "selector": ".y2",
+                "property": "textContent",
+                "trim": true,
+                "default": null
+              },
+              "date": {
+                "selector": "td.xW span[title]",
+                "attribute": "title",
+                "default": null
+              },
+              "row_class": {
+                "attribute": "class",
+                "default": ""
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'rows': $append([], $map(records.rows, function($r) { {'sender': $r.sender != null ? $r.sender : $r.sender_text, 'email': $r.sender_email, 'subject': $substring($r.subject != null ? $r.subject : '', 0, 90), 'snippet': $substring($r.snippet != null ? $r.snippet : '', 0, 80), 'date': $r.date, 'unread': $contains($r.row_class, 'zE')} })), 'count': $count(records.rows)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "rows",
+            "count"
+          ],
+          "properties": {
+            "rows": {
+              "type": "array"
+            },
+            "count": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 6000,
+          "expression": "{% {'count': state.count, 'rows': $append([], $map($filter(state.rows, function($r, $i) { $i < 25 }), function($r) { {'from': $r.sender, 'subj': $substring($r.subject, 0, 50), 'date': $r.date, 'unread': $r.unread} }))} %}"
+        }
+      ]
+    },
+    {
+      "name": "gmail.thread",
+      "description": "The currently open Gmail conversation: subject plus each message's sender name/email, date, and body text (bodies truncated to 1500 chars). Use after gmail.thread.open_by_text.",
+      "scope": {
+        "url_matches": "https://mail.google.com/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "head",
+            "selector": "body",
+            "fields": {
+              "subject": {
+                "selector": "div[role='main'] h2.hP",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              }
+            }
+          },
+          {
+            "id": "messages",
+            "selector": "div[role='main'] .gs",
+            "many": true,
+            "fields": {
+              "sender": {
+                "selector": ".gD",
+                "attribute": "name",
+                "default": null
+              },
+              "sender_email": {
+                "selector": ".gD",
+                "attribute": "email",
+                "default": null
+              },
+              "date": {
+                "selector": ".g3",
+                "attribute": "title",
+                "default": null
+              },
+              "body": {
+                "selector": ".a3s",
+                "property": "textContent",
+                "trim": true,
+                "default": ""
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'subject': records.head.subject, 'messages': $append([], $map(records.messages, function($m) { {'from': $m.sender, 'email': $m.sender_email, 'date': $m.date, 'body': $substring($replace($m.body, /\\s+/, ' '), 0, 1500)} })), 'count': $count(records.messages)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "messages"
+          ],
+          "properties": {
+            "subject": {},
+            "messages": {
+              "type": "array"
+            },
+            "count": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "summaries": []
+    }
+  ]
+}
