@@ -571,14 +571,8 @@
     {
       "id": "linkedin-messaging-skill",
       "type": "skill",
-      "path": "(private storage path)",
+      "path": "SKILL.md",
       "description": "Operational guidance for surveying LinkedIn conversations and preparing Trello/Linear follow-up payloads."
-    },
-    {
-      "id": "linkedin-messaging-validation",
-      "type": "run-evidence",
-      "path": "(private storage path)",
-      "description": "Summary of June 8 validation artifacts used to build this map."
     }
   ],
   "known_limits": [

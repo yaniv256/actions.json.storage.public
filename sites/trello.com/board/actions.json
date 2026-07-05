@@ -6506,14 +6506,6 @@
         "title": "Trello Board Operator Skill",
         "description": "UI-only Trello operating guidance for creating cards/lists, labels, due dates, goals, checklists, movement, and tutorial replication.",
         "read_when": "Read before creating, editing, labeling, dating, moving, filtering, importing, or bulk-updating Trello cards or lists."
-      },
-      {
-        "id": "trello-board-score",
-        "path": "quality-score.md",
-        "kind": "score",
-        "title": "Trello Board actions.json Score",
-        "description": "Adversarial score for replicating the YouTube Trello tutorial through actions.json and available primitives.",
-        "read_when": "Read when auditing Trello tutorial coverage, validating remaining gaps, or deciding whether the Trello map is ready for GPT Realtime 2 testing."
       }
     ]
   },
