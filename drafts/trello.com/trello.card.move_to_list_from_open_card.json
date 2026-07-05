@@ -1,0 +1,16 @@
+{
+  "action": "trello.card.move_to_list_from_open_card",
+  "draft": true,
+  "problem": "Card moves can succeed without a user-visible confirmation step, leaving the user unsure what happened.",
+  "change": {
+    "post_action": [
+      "After moving a card, verify the board projection shows the card under the target list.",
+      "Then offer the user the expected next step, such as returning to the board, showing the target list, or summarizing what changed."
+    ]
+  },
+  "rationale": "This improves user experience by pairing verified state with a helpful follow-up suggestion, reducing back-and-forth.",
+  "verification": [
+    "Use the preferred board projection or visible-cards-by-list read to confirm the new list membership.",
+    "Do not claim success until verification passes."
+  ]
+}
