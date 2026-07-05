@@ -1,0 +1,473 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": {
+    "origin": "https://www.linkedin.com",
+    "name": "LinkedIn creator content analytics",
+    "surface_id": "linkedin.creator-content-analytics",
+    "observed_url": "https://www.linkedin.com/analytics/creator/content/"
+  },
+  "observed_at": "2026-06-04T04:20:00-05:00",
+  "prompt": {
+    "title": "LinkedIn creator content analytics portable actions",
+    "instructions": "Operate only the user-authorized LinkedIn creator content analytics page. Prefer portable primitives. Use horizon snapshots to infer post-level time attribution by subtracting rolling-window totals.",
+    "state_summary": "The page exposes rolling horizons such as 7 days, 14 days, 28 days, 90 days, and 365 days. The aggregate export gives daily totals, but the top-performing post table gives only cumulative post totals for the selected horizon. Capturing the same post rows at multiple horizons allows approximate week-by-week attribution by subtraction."
+  },
+  "requires": {
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "locator.element_info",
+        "pointer.click"
+      ],
+      "optional_primitives": [
+        "browser.extract_elements",
+        "browser.screenshot",
+        "overlay.open"
+      ]
+    }
+  },
+  "states": [
+    {
+      "name": "creator_content_analytics_visible",
+      "description": "The browser is on LinkedIn creator content analytics.",
+      "observables": [
+        "page_url",
+        "selected_horizon",
+        "content_performance_summary",
+        "top_performing_posts"
+      ]
+    },
+    {
+      "name": "horizon_menu_open",
+      "description": "The date-range menu is open and horizon options can be resolved to viewport coordinates.",
+      "observables": [
+        "7 days",
+        "14 days",
+        "28 days",
+        "90 days",
+        "365 days",
+        "Show results"
+      ]
+    },
+    {
+      "name": "horizon_results_applied",
+      "description": "The chosen horizon has been applied by pressing Show results, and the body text reflects the selected horizon.",
+      "observables": [
+        "selected_metric",
+        "line_chart_data_point_count",
+        "aggregate_impressions",
+        "aggregate_engagements",
+        "top_post_rows"
+      ]
+    },
+    {
+      "name": "metric_menu_open",
+      "description": "The metric menu is open and metric options can be resolved to viewport coordinates.",
+      "observables": [
+        "Impressions",
+        "Engagements",
+        "Show results"
+      ]
+    }
+  ],
+  "tools": [
+    {
+      "name": "linkedin.creator_content.read_visible_analytics",
+      "description": "Read the visible creator content analytics page text, including selected horizon, chart point count, aggregate metrics, and visible top-performing post rows.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "body",
+              "text_contains": "Top performing posts"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInCreatorContentAnalyticsPage",
+          "selectors": [
+            "body"
+          ],
+          "text_contains": "Top performing posts"
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.metric_impressions_info",
+      "description": "Resolve the Impressions metric label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the metric menu; if the menu is already open, click the returned center to choose Impressions.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button']",
+              "text_contains": "Impressions"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInMetricControlOrOption",
+          "text_contains": "Impressions",
+          "selectors": [
+            "button",
+            "[role='button']"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.metric_engagements_info",
+      "description": "Resolve the Engagements metric label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the metric menu; if the menu is already open, click the returned center to choose Engagements.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button'],a",
+              "text_contains": "Engagements"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInMetricControlOrOption",
+          "text_contains": "Engagements",
+          "selectors": [
+            "button",
+            "[role='button']",
+            "a"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.horizon_7_days_info",
+      "description": "Resolve the 7 days horizon label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the menu; if the menu is already open, click the returned center to choose this horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button']",
+              "text_contains": "7 days"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonControlOrOption",
+          "text_contains": "7 days",
+          "selectors": [
+            "button",
+            "[role='button']"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.horizon_14_days_info",
+      "description": "Resolve the 14 days horizon label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the menu; if the menu is already open, click the returned center to choose this horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button'],label",
+              "text_contains": "14 days"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonControlOrOption",
+          "text_contains": "14 days",
+          "selectors": [
+            "button",
+            "[role='button']",
+            "label"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.horizon_28_days_info",
+      "description": "Resolve the 28 days horizon label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the menu; if the menu is already open, click the returned center to choose this horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button'],label",
+              "text_contains": "28 days"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonControlOrOption",
+          "text_contains": "28 days",
+          "selectors": [
+            "button",
+            "[role='button']",
+            "label"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.horizon_90_days_info",
+      "description": "Resolve the 90 days horizon label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the menu; if the menu is already open, click the returned center to choose this horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button'],label",
+              "text_contains": "90 days"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonControlOrOption",
+          "text_contains": "90 days",
+          "selectors": [
+            "button",
+            "[role='button']",
+            "label"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.horizon_365_days_info",
+      "description": "Resolve the 365 days horizon label or open-menu option to viewport geometry. If it is the active label, click the returned center to open the menu; if the menu is already open, click the returned center to choose this horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "button,[role='button'],label",
+              "text_contains": "365 days"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonControlOrOption",
+          "text_contains": "365 days",
+          "selectors": [
+            "button",
+            "[role='button']",
+            "label"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.show_results_info",
+      "description": "Resolve the Show results control in the open horizon menu. Click the returned center to apply the selected horizon.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "a,button,[role='button']",
+              "text_contains": "Show results"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInHorizonMenuShowResults",
+          "requires_state": "horizon_menu_open",
+          "text_contains": "Show results",
+          "selectors": [
+            "a",
+            "button",
+            "[role='button']"
+          ]
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.export_info",
+      "description": "Resolve the Export control for the selected horizon. The exported XLSX provides aggregate daily rows and top-post cumulative totals for the selected range.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "locator.element_info",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "locator": {
+              "selector": "a,button,[role='button']",
+              "text_contains": "Export"
+            }
+          }
+        },
+        "source": {
+          "component": "LinkedInAnalyticsExportControl",
+          "selectors": [
+            "a",
+            "button",
+            "[role='button']"
+          ],
+          "text_contains": "Export"
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.visible_controls.read",
+      "description": "Read visible links/buttons/controls on the page. Useful for authoring and for confirming the active horizon control is reachable without debug JavaScript.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.extract_elements",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "scope": {
+              "selector": "body",
+              "root_strategy": "scope"
+            },
+            "item_selector": "a,button,[role='button']",
+            "fields": [
+              {
+                "name": "text",
+                "selector": ":scope",
+                "attributes": [
+                  "aria-label",
+                  "text"
+                ]
+              },
+              {
+                "name": "url",
+                "selector": ":scope",
+                "attribute": "href"
+              }
+            ]
+          }
+        },
+        "source": {
+          "component": "LinkedInVisibleControls",
+          "item_selector": "a,button,[role='button']"
+        }
+      }
+    },
+    {
+      "name": "linkedin.creator_content.capture_authoring_screenshot",
+      "description": "Capture a rendered screenshot for LinkedIn authoring diagnostics. This is privileged in the extension and user-consented in bookmarklet/embed-style runtimes.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "browser.screenshot",
+        "binding": {
+          "target_url_contains": "linkedin.com/analytics/creator/content",
+          "arguments": {
+            "format": "jpeg",
+            "max_kb": 250,
+            "delay_ms": 0
+          }
+        }
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "collect_metric_snapshot",
+      "description": "Use the fixed metric info tool for the current active metric to open the metric menu, use the fixed metric info tool for the desired metric to resolve the menu option, pointer.click to select it, show_results_info plus pointer.click to apply it, then read_visible_analytics to capture the metric snapshot.",
+      "inputs": [
+        "current_metric",
+        "target_metric"
+      ],
+      "steps": [
+        "linkedin.creator_content.metric_impressions_info | linkedin.creator_content.metric_engagements_info",
+        "pointer.click",
+        "linkedin.creator_content.metric_impressions_info | linkedin.creator_content.metric_engagements_info",
+        "pointer.click",
+        "linkedin.creator_content.show_results_info",
+        "pointer.click",
+        "linkedin.creator_content.read_visible_analytics"
+      ],
+      "note": "The metric menu does not apply on option click alone; Show results must be clicked before the page updates."
+    },
+    {
+      "name": "collect_horizon_snapshot",
+      "description": "Use the fixed horizon info tool for the current active horizon to open the range menu, use the fixed horizon info tool for the desired horizon to resolve the menu option, pointer.click to select it, show_results_info plus pointer.click to apply it, then read_visible_analytics to capture the horizon snapshot.",
+      "inputs": [
+        "current_horizon",
+        "target_horizon"
+      ],
+      "steps": [
+        "linkedin.creator_content.horizon_7_days_info | horizon_14_days_info | horizon_28_days_info | horizon_90_days_info | horizon_365_days_info",
+        "pointer.click",
+        "linkedin.creator_content.horizon_7_days_info | horizon_14_days_info | horizon_28_days_info | horizon_90_days_info | horizon_365_days_info",
+        "pointer.click",
+        "linkedin.creator_content.show_results_info",
+        "pointer.click",
+        "linkedin.creator_content.read_visible_analytics"
+      ],
+      "note": "The horizon menu does not apply on option click alone; Show results must be clicked before the page updates."
+    }
+  ]
+}

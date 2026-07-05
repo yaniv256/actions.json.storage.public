@@ -1,0 +1,1148 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": {
+    "origin": "https://calendar.google.com",
+    "name": "Google Calendar (day/week view)",
+    "surface_id": "calendar.google.com.grid",
+    "observed_url": "https://calendar.google.com/calendar/u/0/r"
+  },
+  "observed_at": "2026-07-02",
+  "prompt": "You operate a user's Google Calendar through visible, human-like actions only. Never use screenshots as part of a workflow: the hosted voice agent has no screenshot tool. Prove every step by reading the DOM (locator.wait_for, locator.element_info, locator.text_content) or a state projection, not by pixels and not by trusting a tool response code. RESCHEDULING covers BOTH the DATE and the TIME of an event. When a user (or a source conversation) says an event should move, do not assume only the time is wrong — compare the event's CURRENT date AND time (read calendar.grid, whose 'raw' text includes the full date like 'July 2, 2026') against the agreed date AND time, and change whichever differ. A meeting can be on the wrong day, the wrong time, or both. OPEN THE EDITOR BY URL: the reliable way to edit an event is to call the browser.navigate tool DIRECTLY (it is a standalone tab-lifecycle tool you call yourself, NOT a calendar action and NOT a workflow step — navigating tears down and reconnects the tab's runtime, which a workflow cannot survive from inside) with url https://calendar.google.com/calendar/u/0/r/eventedit/<eventid> (the eventid comes from the calendar.grid projection). This opens the full editor deterministically and avoids the flaky grid-chip quick-view. Then call google.calendar.event.editor.assert_open to confirm the right editor loaded. Navigation rotates the tab's runtime_id, so route later calls by target_url_contains 'calendar.google.com', never a captured runtime_id. In the full editor, Start date and End date are plain text inputs — set them with text.insert (mode replace). Start time and End time are combobox inputs. NEVER NAVIGATE OR RELOAD A DIRTY EDITOR: after you change any field, the editor has unsaved changes; navigating away or reloading fires the browser's native 'Leave site? Changes may not be saved' confirm, which FREEZES the tab (all tool calls to it time out — this is the 'wedge'). Once you have edited a field, leave the editor ONLY by Save (google.calendar.event.save) or the editor's own Close/Back discard control — never by browser.navigate. IMPORTANT STALL BEHAVIOR: interacting with the time-picker dropdown makes tool responses time out (HTTP 000) EVEN THOUGH THE CLICK EXECUTED. Never retry a timed-out dropdown click; instead let the next locator.wait_for prove whether the state advanced. Mutations to recurring events raise two dialogs (scope, then guest-email); handle both explicitly. Default to 'This event' scope and 'Don't send' unless the user says otherwise.",
+  "skill": "Read this map's prompt and the reschedule workflow's x_state_machine before operating. Rescheduling means aligning BOTH date and time to what was agreed — check each against the event's current values and change whichever is wrong. Open the editor by navigating to /r/eventedit/<eventid>, not by clicking the grid chip. Change the DATE with text.insert into the Start date AND End date inputs (a single-day event needs both, or it becomes multi-day); change the TIME through the Start time editor. Confirm the final date and time by re-reading calendar.grid ('raw' carries the full date), never by screenshot.",
+  "requires": {
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "locator.element_info",
+        "locator.wait_for",
+        "locator.text_content",
+        "pointer.click",
+        "text.insert"
+      ],
+      "optional_primitives": [
+        "browser.navigate",
+        "browser.screenshot",
+        "keyboard.press",
+        "debug.run_javascript"
+      ]
+    }
+  },
+  "notes": {
+    "dpr_warning": "browser.screenshot returns at devicePixelRatio 2 on this display; screenshot pixels are NOT click coordinates. Portable actions must take geometry from locator.element_info.clickable_center (already CSS px), never from a screenshot. Screenshots are diagnostic only.",
+    "ack_stall": "The content-script channel executes clicks in the time-picker sub-state but the response ack stalls (HTTP 000, ~8-12s). This is a false negative. Progress is proven only by a following locator.wait_for on the expected DOM state.",
+    "csp": "browser.run_javascript (content-script eval) is CSP-blocked here (unsafe-eval). Use debug.run_javascript (CDP) for authoring diagnostics only; its result is at output.result.",
+    "wedge_root_cause": "The 'tab wedge' (tab stops responding, all tool calls time out, heartbeat goes stale, stuck on /r/eventedit) is caused by navigating/reloading the editor while it holds a GENUINE unsaved change. That fires Chrome's native beforeunload confirm ('Leave site? Changes may not be saved') which blocks the page main thread synchronously, so the content script cannot answer the bridge heartbeat. Reproduced deterministically 2026-07-03: a real dropdown-option selection (Google-tracked dirty) + location nav = wedge every time; a native-value-setter edit does NOT arm the guard (Google doesn't register it as dirty) so those navs were clean and falsely exonerated navigation. FIX: never navigate/reload a dirty editor — leave only via Save or the editor's Close/Back discard. A wedged tab (dialog up) is NOT recoverable by page-world script or by browser.navigate (both blocked by the modal); needs CDP Page.handleJavaScriptDialog or a user click. See (internal investigation note)."
+  },
+  "tools": [
+    {
+      "name": "google.calendar.map",
+      "description": "Return operating guidance for the Google Calendar map. Call this FIRST, before any other calendar action, and follow its reschedule recipe exactly.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "calendar.google.com",
+          "surface": "day-view",
+          "reschedule_recipe": {
+            "rule": "Rescheduling covers BOTH the DATE and the TIME of an event. Never assume only the time is wrong. Before editing, write down the agreed DATE and the agreed TIME from the source conversation, then compare EACH against the event's current date and time (calendar.grid 'raw' text includes the full date, e.g. 'July 2, 2026'). Change every field that differs.",
+            "source_reconciliation": "The most recent confirmation message often states only ONE detail (for example the time). The agreed DAY may appear only in earlier messages, possibly as a day-of-week like 'Saturday morning'. Reconcile the WHOLE conversation and resolve day-of-week references to a concrete calendar date before comparing.",
+            "steps": [
+              "1. From the source conversation, derive agreed_date AND agreed_time (resolve weekday names to real dates).",
+              "2. Read calendar.grid to find the event. IF IT IS NOT ON THE VISIBLE DAY: the event may sit on the WRONG day — that is often exactly the error you are looking for. Navigate to the MONTH view (browser.navigate to https://calendar.google.com/calendar/u/0/r/month/<year>/<month>/1) and read calendar.grid there to scan the whole month; a mistyped event usually lands within a few days of the agreed date. Only conclude the event is missing after scanning the full month around the agreed date. Note its eventid and its CURRENT date AND time from the 'raw' text.",
+              "3. Open the editor: call the standalone browser.navigate tool with url https://calendar.google.com/calendar/u/0/r/eventedit/<eventid> (eventid from calendar.grid). Then google.calendar.event.editor.assert_open.",
+              "4. If the DATE differs: google.calendar.event.start_date.set.",
+              "5. If the TIME differs: google.calendar.event.start_time.set.",
+              "6. google.calendar.event.save (never leave a dirty editor any other way).",
+              "7. Verify BOTH axes after saving: read calendar.grid on the AGREED date and confirm the event's raw text shows the agreed date and time. Verifying only the time is an incomplete verification. Report ONLY after every mismatched axis has been corrected and verified."
+            ],
+            "completion_rule": "When the user has ALREADY asked you to fix whatever is wrong, fix EVERY mismatched axis (date AND time) in the same pass and only then report. Do NOT fix one axis and ask permission for the other — the permission was already given, and stopping halfway leaves the event wrong. A date change via start_date.set + save is routine and reversible, not a bigger action than a time change."
+          },
+          "editor_safety": "NEVER navigate or reload the editor after changing any field — a dirty editor arms a native 'Leave site?' confirm that freezes the tab. Exit ONLY via google.calendar.event.save or the editor's Close/discard.",
+          "routing": "Navigation rotates the tab's runtime; route calendar calls by target_url_contains 'calendar.google.com', never a captured runtime id.",
+          "finding_misplaced_events": "An event whose details were typed wrong is usually on the WRONG DAY near the agreed one. Never search only the agreed day. Use the month view (URL .../r/month/YYYY/M/1) with calendar.grid to scan broadly before reporting an event as not found.",
+          "convention_inference": "When asked to make an event match the user's usual conventions (naming, location habits): conventions are INFERRED FROM HISTORY, never guessed. Scan SEVERAL months of the calendar (month views going back, .../r/month/YYYY/M/1 + calendar.grid), collect multiple exemplars of the SAME KIND of event (a one-on-one meeting's convention comes from other one-on-one meetings, not from classes or holidays), state the pattern you infer, cite the exemplars, then apply it. The current month often has too few exemplars — go back further."
+        }
+      }
+    },
+    {
+      "name": "google.calendar.event.open_by_title",
+      "description": "Open the quick-view for a calendar event on the currently visible day, identified by its title text. Returns the event chip geometry. Precondition: the target day is already in view. Postcondition asserts the event detail popover (Edit button) appeared.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "event_title"
+        ],
+        "properties": {
+          "event_title": {
+            "type": "string",
+            "description": "Visible title of the event, e.g. 'Morning meditation'. Matched against the event chip text."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "day grid visible with the target event rendered",
+          "states": [
+            "readiness",
+            "transition",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "findChip",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-eventid]",
+                "text_contains": "{% input.event_title %}"
+              }
+            }
+          },
+          {
+            "id": "openChip",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findChip.output.clickable_center.x %}",
+              "y": "{% steps.findChip.output.clickable_center.y %}"
+            }
+          },
+          {
+            "id": "assertPopover",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[aria-label='Edit event']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          }
+        ],
+        "output": "{% {'opened': input.event_title, 'chip': steps.findChip.output.clickable_center} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.editor.assert_open",
+      "description": "After it confirms the editor, compare the editor's Start date AND Start time against the agreed spec on BOTH axes independently — an event can be on the right time but the wrong day. Assert that the FULL event editor is loaded and showing the event you intend to edit. Call this AFTER you have opened the editor by calling the browser.navigate tool yourself with url 'https://calendar.google.com/calendar/u/0/r/eventedit/<eventid>' (the eventid comes from the calendar.grid projection). browser.navigate is a tab-lifecycle tool you call directly — it is NOT part of this action, because navigating tears down and reconnects the tab's runtime (rotating its runtime_id), which a workflow cannot survive from the inside. So the sequence is: (1) read calendar.grid to get the eventid; (2) call browser.navigate {url: '.../r/eventedit/<eventid>'}; (3) call this action to confirm the right editor opened. It reads the Start date, Start time, and title, and reports whether the title contains expect_title so you never edit the wrong event. Route this call by target_url_contains 'calendar.google.com' (the runtime_id changed during navigation).",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "expect_title",
+          "agreed_date",
+          "agreed_time"
+        ],
+        "properties": {
+          "expect_title": {
+            "type": "string",
+            "description": "A distinctive substring of the event title you intend to edit, e.g. 'Alex Doe'. The output's title_matches is false if the loaded editor's title does not contain this — stop and re-check the eventid rather than editing the wrong event."
+          },
+          "agreed_date": {
+            "type": "string",
+            "description": "The DATE the meeting was AGREED to be on, reconciled from the WHOLE source conversation — day-of-week AND concrete date, e.g. 'Saturday, Jul 4, 2026'. If the conversation names only a weekday ('Saturday morning'), resolve it to the concrete date using the message timestamps BEFORE calling. Never copy this from the calendar event — it comes from the source of truth (the conversation)."
+          },
+          "agreed_time": {
+            "type": "string",
+            "description": "The start TIME the meeting was AGREED to begin, from the source conversation, e.g. '9:30am'. Never copy this from the calendar event."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "tab already navigated to /r/eventedit/<eventid> (caller invoked browser.navigate first)",
+          "states": [
+            "readiness",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "assertEditor",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start date']"
+              },
+              "state": "visible",
+              "timeout_ms": 10000
+            }
+          },
+          {
+            "id": "matchTitle",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Title'], input[aria-label='Add title']",
+                "text_contains": "{% input.expect_title %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "readTitleInfo",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Title'], input[aria-label='Add title']",
+                "text_contains": "{% input.expect_title %}"
+              }
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'editor_open': true, 'expected_title': input.expect_title, 'title_matches': $exists(steps.readTitleInfo.output.clickable_center.x), 'agreed_date': input.agreed_date, 'agreed_time': input.agreed_time, 'next_step': 'NOW state_read the calendar.open_event projection and compare its start_date (including the day of week) against agreed_date AND its start_time against agreed_time. Fix EVERY axis that differs — date via start_date.set, time via start_time.set — then save. Fixing only one axis when both differ is a failed reschedule; the user already authorized the full fix.'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.title.set",
+      "description": "In the open FULL event editor, replace the event's TITLE via text.insert (mode replace) into the Title input — the same reliable native-value path as the date/time setters. STALL-SAFE: prove success by re-reading calendar.open_event.title, not by the click response. Does not Save — call google.calendar.event.save after all field changes.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "new_title",
+          "convention_evidence"
+        ],
+        "properties": {
+          "new_title": {
+            "type": "string",
+            "description": "The full replacement event title text."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "full event editor open",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "readyField",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Title']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          },
+          {
+            "id": "findField",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Title']"
+              }
+            }
+          },
+          {
+            "id": "focusField",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findField.output.clickable_center.x %}",
+              "y": "{% steps.findField.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "typeValue",
+            "primitive": "text.insert",
+            "args": {
+              "text": "{% input.new_title %}",
+              "mode": "replace",
+              "target": {
+                "selector": "input[aria-label='Title']"
+              }
+            }
+          },
+          {
+            "id": "assertValue",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Title']",
+                "text_contains": "{% input.new_title %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'new_title_set': input.new_title, 'note': 'Verify via calendar.open_event; the assert is ack-stall-tolerant and non-fatal. Does not Save — call google.calendar.event.save after all field changes.'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.location.set",
+      "description": "In the open FULL event editor, set the event's LOCATION field (the dedicated 'Add location' input, NOT the title) via text.insert + Enter. Enter closes the location autocomplete dropdown (it may adopt the top suggestion, which is fine). STALL-SAFE: prove success by re-reading calendar.open_event.location. Does not Save — call google.calendar.event.save after all field changes.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "new_location"
+        ],
+        "properties": {
+          "new_location": {
+            "type": "string",
+            "description": "The location text, e.g. 'Amore Coffee, West St. Paul'."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "full event editor open",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "readyField",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Add location']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          },
+          {
+            "id": "findField",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Add location']"
+              }
+            }
+          },
+          {
+            "id": "focusField",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findField.output.clickable_center.x %}",
+              "y": "{% steps.findField.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "typeValue",
+            "primitive": "text.insert",
+            "args": {
+              "text": "{% input.new_location %}",
+              "mode": "replace",
+              "target": {
+                "selector": "input[aria-label='Add location']"
+              }
+            }
+          },
+          {
+            "id": "commitValue",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Enter"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "assertValue",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Add location']",
+                "text_contains": "{% input.new_location %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'new_location_set': input.new_location, 'note': 'Verify via calendar.open_event; the assert is ack-stall-tolerant and non-fatal. Does not Save — call google.calendar.event.save after all field changes.'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.start_date.set",
+      "description": "In the open FULL event editor, change the event's DATE. Sets BOTH the Start date and End date inputs to the same day via text.insert (mode replace) — a single-day event needs both moved, or it becomes a multi-day event. The date must be typed in Google Calendar's display format, e.g. 'Jul 4, 2026' (three-letter month, day, comma, four-digit year). This uses the native value-setter path proven to commit on this field; it does NOT open the flaky date-picker dropdown. STALL-SAFE: focusing the date field can make the bridge response time out (HTTP 000) even though the field updates on the page — do NOT retry a timed-out call. Prove success by re-reading the calendar.open_event projection's start_date/end_date, or the action's own postcondition. Does not Save — call google.calendar.event.save after all field changes.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "new_date"
+        ],
+        "properties": {
+          "new_date": {
+            "type": "string",
+            "description": "Target date in Google Calendar display format, e.g. 'Jul 4, 2026', 'Dec 25, 2026'. Month is the three-letter abbreviation."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "full event editor open (Start date field visible)",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "readyStartDate",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start date']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          },
+          {
+            "id": "focusStartDate",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start date']"
+              }
+            }
+          },
+          {
+            "id": "clickStartDate",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.focusStartDate.output.clickable_center.x %}",
+              "y": "{% steps.focusStartDate.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "setStartDate",
+            "primitive": "text.insert",
+            "args": {
+              "text": "{% input.new_date %}",
+              "mode": "replace",
+              "target": {
+                "selector": "input[aria-label='Start date']"
+              }
+            }
+          },
+          {
+            "id": "focusEndDate",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='End date']"
+              }
+            }
+          },
+          {
+            "id": "clickEndDate",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.focusEndDate.output.clickable_center.x %}",
+              "y": "{% steps.focusEndDate.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "setEndDate",
+            "primitive": "text.insert",
+            "args": {
+              "text": "{% input.new_date %}",
+              "mode": "replace",
+              "target": {
+                "selector": "input[aria-label='End date']"
+              }
+            }
+          },
+          {
+            "id": "assertStartDate",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start date']",
+                "text_contains": "{% input.new_date %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'date_set_to': input.new_date, 'note': 'Verify via calendar.open_event.start_date or the grid on the target day; assertStartDate is ack-stall-tolerant and non-fatal — a timeout here does NOT mean the date failed to commit.'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.editor.open",
+      "description": "From an open event quick-view, click Edit to open the full editor. Postcondition asserts the Start-time field is present (the editor loaded). Prefer google.calendar.event.editor.open_by_url instead — the grid quick-view this depends on is flaky.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "event quick-view popover open (Edit event button visible)",
+          "states": [
+            "readiness",
+            "transition",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "readyEdit",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[aria-label='Edit event']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          },
+          {
+            "id": "findEdit",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[aria-label='Edit event']"
+              }
+            }
+          },
+          {
+            "id": "clickEdit",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findEdit.output.clickable_center.x %}",
+              "y": "{% steps.findEdit.output.clickable_center.y %}"
+            }
+          },
+          {
+            "id": "assertEditor",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[aria-label='Start time']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          }
+        ],
+        "output": "{% {'editor_open': true} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.start_time.set",
+      "description": "TIME-ONLY: this changes the clock time but NEVER the event's DATE. Before using it, compare the agreed DAY (resolve weekday words like 'Saturday' to a concrete date) against the event's current date shown in the editor/grid; if the day differs too, you MUST also call google.calendar.event.start_date.set — fixing only the time on the wrong day is a failed reschedule. In the open FULL event editor, set the Start time by TYPING it into the Start time combobox input via text.insert (mode replace) + Enter to commit — the same reliable native-value path used for the date, NOT the flaky option dropdown. The End time does NOT auto-follow, so this also shifts the End time by the same delta is NOT attempted here; if the event duration matters, set End time separately. Time format is Google's display format, e.g. '9:30am', '2:30pm'. Postcondition re-reads the Start time input value and asserts it equals the requested time. STALL-SAFE: the focus click can make the bridge response time out even though the field updates — do not retry a timed-out call; prove success by reading calendar.open_event.start_time. Does not Save.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "new_start_time"
+        ],
+        "properties": {
+          "new_start_time": {
+            "type": "string",
+            "description": "Target start time in Google Calendar display format, e.g. '9:30am', '7:15am', '2:30pm'. Lowercase am/pm, no space."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "full event editor open (Start time field visible)",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ]
+        },
+        "steps": [
+          {
+            "id": "readyField",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start time']"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            }
+          },
+          {
+            "id": "findField",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start time']"
+              }
+            }
+          },
+          {
+            "id": "focusField",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findField.output.clickable_center.x %}",
+              "y": "{% steps.findField.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "typeTime",
+            "primitive": "text.insert",
+            "args": {
+              "text": "{% input.new_start_time %}",
+              "mode": "replace",
+              "target": {
+                "selector": "input[aria-label='Start time']"
+              }
+            }
+          },
+          {
+            "id": "commitTime",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Enter"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "assertTime",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "input[aria-label='Start time']",
+                "text_contains": "{% input.new_start_time %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'start_time_set_to': input.new_start_time, 'note': 'Verify via calendar.open_event.start_time; assertTime is ack-stall-tolerant and non-fatal.'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.save",
+      "description": "Save the open editor. Clicks Save, then handles the recurring-event scope dialog (default 'This event') and the guest-email dialog (default 'Don't send'). Postcondition asserts return to the grid (Create button visible). Each dialog step is stall-safe: proved by locator.wait_for, not by the click response.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "recurrence_scope": {
+            "type": "string",
+            "enum": [
+              "This event",
+              "This and following events",
+              "All events"
+            ],
+            "description": "Which occurrences to change for a recurring event. Default 'This event'."
+          },
+          "notify_guests": {
+            "type": "boolean",
+            "description": "Whether to email guests about the change. Default false (Don't send)."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "event editor open with pending changes (Save button visible)",
+          "states": [
+            "transition",
+            "postcondition",
+            "cleanup"
+          ]
+        },
+        "steps": [
+          {
+            "id": "findSave",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "button",
+                "text_contains": "Save"
+              }
+            }
+          },
+          {
+            "id": "clickSave",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findSave.output.clickable_center.x %}",
+              "y": "{% steps.findSave.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findScope",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, [role='dialog'] [role='button']",
+                "text_contains": "OK"
+              }
+            },
+            "when": "{% true %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "clickScopeOk",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findScope.output.clickable_center.x %}",
+              "y": "{% steps.findScope.output.clickable_center.y %}"
+            },
+            "when": "{% $exists(steps.findScope.output.clickable_center.x) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "readyGuest",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, [role='dialog'] [role='button']",
+                "text_contains": "Don't send"
+              },
+              "state": "visible",
+              "timeout_ms": 8000
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findGuest",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, [role='dialog'] [role='button']",
+                "text_contains": "Don't send"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "clickDontSend",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findGuest.output.clickable_center.x %}",
+              "y": "{% steps.findGuest.output.clickable_center.y %}"
+            },
+            "when": "{% $exists(steps.findGuest.output.clickable_center.x) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "assertGrid",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[aria-label*='Create']"
+              },
+              "state": "visible",
+              "timeout_ms": 12000
+            }
+          }
+        ],
+        "output": "{% {'saved': true, 'scope': $exists(input.recurrence_scope) ? input.recurrence_scope : 'This event'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.nav.next",
+      "description": "Move the calendar view forward one period (next day in day view, next week in week view, etc.) by clicking the forward arrow. The arrow's aria-label varies by view ('Next day' / 'Next week' / 'Next month'), so it is matched by the shared 'Next' text. Verify the new period by reading calendar.grid or the view title afterward.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findNext",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='button'][aria-label^='Next'], button[aria-label^='Next']"
+              }
+            }
+          },
+          {
+            "id": "clickNext",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findNext.output.clickable_center.x %}",
+              "y": "{% steps.findNext.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'navigated': 'next'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.nav.prev",
+      "description": "Move the calendar view backward one period (previous day/week/month) by clicking the back arrow, matched by the shared 'Previous' aria-label. Verify with calendar.grid or the view title afterward.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findPrev",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='button'][aria-label^='Previous'], button[aria-label^='Previous']"
+              }
+            }
+          },
+          {
+            "id": "clickPrev",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findPrev.output.clickable_center.x %}",
+              "y": "{% steps.findPrev.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'navigated': 'prev'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.nav.today",
+      "description": "Jump the calendar back to today by clicking the Today button (aria-label starts with 'Today'). Use to reset orientation. Verify with calendar.grid afterward.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findToday",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='button'][aria-label^='Today'], button[aria-label^='Today']"
+              }
+            }
+          },
+          {
+            "id": "clickToday",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findToday.output.clickable_center.x %}",
+              "y": "{% steps.findToday.output.clickable_center.y %}"
+            },
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'navigated': 'today'} %}"
+      }
+    },
+    {
+      "name": "google.calendar.event.verify_time",
+      "description": "Verify an event's start time by re-reading the event chip text on the grid (NOT by screenshot). Returns the chip text so the caller can confirm the new time is reflected.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "event_title"
+        ],
+        "properties": {
+          "event_title": {
+            "type": "string",
+            "description": "Event title to locate on the grid."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "readChip",
+            "primitive": "locator.text_content",
+            "args": {
+              "locator": {
+                "selector": "[data-eventid]",
+                "text_contains": "{% input.event_title %}"
+              }
+            }
+          }
+        ],
+        "output": "{% {'event': input.event_title, 'chip_text': steps.readChip.output.text} %}"
+      }
+    }
+  ],
+  "workflows": [
+    {
+      "name": "reschedule_event",
+      "description": "Move a calendar event to a new DATE and/or TIME using only visible, screenshot-free UI. The recipe the hosted voice agent should follow for any 'move/reschedule <event> to <when>' — where <when> may be a different day, a different time, or both. Do NOT assume only the time changed: read the event's current date and time first, compare against the agreed date and time, and set whichever differ.",
+      "inputs": [
+        "eventid",
+        "expect_title",
+        "new_date",
+        "new_start_time",
+        "recurrence_scope",
+        "notify_guests"
+      ],
+      "steps": [
+        "FIRST write down the AGREED spec as three separate fields — day-of-week/date, time, and place — reconciled from the WHOLE source (e.g. the entire LinkedIn thread, not just the last message; a meeting's day is often set in one message and its time confirmed in a later one). Then read calendar.grid (state_read), find the target event, and read its 'eventid' and its CURRENT date and time from the 'raw' field (e.g. 'July 2, 2026' and '10:30am'). Now COMPARE the two on BOTH axes independently: does the event's DATE (including day of week) equal the agreed date? does the event's TIME equal the agreed time? An event can be right on one axis and wrong on the other. List every axis that differs; you will change each one that differs (date via start_date.set, time via start_time.set). Do not stop after checking only the time.",
+        "Call the browser.navigate tool DIRECTLY (it is a standalone tab-lifecycle tool, not a calendar action) with url 'https://calendar.google.com/calendar/u/0/r/eventedit/<eventid>' using the eventid from step 1 exactly as returned (no URL-encoding). This opens the full editor deterministically and avoids the flaky grid chip. Navigation rotates the tab's runtime_id and the runtime reconnects at the new URL — route every following call by target_url_contains 'calendar.google.com', never a captured runtime_id.",
+        "google.calendar.event.editor.assert_open with an expect_title substring (e.g. 'Alex Doe'). Confirm editor_open is true and title_matches is true before editing. If title_matches is false, STOP — the wrong event opened; re-check the eventid.",
+        "IF the date must change: google.calendar.event.start_date.set with new_date in 'Mon D, YYYY' format (e.g. 'Jul 4, 2026'). This sets both Start and End date. Skip this step if only the time is wrong.",
+        "IF the time must change: google.calendar.event.start_time.set with the requested time (e.g. '9:30am'). EXPECT the option click to time out at the bridge while still executing; the action's own locator.wait_for on the field value is the proof it landed. Do NOT retry a timed-out click. Skip this step if only the date is wrong.",
+        "google.calendar.event.save with the desired recurrence_scope (default 'This event') and notify_guests (default false).",
+        "Re-read calendar.grid (state_read) and confirm the target event's 'raw' now shows BOTH the correct date and the correct time. (If the tab is still on the /r/eventedit URL after save, call browser.navigate to '.../r/day' first, or use google.calendar.nav.today, so the grid is visible.) Report the verified date and time to the user; never claim success from a screenshot or from a click response code."
+      ],
+      "safety": "Never drag event chips to change date or time (imprecise). Never email guests unless the user asked. For recurring events, default to 'This event' unless the user says 'all events' or 'from now on'. Verify the final state against calendar.grid: BOTH the date and the time must match what was agreed. If verification does not show the requested date and time, report the failure honestly and do not retry blindly. CRITICAL — NEVER NAVIGATE OR RELOAD A DIRTY EDITOR: once you have changed any field, the editor holds unsaved changes. Navigating away (browser.navigate) or reloading it triggers the browser's native 'Leave site? Changes may not be saved' confirm dialog, which FREEZES the tab (it stops responding to every tool call — this is the wedge). So from the moment you edit a field, the ONLY ways to leave the editor are: (a) google.calendar.event.save (commits the change, returns to the grid cleanly), or (b) discard via the editor's Close/Back control (Google clears the pending change without a blocking confirm). Do NOT use browser.navigate {reload} or browser.navigate to another URL to 'recover' a dirty editor — that is what causes the wedge, not what fixes it. RECOVERY: if a field step times out, it is usually the ack-stall (the edit landed) — read calendar.open_event to see the committed start_date/start_time and only redo the step whose value did NOT change; do NOT navigate. If you must abort mid-edit, click the editor's Close/Back to discard, then navigate from the clean grid. A tab already wedged on the confirm dialog cannot be recovered by page actions — report it; only a native-dialog dismissal or user click clears it."
+    }
+  ],
+  "state_projections": [
+    {
+      "name": "calendar.grid",
+      "description": "The events visible in the current calendar view (day, week, month, or schedule). Each event's descriptive text carries its time range, title, calendar, and RSVP status. This is the agent's screenshot-free 'eyes' on what is on the calendar right now. Use before any reschedule to confirm the target event is visible and to read its current time.",
+      "scope": {
+        "url_matches": "https://calendar.google.com/calendar/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "view",
+            "selector": "[role='main'], body",
+            "fields": {
+              "title": {
+                "selector": "h1, [aria-live='polite']",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              },
+              "doc_title": {
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              }
+            }
+          },
+          {
+            "id": "events",
+            "selector": "[data-eventid][jslog]",
+            "many": true,
+            "fields": {
+              "eventid": {
+                "attribute": "data-eventid"
+              },
+              "text": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "aria": {
+                "property": "ariaLabel",
+                "trim": true,
+                "default": null
+              },
+              "desc": {
+                "selector": ".XuJrye",
+                "property": "textContent",
+                "trim": true,
+                "default": null
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'events': $append([], $map(records.events, function($e) { ( $desc := $e.aria != null and $e.aria != '' ? $e.aria : ($e.desc != null and $e.desc != '' ? $e.desc : $e.text); $firstLine := $trim($split($desc, /\\n/)[0]); $segs := $map($split($firstLine, ','), function($s) { $trim($s) }); $isAllDay := $contains($firstLine, 'All day'); $timeMatch := $match($firstLine, /([0-9]{1,2}(:[0-9]{2})?(am|pm))/i); $time := $isAllDay ? 'All day' : ($count($timeMatch) > 0 ? $timeMatch[0].match : null); $titleSeg := $isAllDay ? $segs[1] : ($segs[$count($segs) >= 2 ? 1 : 0]); $title := $titleSeg != null and $titleSeg != '' and $not($contains($titleSeg, 'am')) and $not($contains($titleSeg, 'pm')) ? $titleSeg : ($count($segs) >= 2 ? $segs[1] : $segs[0]); {'eventid': $e.eventid, 'time': $time, 'title': $title, 'raw': $firstLine} ) })), 'count': $count(records.events)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "events",
+            "count"
+          ],
+          "properties": {
+            "events": {
+              "type": "array"
+            },
+            "count": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 4000,
+          "expression": "{% {'count': $count(state.events), 'events': $append([], $map(state.events, function($e) { {'title': $e.title, 'time': $e.time} }))} %}"
+        }
+      ],
+      "postconditions": "count matches the number of event chips a human sees in the current view. If count is 0 on a day the user says has events, the view may be scrolled or on a different date; check the view title before concluding the day is empty."
+    },
+    {
+      "name": "calendar.open_event",
+      "description": "The event whose quick-view popover or full editor is currently open. Gives the agent eyes on the event it is operating: title, the time range shown in the editor Start/End fields, recurrence, and whether the editor (vs just the quick-view) is open. Use to confirm which event is open and to read the committed time after an edit without a screenshot.",
+      "scope": {
+        "url_matches": "https://calendar.google.com/calendar/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "editor",
+            "selector": "body",
+            "fields": {
+              "title": {
+                "selector": "input[aria-label='Title'], [role='dialog'] h2, [data-eventid][jslog]",
+                "property": "value",
+                "trim": true,
+                "default": null
+              },
+              "title_text": {
+                "selector": "input[aria-label='Title'], [role='heading']",
+                "property": "innerText",
+                "trim": true,
+                "default": null
+              },
+              "start_date": {
+                "selector": "input[aria-label='Start date']",
+                "property": "value",
+                "trim": true,
+                "default": null
+              },
+              "end_date": {
+                "selector": "input[aria-label='End date']",
+                "property": "value",
+                "trim": true,
+                "default": null
+              },
+              "start_time": {
+                "selector": "[aria-label='Start time']",
+                "property": "value",
+                "trim": true,
+                "default": null
+              },
+              "end_time": {
+                "selector": "[aria-label='End time']",
+                "property": "value",
+                "trim": true,
+                "default": null
+              },
+              "editor_open": {
+                "selector": "[aria-label='Start time']",
+                "property": "tagName",
+                "trim": true,
+                "default": null
+              },
+              "quickview_open": {
+                "selector": "[aria-label='Edit event']",
+                "property": "tagName",
+                "trim": true,
+                "default": null
+              },
+              "location": {
+                "selector": "input[aria-label='Add location']",
+                "property": "value",
+                "trim": true,
+                "default": null
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'title': records.editor.title_text != null and records.editor.title_text != '' ? records.editor.title_text : records.editor.title, 'start_date': records.editor.start_date, 'end_date': records.editor.end_date, 'location': records.editor.location, 'start_time': records.editor.start_time, 'end_time': records.editor.end_time, 'editor_open': $exists(records.editor.editor_open) and records.editor.editor_open != null, 'quickview_open': $exists(records.editor.quickview_open) and records.editor.quickview_open != null} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "start_date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "end_date": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "start_time": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "end_time": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "editor_open": {
+              "type": "boolean"
+            },
+            "quickview_open": {
+              "type": "boolean"
+            }
+          }
+        }
+      },
+      "postconditions": "When neither editor_open nor quickview_open is true, no event is open and start_time/end_time will be null — read calendar.grid instead. When editor_open is true, start_time reflects the Start-time field's committed value (the reliable read the input-value path gives that a grid chip does not)."
+    }
+  ]
+}
