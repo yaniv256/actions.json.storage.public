@@ -417,7 +417,7 @@
     },
     {
       "name": "linkedin.messaging.compose.set_text",
-      "description": "Set (replace) the text of the active LinkedIn message COMPOSER without sending. LinkedIn's composer is a rich contenteditable DIV (like Google Docs' surface), which the generic text.type/text.insert primitives reject as 'target_not_editable' when they hit the activeElement wrapper. This action instead targets the composer's actual contenteditable by selector and writes via clipboard.paste (the proven contenteditable path): it focuses the composer, selects its existing contents, and pastes the new text over the selection. Use for editing/correcting a draft the user already started. DOES NOT SEND — the user still presses Send. VERIFY with linkedin.messaging.compose.info (re-read the composer value) or a screenshot. If the composer is empty it just inserts; if it has a draft it replaces it.",
+      "description": "Set (replace) or CLEAR the text of the active LinkedIn message COMPOSER without sending. LinkedIn's composer is a rich contenteditable DIV (like Google Docs' surface) which the generic text.type/text.insert primitives reject as 'target_not_editable'. This action targets the composer's contenteditable BY SELECTOR and, after selecting its current contents, EITHER pastes the new text over the selection (non-empty text — the contenteditable paste path) OR, when text is empty, presses a trusted Backspace to fully CLEAR it (an empty paste is a no-op, so a real delete is required). Use to edit/correct a draft the user started, or pass text:'' to clear the composer. VALIDATED LIVE 2026-07-06 (set + read-back confirmed on a real composer; clear confirmed empty; nothing sent). DOES NOT SEND. VERIFY with linkedin.messaging.compose.info or a screenshot. Requires the thread open and (for the trusted clear) the tab foreground.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -456,11 +456,21 @@
           {
             "id": "paste",
             "primitive": "clipboard.paste",
+            "when": "{% $length(input.text) > 0 %}",
             "args": {
               "text": "{% input.text %}",
               "target": {
                 "selector": ".msg-form__contenteditable, [contenteditable='true']"
               }
+            }
+          },
+          {
+            "id": "clear",
+            "primitive": "keyboard.press",
+            "when": "{% $length(input.text) = 0 %}",
+            "args": {
+              "key": "Backspace",
+              "trusted": true
             }
           }
         ],
