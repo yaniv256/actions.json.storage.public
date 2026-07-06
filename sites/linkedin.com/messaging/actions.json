@@ -416,6 +416,58 @@
       }
     },
     {
+      "name": "linkedin.messaging.compose.set_text",
+      "description": "Set (replace) the text of the active LinkedIn message COMPOSER without sending. LinkedIn's composer is a rich contenteditable DIV (like Google Docs' surface), which the generic text.type/text.insert primitives reject as 'target_not_editable' when they hit the activeElement wrapper. This action instead targets the composer's actual contenteditable by selector and writes via clipboard.paste (the proven contenteditable path): it focuses the composer, selects its existing contents, and pastes the new text over the selection. Use for editing/correcting a draft the user already started. DOES NOT SEND — the user still presses Send. VERIFY with linkedin.messaging.compose.info (re-read the composer value) or a screenshot. If the composer is empty it just inserts; if it has a draft it replaces it.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The full replacement text for the composer (e.g. the spelling-corrected draft). Do not include a trailing newline unless you intend a line break."
+          }
+        }
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "focus",
+            "primitive": "dom.focus",
+            "args": {
+              "locator": {
+                "selector": ".msg-form__contenteditable, [contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "selectAll",
+            "primitive": "text.select",
+            "args": {
+              "mode": "all",
+              "target": {
+                "selector": ".msg-form__contenteditable, [contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "paste",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.text %}",
+              "target": {
+                "selector": ".msg-form__contenteditable, [contenteditable='true']"
+              }
+            }
+          }
+        ],
+        "output": "{% { 'set_text': input.text, 'selected_before': steps.selectAll.output.selected_length, 'accepted': steps.paste.output.default_prevented, 'next_step':'Composer text replaced (not sent). VERIFY with linkedin.messaging.compose.info or a screenshot. If unchanged, the composer selector did not resolve (the thread may not be open) or paste did not route to the contenteditable — re-check the active thread is open.' } %}"
+      }
+    },
+    {
       "name": "linkedin.messaging.outreach.summary_context",
       "description": "Return the summary schema the agent should use after reading a LinkedIn thread. This is judgment guidance, not a page read.",
       "input_schema": {
