@@ -5917,7 +5917,12 @@
    "description": "Archive the currently open Trello card (recoverable — the card moves to the board archive) and return to the board view. Use this when the user asks to archive, remove, or clean up a card. Archiving is NOT deleting: never use trello.card.delete for an archive request, because delete is permanent and unrecoverable.",
    "input_schema": {
     "type": "object",
-    "properties": {},
+    "properties": {
+     "card_title": {
+      "type": "string",
+      "description": "Exact title of the open card to archive."
+     }
+    },
     "additionalProperties": false
    },
    "workflow": {
@@ -5934,18 +5939,8 @@
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
-        "text_contains": "Description"
-       }
-      }
-     },
-     {
-      "id": "findActionsMenuButton",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='card-back-actions-button']",
-        "text_contains": "Actions"
+        "selector": "[data-testid='card-back-name']",
+        "text_contains": "{% input.card_title %}"
        }
       }
      },
@@ -5953,60 +5948,50 @@
       "id": "openActionsMenu",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findActionsMenuButton.output.clickable_center.x %}",
-       "y": "{% steps.findActionsMenuButton.output.clickable_center.y %}"
+       "locator": {
+        "selector": "[data-testid='card-back-actions-button']"
+       }
       },
       "settle_after": {
-       "locator": {
-        "selector": "button[aria-label*='archive' i], [role='menuitem']"
-       },
-       "state": "visible",
-       "timeout_ms": 5000
-      }
-     },
-     {
-      "id": "findArchiveItem",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "button, [role='menuitem']",
-        "text_contains": "Archive"
-       }
+       "delay_ms": 300
       }
      },
      {
       "id": "clickArchive",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findArchiveItem.output.clickable_center.x %}",
-       "y": "{% steps.findArchiveItem.output.clickable_center.y %}"
+       "locator": {
+        "selector": "[data-testid='popover'] button, [data-testid='popover'] [role='menuitem'], .js-react-root [role='menuitem']",
+        "text_equals": "Archive"
+       }
+      },
+      "retry_until": "{% $exists(steps.clickArchive.output) %}",
+      "max_attempts": 3,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='popover']"
+        },
+        "timeout_ms": 400
+       }
       },
       "settle_after": {
-       "delay_ms": 600
+       "delay_ms": 500
       }
      },
      {
-      "id": "closeCardIfStillOpen",
-      "primitive": "keyboard.press",
-      "args": {
-       "key": "Escape"
-      },
-      "on_error": "continue",
-      "settle_after": {
-       "delay_ms": 300
-      }
-     },
-     {
-      "id": "verifyBoardVisible",
+      "id": "verifyArchived",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='lists']"
+        "selector": "[data-testid='card-back-archive-banner'], button[title='Send to board'], [data-testid='card-back-send-to-board-button']"
        }
-      }
+      },
+      "on_error": "continue"
      }
     ],
-    "output": "{% {'archived': $exists(steps.verifyBoardVisible.output.bounding_box), 'back_on_board': $exists(steps.verifyBoardVisible.output.bounding_box), 'note': 'Card archived (recoverable). Verify with a board read that the title is gone from the list.'} %}"
+    "output": "{% { 'card': input.card_title, 'archived': $exists(steps.verifyArchived.output.clickable_center.x), 'verification_required': 'archived:true means Trello now shows this card as archived (Send to board / archive banner present). If false, the Archive item may not have resolved in the Actions popover — re-open the card and retry; confirm via a board read that the card left its list.' } %}"
    },
    "x_actions": {
     "source": {
