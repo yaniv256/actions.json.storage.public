@@ -4663,76 +4663,38 @@
       "on_error": "continue"
      },
      {
-      "id": "scrollModalTop",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_y": -4000,
-       "scope": {
-        "selector": "[role='dialog'] main, .window main"
-       }
-      },
-      "on_error": "continue",
-      "settle_after": {
-       "delay_ms": 150
-      }
-     },
-     {
-      "id": "findAddButtons",
+      "id": "assertCardOpen",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[role='dialog'] button, .window button",
-        "text_equals": "Add"
+        "selector": "[data-testid='card-back-name']"
        }
       }
      },
      {
-      "id": "clickCardAddMenu",
+      "id": "clickChecklistButton",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findAddButtons.output.clickable_center.x %}",
-       "y": "{% steps.findAddButtons.output.clickable_center.y %}"
+       "locator": {
+        "selector": "[data-testid='card-back-checklist-button'], button[aria-label='Checklist' i]"
+       }
       },
       "settle_after": {
-       "locator": {
-        "selector": "[role='dialog'] button, .window button",
-        "text_contains": "subtasks"
-       },
-       "state": "visible",
-       "timeout_ms": 5000
+       "delay_ms": 300
       }
-     },
-     {
-      "id": "findChecklistMenuItem",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[role='dialog'] button, .window button",
-        "text_contains": "subtasks"
-       }
-      },
-      "when": "{% $exists(steps.findExistingTitleInputs.output.clickable_center.x) ? false : true %}"
-     },
-     {
-      "id": "clickChecklistMenuItem",
-      "primitive": "pointer.click",
-      "args": {
-       "x": "{% steps.findChecklistMenuItem.output.clickable_center.x %}",
-       "y": "{% steps.findChecklistMenuItem.output.clickable_center.y %}"
-      },
-      "when": "{% $exists(steps.findExistingTitleInputs.output.clickable_center.x) ? false : true %}"
      },
      {
       "id": "verifyForm",
-      "primitive": "locator.text_content",
+      "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[role='dialog'][aria-label], .window"
+        "selector": "[data-testid='checklist-add-button'], [data-testid='popover'] input[aria-label*='name' i], [data-testid='popover'] input[aria-label*='title' i]"
        }
-      }
+      },
+      "on_error": "continue"
      }
     ],
-    "output": "{% {'opened': true, 'form_text': steps.verifyForm.output.text, 'expected_text': 'Add checklist Title Copy items from Add'} %}"
+    "output": "{% { 'form_open': $exists(steps.verifyForm.output.clickable_center.x), 'verification_required': 'form_open:true means the checklist add form is showing (title input / add button present). If false, the card-back checklist button did not resolve — re-open the card.' } %}"
    },
    "x_actions": {
     "source": {
@@ -4782,13 +4744,12 @@
      },
      {
       "id": "findChecklistButton",
-      "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[role='dialog'] button, .window button",
-        "text_contains": "Checklist"
+        "selector": "[data-testid='card-back-checklist-button'], [data-testid='checklist-add-button'], button[aria-label='Checklist' i]"
        }
-      }
+      },
+      "primitive": "locator.element_info"
      },
      {
       "id": "clickChecklistButton",
