@@ -4980,134 +4980,69 @@
       "on_error": "continue"
      },
      {
-      "id": "readUncheckedItem",
+      "id": "assertCardModal",
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
-        "text_contains": "{% input.item_text %}"
+        "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
+        "text_contains": "Description"
        }
-      },
-      "on_error": "continue"
+      }
      },
      {
-      "id": "scrollForUnchecked1",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": 0,
-       "delta_y": 360,
-       "scope": {
-        "selector": "main",
-        "text_contains": "Checklist",
-        "root_strategy": "scope"
-       }
-      },
-      "when": "{% $exists(steps.readUncheckedItem.output.text) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "readUncheckedItem1",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "when": "{% $exists(steps.readUncheckedItem.output.text) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "scrollForUnchecked2",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": 0,
-       "delta_y": 360,
-       "scope": {
-        "selector": "main",
-        "text_contains": "Checklist",
-        "root_strategy": "scope"
-       }
-      },
-      "when": "{% ($exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "readUncheckedItem2",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "when": "{% ($exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "scrollForUnchecked3",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": 0,
-       "delta_y": 360,
-       "scope": {
-        "selector": "main",
-        "text_contains": "Checklist",
-        "root_strategy": "scope"
-       }
-      },
-      "when": "{% ($exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "readUncheckedItem3",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "when": "{% ($exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "findCheckboxWrapper",
+      "id": "findItemRow",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "{% \"[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false'][aria-label='\" & input.item_text & \"']) [data-testid='clickable-checkbox']\" %}"
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
+        "text_contains": "{% input.item_text %}"
        }
       },
-      "when": "{% $exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text) or $exists(steps.readUncheckedItem3.output.text) %}"
-     },
-     {
-      "id": "hoverCheckboxWrapper",
-      "primitive": "pointer.move",
-      "args": {
-       "x": "{% steps.findCheckboxWrapper.output.clickable_center.x %}",
-       "y": "{% steps.findCheckboxWrapper.output.clickable_center.y %}",
-       "duration_ms": 250
-      },
-      "when": "{% $exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text) or $exists(steps.readUncheckedItem3.output.text) %}",
-      "settle_after": {
-       "delay_ms": 150
+      "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
+      "max_attempts": 3,
+      "after_each": {
+       "primitive": "viewport.scroll",
+       "args": {
+        "selector": "[data-testid='card-back-name'], .window",
+        "delta_y": 220
+       }
       }
      },
      {
-      "id": "clickRowCheckboxLane",
+      "id": "uniquenessGate",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-name']",
+        "text_contains": "{% input.item_text %}"
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "clickItemCheckbox",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findCheckboxWrapper.output.clickable_center.x %}",
-       "y": "{% steps.findCheckboxWrapper.output.clickable_center.y %}"
+       "x": "{% steps.findItemRow.output.clickable_center.x %}",
+       "y": "{% steps.findItemRow.output.clickable_center.y %}"
       },
-      "when": "{% $exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text) or $exists(steps.readUncheckedItem3.output.text) %}",
       "settle_after": {
        "delay_ms": 500
       }
+     },
+     {
+      "id": "verifyState",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name']) input[type='checkbox'][aria-checked='true']",
+        "text_contains": "{% input.item_text %}"
+       }
+      },
+      "on_error": "continue"
      }
     ],
-    "output": "{% ($found := $exists(steps.readUncheckedItem.output.text) or $exists(steps.readUncheckedItem1.output.text) or $exists(steps.readUncheckedItem2.output.text) or $exists(steps.readUncheckedItem3.output.text); {'item_text': input.item_text, 'was_unchecked_before': $found, 'hovered_checkbox_lane': $found, 'clicked_checkbox_lane': $found, 'checkbox': steps.findCheckboxWrapper.output, 'completion_rule': 'Only claim success when the trello.card_modal postcondition verifies aria_checked true for the exact item_text.'}) %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means THIS item\\'s checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "x_actions": {
     "source": {
@@ -5142,94 +5077,69 @@
       "on_error": "continue"
      },
      {
-      "id": "readCheckedItem",
+      "id": "assertCardModal",
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']",
-        "text_contains": "{% input.item_text %}"
+        "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
+        "text_contains": "Description"
        }
-      },
-      "on_error": "continue"
+      }
      },
      {
-      "id": "scrollForChecked1",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": 0,
-       "delta_y": -360,
-       "scope": {
-        "selector": "main",
-        "text_contains": "Checklist",
-        "root_strategy": "scope"
-       }
-      },
-      "when": "{% $exists(steps.readCheckedItem.output.text) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "readCheckedItem1",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "when": "{% $exists(steps.readCheckedItem.output.text) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "scrollForChecked2",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": 0,
-       "delta_y": 360,
-       "scope": {
-        "selector": "main",
-        "text_contains": "Checklist",
-        "root_strategy": "scope"
-       }
-      },
-      "when": "{% ($exists(steps.readCheckedItem.output.text) or $exists(steps.readCheckedItem1.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "readCheckedItem2",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "when": "{% ($exists(steps.readCheckedItem.output.text) or $exists(steps.readCheckedItem1.output.text)) ? false : true %}",
-      "on_error": "continue"
-     },
-     {
-      "id": "findCheckboxWrapper",
+      "id": "findItemRow",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "{% \"[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='true'][aria-label='\" & input.item_text & \"']) [data-testid='clickable-checkbox']\" %}"
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
+        "text_contains": "{% input.item_text %}"
        }
       },
-      "when": "{% $exists(steps.readCheckedItem.output.text) or $exists(steps.readCheckedItem1.output.text) or $exists(steps.readCheckedItem2.output.text) %}"
+      "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
+      "max_attempts": 3,
+      "after_each": {
+       "primitive": "viewport.scroll",
+       "args": {
+        "selector": "[data-testid='card-back-name'], .window",
+        "delta_y": 220
+       }
+      }
      },
      {
-      "id": "clickRowCheckboxLane",
+      "id": "uniquenessGate",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-name']",
+        "text_contains": "{% input.item_text %}"
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "clickItemCheckbox",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findCheckboxWrapper.output.clickable_center.x %}",
-       "y": "{% steps.findCheckboxWrapper.output.clickable_center.y %}"
+       "x": "{% steps.findItemRow.output.clickable_center.x %}",
+       "y": "{% steps.findItemRow.output.clickable_center.y %}"
       },
-      "when": "{% $exists(steps.readCheckedItem.output.text) or $exists(steps.readCheckedItem1.output.text) or $exists(steps.readCheckedItem2.output.text) %}",
       "settle_after": {
        "delay_ms": 500
       }
+     },
+     {
+      "id": "verifyState",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name']) input[type='checkbox'][aria-checked='false']",
+        "text_contains": "{% input.item_text %}"
+       }
+      },
+      "on_error": "continue"
      }
     ],
-    "output": "{% ($found := $exists(steps.readCheckedItem.output.text) or $exists(steps.readCheckedItem1.output.text) or $exists(steps.readCheckedItem2.output.text); {'item_text': input.item_text, 'was_checked_before': $found, 'clicked_checkbox_lane': $found, 'checkbox': steps.findCheckboxWrapper.output, 'completion_rule': 'Only claim success when the trello.card_modal postcondition verifies aria_checked false for the exact item_text.'}) %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means THIS item\\'s checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "postcondition": {
     "projection": "trello.card_modal",
