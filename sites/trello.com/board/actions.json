@@ -1811,7 +1811,7 @@
     "properties": {
      "list_name": {
       "type": "string",
-      "description": "Visible Trello list name to archive, exactly as shown on the board."
+      "description": "Exact name of the list to archive."
      }
     },
     "additionalProperties": false
@@ -1831,57 +1831,55 @@
       "args": {
        "key": "Escape"
       },
-      "on_error": "continue",
-      "settle_after": {
-       "delay_ms": 200
-      }
-     },
-     {
-      "id": "findMenuButton",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='list-edit-menu-button']",
-        "text_contains": "{% 'More actions on ' & input.list_name %}"
-       }
-      }
+      "on_error": "continue"
      },
      {
       "id": "openListMenu",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findMenuButton.output.clickable_center.x %}",
-       "y": "{% steps.findMenuButton.output.clickable_center.y %}"
+       "locator": {
+        "selector": "[data-testid='list-edit-menu-button']",
+        "text_contains": "{% 'More actions on ' & input.list_name %}"
+       }
       },
       "settle_after": {
-       "locator": {
-        "selector": "[role='dialog'] button, .window button, [role='menu'] button",
-        "text_contains": "Archive this list"
-       },
-       "state": "visible",
-       "timeout_ms": 4000
-      }
-     },
-     {
-      "id": "findArchiveListItem",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[role='dialog'] button, .window button, [role='menu'] button",
-        "text_contains": "Archive this list"
-       }
+       "delay_ms": 300
       }
      },
      {
       "id": "clickArchiveList",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% steps.findArchiveListItem.output.clickable_center.x %}",
-       "y": "{% steps.findArchiveListItem.output.clickable_center.y %}"
+       "locator": {
+        "selector": "[data-testid='popover'] button, [data-testid='popover'] [role='menuitem']",
+        "text_equals": "Archive this list"
+       }
+      },
+      "retry_until": "{% $exists(steps.clickArchiveList.output) %}",
+      "max_attempts": 3,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='popover']"
+        },
+        "timeout_ms": 400
+       }
       },
       "settle_after": {
-       "delay_ms": 1500
+       "delay_ms": 500
       }
+     },
+     {
+      "id": "verifyListGone",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='list-name'], [data-testid='list-header']",
+        "text_equals": "{% input.list_name %}"
+       }
+      },
+      "on_error": "continue"
      },
      {
       "id": "showOverlay",
@@ -1889,7 +1887,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% {'archived_list': input.list_name, 'list_still_visible': $exists(steps.verifyListGone.output.clickable_center.x), 'verification_required': 'Confirm with the trello.board projection that the list is no longer present.'} %}"
+    "output": "{% { 'archived_list': input.list_name, 'list_still_visible': $exists(steps.verifyListGone.output.clickable_center.x), 'archived': $not($exists(steps.verifyListGone.output.clickable_center.x)), 'verification_required': 'archived:true means the list header is no longer on the board (verifyListGone did not find it). If list_still_visible is true, the Archive item did not resolve in the popover — re-open the list menu and retry; confirm via the trello.board projection.' } %}"
    },
    "x_actions": {
     "source": {
