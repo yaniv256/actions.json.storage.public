@@ -1,0 +1,139 @@
+{
+  "protocol": "actions.json",
+  "version": 1,
+  "surface": "presentation",
+  "scope": { "url_matches": "https://docs.google.com/presentation/d/*" },
+  "observed_at": "2026-07-05",
+  "prompt": "You operate a Google Slides presentation. READING: Slides renders each slide to a CANVAS/SVG (the 'punch' viewer), so the live DOM is empty — but Google DOES publish a same-origin server-rendered full-text export at /export/html. slides.read fetches that (page.fetch) and returns EVERY slide's structured text: { deck_title, slide_count, slides:[{ slide, title, text:[…runs…], notes }] } — including speaker notes. This is a real projection of the whole deck, not a first-slide peephole. Use it to see all slide content; only fall back to a SCREENSHOT when you need exact visual layout/positioning or non-text elements (images, charts). WRITING text: double-click a text box on the CANVAS to enter edit mode (this creates the same-origin editor iframe), then paste via slides.textbox.paste (frame clipboard.paste into .docs-texteventtarget-iframe — the identical mechanism Slides shares with Docs). Set the deck title via the toolbar 'Rename' input. Never navigate or reload while a text box is in edit mode. VERIFY writes by re-reading with slides.read (the /export/html regenerates server-side and can lag a second or two after an edit — settle briefly).",
+  "skill": "Call slides.map first. VALIDATION STATUS (2026-07-05): slides.textbox.paste VALIDATED live (screenshot-confirmed) — double-click the target box then frame clipboard.paste writes via the same .docs-texteventtarget-iframe path as the VALIDATED docs.append. slides.read REWRITTEN + VALIDATED — it now fetches /export/html (NOT /htmlpresent, NOT /mobilebasic which 404s for Slides) and parses Google's authentic export markup: each slide is a `<div role=\"group\" class=\"slide\" title=\"Slide N\">`, each text box a `<div class=\"shape\">` with `<p>` runs, and speaker notes a `<div class=\"slide-notes\">`. The parser splits on the slide-group marker, collects every `<p>` inner text per slide (tags stripped, HTML entities decoded, empty/zero-width paragraphs dropped), and returns per-slide { title, text[], notes }. Live-validated against the real deck (single slide) end-to-end; multi-slide + speaker-notes parsing validated against authentic Google export markup via the map engine's own jsonata. So slides.read gives full-deck text — do NOT treat Slides as read-blind anymore. deck_id = URL segment after /presentation/d/. New decks pop a 'Let's start creating' template modal that ignores Escape — close it via its X (DPR-corrected coords) before editing. SCREENSHOT DPR: capture is ~1.25x the viewport (viewport ~1026w); divide screenshot pixel coords by ~1.25 for clicks, or resolve controls by identity.",
+  "requires": [],
+  "notes": "Read endpoint: page.fetch https://docs.google.com/presentation/d/<deck_id>/export/html → server-rendered FULL deck HTML. Structure: one `<div role=\"group\" class=\"slide\" title=\"Slide N\">` per slide; inside, `<section class=\"slide-content\">` holds `<div class=\"shape\">` text boxes each with `<p style=...>` runs; speaker notes are a sibling `<div class=\"slide-notes\">` with its own `<p>` runs. Parser: split body on '<div role=\"group\" class=\"slide\"'; per fragment read the title=\"…\" attr, split off '<div class=\"slide-notes\"' for notes, collect each `<p>` inner text via substringAfter('>')/substringBefore('</p>'), strip residual tags, decode entities (&amp; &lt; &gt; &quot; &#39; &#8212;), drop &#8203; zero-width and empty paragraphs. TITLE SOURCE: /export/html has NO og:title and its <title> is Drive's generic 'Untitled - Google Drive' wrapper (NOT the deck name), so slides.read makes a SECOND page.fetch to /htmlpresent purely for its og:title (real deck name), falling back to that page's '<title> - Google Slides'. /htmlpresent otherwise only exposes og:title + first-slide og:description (the old peephole); /mobilebasic 404s for Slides. Write: double-click the target text box on the canvas (enters edit mode + focuses the inner .docs-texteventtarget-iframe contenteditable), then clipboard.paste target {frame:'.docs-texteventtarget-iframe', selector:\"[contenteditable='true']\"}. Rich content: pass an html flavor to clipboard.paste (0.1.155+). Title/subtitle boxes are the default title-slide placeholders; the frame path reaches whichever box is in edit mode. NOTE: Slides ignores synthetic (page-level) keyboard chords for canvas shortcuts (Ctrl+M/Ctrl+D do not add/duplicate slides); create slides via the toolbar/'+' control, not keyboard.press. /export/html regenerates server-side and can lag ~1-2s after an edit — settle before re-reading.",
+  "tools": [
+    {
+      "name": "slides.map",
+      "description": "Return operating guidance for the Google Slides presentation map. Call this FIRST, before any other slides action.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "docs.google.com",
+          "surface": "presentation",
+          "read": "slides.read { deck_id } — fetches /export/html (page.fetch, same-origin) and returns { deck_title, slide_count, slides:[{ slide, title, text:[…], notes }] } for EVERY slide, including speaker notes. This is a full-deck text projection, not a first-slide peephole. Screenshot only for exact visual layout or non-text elements. deck_id = URL segment after /presentation/d/.",
+          "write_text": "1) double-click the target text box on the CANVAS to enter edit mode. 2) slides.textbox.paste { text } — pastes into the focused text box via clipboard.paste into the same-origin editor iframe (identical to docs.append). Pass html for rich content.",
+          "verify": "VERIFY by re-reading with slides.read after a ~1-2s settle (/export/html regenerates server-side and can lag). Screenshot only when you need visual/layout confirmation. Do not trust the paste return alone.",
+          "recommended_sequence": [
+            "slides.read { deck_id } — full deck: every slide's title, text runs, and notes",
+            "double-click a text box on the canvas to edit it",
+            "slides.textbox.paste { text } — paste into it",
+            "slides.read to verify (after ~1-2s settle)"
+          ],
+          "caveat": "Slides ignores synthetic keyboard chords for canvas shortcuts (Ctrl+M/Ctrl+D won't add/duplicate slides) — use the toolbar '+' control. New decks show a 'Let's start creating' modal that ignores Escape; close its X (DPR-corrected coords). Screenshot is ~1.25x the viewport — scale click coords down, or resolve controls by identity."
+        }
+      }
+    },
+    {
+      "name": "slides.read",
+      "description": "Read a Google Slides deck's FULL text — every slide's title, text runs, and speaker notes. Slides paints to a canvas so the live DOM is empty, but Google publishes a same-origin server-rendered export at /export/html; this fetches and parses it into { deck_title, slide_count, slides:[{ slide, title, text:[…runs…], notes }] }. This is a real whole-deck projection, not a first-slide summary. Use it to see all slide content; screenshot only for exact visual layout or non-text elements (images/charts). Pass deck_id = the URL segment after /presentation/d/ (e.g. from https://docs.google.com/presentation/d/ABC123/edit, deck_id is ABC123).",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id"],
+        "properties": {
+          "deck_id": { "type": "string", "description": "The presentation id from the tab URL (segment after /presentation/d/)." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "fetchDeck",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "fetchTitle",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/htmlpresent' %}"
+            }
+          }
+        ],
+        "output": "{% ( $b := steps.fetchDeck.output.body; $tb := steps.fetchTitle.output.body; $deck := $contains($tb, 'og:title\" content=\"') ? $substringBefore($substringAfter($tb, 'og:title\" content=\"'), '\"') : $substringBefore($substringBefore($substringAfter($tb, '<title>'), '</title>'), ' - Google Slides'); $decode := function($s) { $replace($replace($replace($replace($replace($replace($replace($s, '&#8203;', ''), '&amp;', '&'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"'), '&#39;', \"'\"), '&#8212;', '—') }; $paras := function($frag) { [$map([$filter($split($frag, '<p'), function($v, $i) { $i > 0 })], function($pf) { $trim($decode($replace($substringBefore($substringAfter($pf, '>'), '</p>'), /<[^>]*>/, ''))) })] }; $nonEmpty := function($arr) { [$filter($arr, function($t) { $t != '' })] }; $slideFrags := [$filter($split($b, '<div role=\"group\" class=\"slide\"'), function($v, $i) { $i > 0 })]; $slides := [$map($slideFrags, function($sf, $idx) { ( $title := $substringBefore($substringAfter($sf, 'title=\"'), '\"'); $notesSplit := $split($sf, '<div class=\"slide-notes\"'); { 'slide': $idx + 1, 'title': $title, 'text': $nonEmpty($paras($notesSplit[0])), 'notes': $count($notesSplit) > 1 ? $join($nonEmpty($paras($notesSplit[1])), '\\n') : '' } ) })]; { 'deck_title': $deck, 'slide_count': $count($slides), 'slides': $slides, 'fetch_status': steps.fetchDeck.output.status } ) %}"
+      }
+    },
+    {
+      "name": "slides.textbox.paste",
+      "description": "Paste text into the Google Slides text box that is CURRENTLY in edit mode. PRECONDITION: double-click the target text box on the canvas first (pointer.double_click its center) so it enters edit mode and its inner editor iframe is focused. This pastes into the same-origin editor iframe's inner contenteditable via clipboard.paste with a frame-target locator (the identical mechanism validated for Google Docs). For rich content, also pass html. VERIFY with a screenshot (canvas repaints asynchronously).",
+      "input_schema": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "description": "Plain text to paste into the focused text box." },
+          "html": { "type": "string", "description": "Optional exact text/html flavor for rich content (e.g. formatted runs). Omit for plain text." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "paste",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.text %}",
+              "html": "{% input.html %}",
+              "target": { "frame": ".docs-texteventtarget-iframe", "selector": "[contenteditable='true']" }
+            }
+          }
+        ],
+        "output": "{% { 'pasted': input.text, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify with a SCREENSHOT (canvas repaints async). If accepted is false, the text box was not in edit mode — double-click it on the canvas first.' } %}"
+      }
+    },
+    {
+      "name": "slides.title.set",
+      "description": "Set the presentation (deck) title via the toolbar 'Rename' input (a real DOM input, not canvas). Clicks the input, replaces its contents, and commits with Enter. This sets the DECK's name, not a slide's title text box (for a slide title, double-click that box on the canvas and use slides.textbox.paste).",
+      "input_schema": {
+        "type": "object",
+        "required": ["title"],
+        "properties": {
+          "title": { "type": "string", "description": "New presentation (deck) title." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findTitle",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "input[aria-label='Rename'], .docs-title-input" } }
+          },
+          {
+            "id": "focusTitle",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findTitle.output.clickable_center.x %}", "y": "{% steps.findTitle.output.clickable_center.y %}" }
+          },
+          {
+            "id": "setTitle",
+            "primitive": "text.insert",
+            "args": { "text": "{% input.title %}", "mode": "replace", "target": { "selector": "input[aria-label='Rename'], .docs-title-input" } }
+          },
+          {
+            "id": "commitTitle",
+            "primitive": "keyboard.press",
+            "args": { "key": "Enter" }
+          }
+        ],
+        "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify by screenshot (the Rename input reflects it once Slides saves).' } %}"
+      }
+    }
+  ],
+  "workflows": [],
+  "state_projections": [],
+  "quality_score": null
+}

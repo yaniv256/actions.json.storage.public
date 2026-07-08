@@ -1,0 +1,142 @@
+{
+  "protocol": "actions.json",
+  "version": 1,
+  "surface": "spreadsheet",
+  "scope": { "url_matches": "https://docs.google.com/spreadsheets/d/*" },
+  "observed_at": "2026-07-05",
+  "prompt": "You operate a Google Sheets spreadsheet. READING: Google Sheets renders the grid to a CANVAS, so the DOM is empty — do NOT try to read the grid via DOM/snapshot. Read with sheets.read, which fetches the sheet's own /htmlview/sheet HTML view (page.fetch, same-origin) and returns the grid as rows of cells. Pass sheet_id = the URL segment after /spreadsheets/d/, and gid = the numeric grid id from the URL (#gid=<gid>, or gid=0 for the first tab). WRITING a single cell: type its reference into the Name Box (top-left, above the grid), press Enter to select it, type the value, press Enter to commit (sheets.cell.set does this). WRITING a block: select the top-left anchor cell via the Name Box, then paste a TSV block — Sheets expands tab/newline-delimited text into a range (sheets.range.paste_tsv). Never navigate or reload while a cell edit is open. VERIFY writes with sheets.read after a brief settle (the htmlview is regenerated server-side and can lag a second or two).",
+  "skill": "Call sheets.map first. sheets.read is a page.fetch workflow (canvas DOM is blind) — mirrors the VALIDATED docs.read pattern. sheet_id = URL segment after /spreadsheets/d/; gid = the #gid=<n> in the URL (first tab is 0). The read parses Google's own <table class='waffle'> htmlview: each <tbody> <tr> is a row (leading <th> is the row-header number), each <td> is a cell. NOTE: the cell parser is tag-naive — it returns each cell's plain text; a cell containing rich HTML (links, nested spans) may read partially. Plain values (the CRM case) read cleanly. VALIDATION STATUS (2026-07-05, all screenshot-confirmed live): sheets.read VALIDATED including MULTI-COLUMN (returns distinct cells per <td>); sheets.range.paste_tsv VALIDATED (a 3x3 TSV expanded into a real A:C range, numbers stayed numeric, Sheets summed them). CRITICAL WRITE RULE: for range paste, click the anchor cell on the grid CANVAS to focus the grid, then paste — the Name Box + Enter path steals focus and the paste misfires (default_prevented:false vs true). sheets.cell.set uses the Name Box flow and needs the tab foregrounded; its canvas selection repaints async.",
+  "requires": [],
+  "notes": "Read endpoint: page.fetch https://docs.google.com/spreadsheets/d/<sheet_id>/htmlview/sheet?headers=true&gid=<gid>. The TOP /htmlview is a JS shell — the sheet sub-path returns the real grid as <table class='waffle'>. Parser isolates the table between '<table class=\"waffle\"' and '</table>', splits <tbody> rows on '<tr', and within each row splits on '<td' to get cells (dropping the leading <th> row-header). Name Box selector on modern Sheets: input.waffle-name-box, or the box showing the active-cell ref at the grid's top-left. TSV paste: focus the anchor cell (Name Box -> ref -> Enter), then clipboard.paste a string with \\t between columns and \\n between rows; Sheets expands it into a range starting at the anchor.",
+  "tools": [
+    {
+      "name": "sheets.map",
+      "description": "Return operating guidance for the Google Sheets spreadsheet map. Call this FIRST, before any other sheets action.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "docs.google.com",
+          "surface": "spreadsheet",
+          "read": "sheets.read { sheet_id, gid } — fetches the sheet's /htmlview/sheet HTML (page.fetch, same-origin) and returns { title, rows } where rows is an array of cell-arrays. The grid DOM is canvas-rendered and blind; ALWAYS read this way. sheet_id = URL segment after /spreadsheets/d/; gid = the #gid=<n> in the URL (first tab = 0).",
+          "write_cell": "sheets.cell.set { cell_ref, value } — types cell_ref into the Name Box, Enter to select, types value, Enter to commit. Needs the tab foregrounded.",
+          "write_block": "sheets.range.paste_tsv { anchor_ref, tsv } — selects the anchor cell via the Name Box, then pastes a TSV block (\\t between columns, \\n between rows); Sheets expands it into a range. The fast path for CRM/table exports.",
+          "verify": "After a write, wait ~1-2s (htmlview regenerates server-side) then sheets.read to confirm.",
+          "recommended_sequence": [
+            "sheets.read { sheet_id, gid } — current grid",
+            "sheets.cell.set { cell_ref, value } — set one cell",
+            "sheets.range.paste_tsv { anchor_ref, tsv } — set a block",
+            "sheets.read { sheet_id, gid } — verify (after settle)"
+          ]
+        }
+      }
+    },
+    {
+      "name": "sheets.read",
+      "description": "Read the current Google Sheets grid as structured rows. Google Sheets paints the grid to a canvas, so the DOM is blind; this fetches the sheet's own same-origin /htmlview/sheet HTML view and parses the <table class='waffle'> into rows of cells. Pass sheet_id = the URL segment after /spreadsheets/d/ (e.g. from https://docs.google.com/spreadsheets/d/ABC123/edit#gid=0, sheet_id is ABC123), and gid = the numeric grid id (the #gid=<n>; first tab is 0). Returns { title, rows } where rows is an array of arrays of cell text. Use before editing and to verify writes.",
+      "input_schema": {
+        "type": "object",
+        "required": ["sheet_id", "gid"],
+        "properties": {
+          "sheet_id": { "type": "string", "description": "The spreadsheet id from the tab URL (segment after /spreadsheets/d/)." },
+          "gid": { "type": "string", "description": "The numeric grid id of the sheet tab (the #gid=<n> in the URL; the first tab is 0)." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "fetchSheet",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}"
+            }
+          }
+        ],
+        "output": "{% ( $b := steps.fetchSheet.output.body; $title := $substringBefore($substringAfter($b, 'og:title\" content=\"'), '\"'); $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; $rows := [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })]; { 'title': $title, 'rows': $rows, 'row_count': $count($rows), 'fetch_status': steps.fetchSheet.output.status } ) %}"
+      }
+    },
+    {
+      "name": "sheets.range.paste_tsv",
+      "description": "Paste a TSV block as a real multi-column RANGE starting at the currently selected cell. Google Sheets expands an HTML <table> (which this builds from your tsv) into rows/columns. VALIDATED LIVE 2026-07-05 (screenshot-confirmed: a 3x3 TSV expanded into a genuine A:C range, numbers stayed numeric). PRECONDITION: click the anchor cell on the grid CANVAS first (pointer.click) so the grid is focused — do NOT select the anchor via the Name Box, its focus does not reach the paste and the paste misfires (default_prevented:false). Provide tsv with a TAB (\\t) between columns and a NEWLINE (\\n) between rows. Verify with sheets.read after a ~1-2s settle.",
+      "input_schema": {
+        "type": "object",
+        "required": ["tsv"],
+        "properties": {
+          "tsv": { "type": "string", "description": "The block to paste: TAB (\\t) between columns, NEWLINE (\\n) between rows. Expands into a range from the selected anchor cell." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "paste",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.tsv %}",
+              "html": "{% ( $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $rows := $split(input.tsv, '\n'); $trs := $join($map($rows, function($r) { ( $cells := $split($r, '\t'); '<tr>' & $join($map($cells, function($c) { '<td>' & $esc($c) & '</td>' })) & '</tr>' ) })); '<table>' & $trs & '</table>' ) %}"
+            }
+          }
+        ],
+        "output": "{% { 'pasted_tsv': input.tsv, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Wait ~1-2s (htmlview regenerates) then sheets.read to verify the range. If accepted is false, the grid was not focused — click the anchor cell on the canvas first, not the Name Box.' } %}"
+      }
+    },
+    {
+      "name": "sheets.cell.set",
+      "description": "Set a single cell's value. Types the cell reference into the Name Box (top-left), presses Enter to select it, types the value, presses Enter to commit. PRECONDITION: the Sheets tab must be foregrounded (interactive). The Name Box selection repaints asynchronously (a brief spinner) — for a block of data prefer sheets.range.paste_tsv. Verify with sheets.read after a ~1-2s settle.",
+      "input_schema": {
+        "type": "object",
+        "required": ["cell_ref", "value"],
+        "properties": {
+          "cell_ref": { "type": "string", "description": "A1-style cell reference to write into (e.g. 'B2')." },
+          "value": { "type": "string", "description": "The value to type into the cell." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "focusNameBox",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "input.waffle-name-box" } }
+          },
+          {
+            "id": "clickNameBox",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.focusNameBox.output.clickable_center.x %}", "y": "{% steps.focusNameBox.output.clickable_center.y %}" }
+          },
+          {
+            "id": "typeRef",
+            "primitive": "text.insert",
+            "args": { "text": "{% input.cell_ref %}", "mode": "replace", "target": { "selector": "input.waffle-name-box" } }
+          },
+          {
+            "id": "selectCell",
+            "primitive": "keyboard.press",
+            "args": { "key": "Enter" }
+          },
+          {
+            "id": "typeValue",
+            "primitive": "text.insert",
+            "args": { "text": "{% input.value %}" }
+          },
+          {
+            "id": "commitCell",
+            "primitive": "keyboard.press",
+            "args": { "key": "Enter" }
+          }
+        ],
+        "output": "{% { 'cell_set': input.cell_ref, 'value': input.value, 'next_step': 'Verify with sheets.read after a ~1-2s settle. Note: the Name Box selection repaints async; if the value did not land, the cell may not have been selected in time.' } %}"
+      }
+    }
+  ],
+  "workflows": [],
+  "state_projections": [],
+  "quality_score": null
+}

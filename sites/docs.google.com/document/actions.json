@@ -1,0 +1,806 @@
+{
+ "protocol": "actions.json",
+ "version": 1,
+ "surface": "document",
+ "scope": {
+  "url_matches": "https://docs.google.com/document/d/*"
+ },
+ "observed_at": "2026-07-05",
+ "prompt": "You operate a Google Docs document. *** CRITICAL FIRST STEP: the document tab MUST be the foreground/active browser tab before ANY keyboard editing. Chrome throttles input on background tabs, so trusted keystrokes are silently DROPPED (the tools report success but nothing changes). Before editing, call browser.claimed_tabs.activate {tab_id} for this doc's tab (or browser.active_tab_set), then click once into the document body to seat the caret. If an edit verifies as not-landed, the tab lost foreground - re-activate and retry. *** THE DOM IS BLIND (canvas-rendered) - never read via snapshot; read with docs.read {doc_id} (doc_id = URL segment after /document/d/). THE EDITING LOOP - follow it every time: 1) docs.read: see the real, current, numbered paragraphs. 2) docs.locate {doc_id, snippet}: quote the EXACT text to edit (to replace it) or the text at the spot to touch. Require matches:1 (0 = fix your quote; >1 = add surrounding words). 3) Walk with its numbers VERBATIM - never count characters yourself: docs.cursor_to_paragraph {paragraph} -> docs.cursor_forward {chars: offset}. For LONG in-paragraph moves prefer WORD navigation, which is reliable (accessibility-gated, never coalesces): docs.words_forward / docs.words_backward {words, text, from} jump N whole words and self-verify each landing, then docs.cursor_forward the few remaining chars for an exact offset. To REPLACE: docs.select_forward {chars: snippet_chars} then text.type {text, trusted:true} atomically overtypes the selection. To INSERT: type at the caret; press Enter (trusted) for a paragraph break. To DELETE text: select it (select_forward) then press Delete or Backspace (trusted). To DELETE A WHOLE PARAGRAPH/LINE including its break (so NO empty line is left behind): cursor_to_paragraph {that paragraph} -> Home, then select the whole line AND its trailing newline — press Shift+Down then Shift+Home to extend the selection over the line break into the next line's start — then Delete (trusted). Or: put the caret at the START of the now-empty paragraph and press Backspace (trusted) to merge it upward. There is NO separate delete-paragraph tool and you do NOT need one — deletion is just these trusted keystrokes; a missing named action is NEVER a reason to stop. You have keyboard primitives (ArrowRight/Left/Up/Down, Home/End, Shift+ to select, Delete, Backspace, Enter) — every text operation a human does with a keyboard, you can do. STUCK is almost always a failure to TRY HARDER, not a real dead end — treat it as nearly forbidden. It is ONLY valid AFTER you have actually attempted the edit with these primitives, re-read, and attempted a DIFFERENT primitive approach that also failed. Never declare STUCK because a convenience action isn't named or because the first approach felt awkward: decompose the task into keystrokes and do it. If one path fails, try another (select-and-Delete vs Backspace-merge vs overtype-the-span) before ever reporting STUCK. 4) docs.read {paragraph} again and VERIFY THE WHOLE NEIGHBORHOOD, not just the target token. A selection overtype is off-by-one-prone: it can eat the space BEFORE or AFTER the edit and fuse two words (e.g. replacing 'Its ' with 'It's' yields 'It'sworth'). So after every edit re-read the FULL paragraph and confirm: (a) the intended text is present, AND (b) the word immediately before and the word immediately after the edit are still separate, correctly-spaced words — no fused words, no doubled spaces, no swallowed punctuation. Tool success flags are NOT proof; only the re-read of the surrounding text is. Presence of your new token alone is NOT enough. 5) If verification finds a neighborhood defect (fused word, lost/extra space, chewed neighbor, or a wrong result) YOU MUST FIX IT YOURSELF — detecting a defect is NOT the end, it is the start of the fix. Do NOT report STUCK just because you found a flaw; a found flaw is a fixable flaw. Fix directly: for a MISSING space, place the caret exactly at the boundary (cursor_to_paragraph + cursor_forward to the offset, or select_forward over the fused pair) and type the single missing space (or overtype the fused pair spelled correctly with the space). For an EXTRA space, select it and Delete. For a bigger corruption, docs.undo -> docs.read to confirm rollback -> retry with a corrected snippet: quote the target WITH one neighbor word on each side in docs.locate and overtype the whole span with the neighbors reproduced (first re-confirm the tab is foreground). Re-read after the fix. Only report STUCK after an actual fix ATTEMPT re-read still shows the defect — never merely because you noticed one. NEVER use Find/Ctrl+F. NEVER adjust a selection with arrow keys (overtype the whole selection instead). NEVER click screen coordinates to place the caret - use the positional tools. Append content: docs.append. Headings/bullets/tables: docs.heading, docs.bullets, docs.table.append, docs.rich_append. Title: docs.title.set.",
+ "skill": "Call docs.map FIRST. ROOT REQUIREMENT (validated live 2026-07-07): trusted keyboard editing only works when the Docs tab is FOREGROUND - background tabs silently drop keystrokes while reporting tool success. Sequence: activate tab -> click body -> docs.read -> docs.locate -> cursor_to_paragraph -> cursor_forward -> select_forward -> text.type(trusted) -> docs.read verify the WHOLE NEIGHBORHOOD (target present AND neighbor words still separate/correctly-spaced — overtypes eat boundary spaces and fuse words) -> undo/retry. All positional (no Find, no coordinate clicks for caret placement).",
+ "requires": [],
+ "notes": "Read = page.fetch https://docs.google.com/document/d/<id>/mobilebasic then extract title from <title> and body from the og:description meta (both proven against the real payload). Write = clipboard.paste target {frame:'.docs-texteventtarget-iframe', selector:\"[contenteditable='true']\"} after clicking the canvas to focus. Canvas repaints async — settle before re-reading/screenshotting.",
+ "tools": [
+  {
+   "name": "docs.map",
+   "description": "Return operating guidance for the Google Docs document map. Call this FIRST, before any other docs action.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "x_actions": {
+    "static_output": {
+     "ok": true,
+     "site": "docs.google.com",
+     "surface": "document",
+     "read": "docs.read { doc_id } — fetches the doc's /mobilebasic HTML (page.fetch, same-origin) and returns {title, body}. The DOM is canvas-rendered and empty; ALWAYS read this way, never via snapshot/observe. doc_id is the URL segment after /document/d/.",
+     "write": "1) pointer.click the editor canvas center to place the cursor. 2) docs.append { text } — pastes text at the cursor via clipboard.paste into the inner contenteditable of the same-origin editor iframe. 3) docs.title.set { title } — clicks the toolbar Rename input and types.",
+     "transfer_in": "docs.table.append { rows } — insert a real Docs TABLE at the cursor from an array of row arrays. CROSS-APP: pass sheets.read's 'rows' straight in to land a spreadsheet range as a Docs table (validated). Same click-canvas-first precondition.",
+     "verify": "After a write, wait ~1s (canvas repaints async) then docs.read to confirm, or screenshot with a delay. Do not trust the paste's return alone.",
+     "recommended_sequence": [
+      "docs.read { doc_id } — current title + body",
+      "pointer.click the canvas to focus",
+      "docs.append { text } — paste at cursor",
+      "docs.read { doc_id } — verify (after settle)"
+     ],
+     "edit": "NO find/Ctrl+F editing (fragile + non-human; those tools were removed). Edit by position/structure: docs.read to see content+order, click the target line to place the cursor, then cursor/selection/paste. A positional edit-by-cursor primitive is the right thing to build for structural edits. Add content with docs.append/heading/bullets/rich_append/table.append."
+    }
+   }
+  },
+  {
+   "name": "docs.append",
+   "description": "Append (paste) text at the current cursor position in the Google Docs editor. PRECONDITION: click the editor canvas first (pointer.click its center) so the cursor is placed and the inner editor iframe is focused. This pastes into the same-origin editor iframe's inner contenteditable via clipboard.paste with a frame-target locator (DOM text.insert cannot reach it). Verify with docs.read after a brief settle (the canvas repaints asynchronously).",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "text"
+    ],
+    "properties": {
+     "text": {
+      "type": "string",
+      "description": "Text to paste at the cursor."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "paste",
+      "primitive": "clipboard.paste",
+      "args": {
+       "text": "{% input.text %}",
+       "target": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       }
+      }
+     }
+    ],
+    "output": "{% { 'appended': input.text, 'inserted_length': steps.paste.output.inserted_length, 'accepted': steps.paste.output.default_prevented, 'next_step': 'Wait ~1s (canvas repaints async) then docs.read to verify; do not trust this return alone.' } %}"
+   }
+  },
+  {
+   "name": "docs.table.append",
+   "description": "Insert a real Google Docs TABLE at the cursor from structured rows. Takes rows = an array of row arrays of cell strings (exactly the shape sheets.read returns as its 'rows'), builds an HTML <table>, and frame-pastes it so Docs renders a genuine table (VALIDATED LIVE 2026-07-05: a 3x3 rows array produced a 1 <table>/9 <td> Docs table, cells in order). This is the CROSS-APP transfer target: pipe sheets.read's rows (or slides.read's slides) straight in to land structured data as a Docs table. FOCUS: the frame-target locator focuses the inner contenteditable on its own — validated by 3 sequential docs.table.append calls that all landed with NO intervening pointer.click. Only if 'accepted' comes back false (nothing landed on a cold-loaded doc) do you need to pointer.click the editor canvas once to establish the cursor. Verify with docs.read after a ~1-2s settle (docs.read returns cell text flattened; for table STRUCTURE re-fetch /mobilebasic and count <table>/<td>).",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "rows"
+    ],
+    "properties": {
+     "rows": {
+      "type": "array",
+      "description": "Array of rows; each row is an array of cell strings. E.g. [[\"Name\",\"Stage\"],[\"Acme\",\"Lead\"]]. Pass sheets.read's rows directly for a Sheets->Docs table transfer.",
+      "items": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "paste",
+      "primitive": "clipboard.paste",
+      "args": {
+       "text": "{% $join($map(input.rows, function($r) { $join($r, '\t') }), '\n') %}",
+       "html": "{% ( $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $trs := $join($map(input.rows, function($r) { '<tr>' & $join($map($r, function($c) { '<td>' & $esc($c) & '</td>' })) & '</tr>' })); '<table>' & $trs & '</table>' ) %}",
+       "target": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       }
+      }
+     }
+    ],
+    "output": "{% { 'rows_inserted': $count(input.rows), 'cols': $count(input.rows[0]), 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A real Docs table was pasted (the frame locator self-focuses the editor). Verify: docs.read after ~1-2s (cell text flattens into body), or re-fetch /mobilebasic and count <table>/<td>. Only if accepted is false (cold doc, nothing landed) pointer.click the canvas once to place the cursor, then retry.' } %}"
+   }
+  },
+  {
+   "name": "docs.heading",
+   "description": "Insert a real Google Docs HEADING (styled Heading 1/2/3, not plain bold text) at the cursor. Pastes an HTML <hN> via the frame locator so Docs applies its native heading style — giving the document a scannable outline that shows up in the Docs outline pane and survives export. Use for PRD/report section titles instead of docs.append (which only writes body text). PRECONDITION: cursor in the editor (the frame locator self-focuses). VALIDATED LIVE 2026-07-05: a pasted <h1>/<h2> rendered as real Docs Heading 1/Heading 2 styles (confirmed in /mobilebasic). Google Docs honors pasted heading HTML the same way it honors <table>.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "text"
+    ],
+    "properties": {
+     "text": {
+      "type": "string",
+      "description": "The heading text."
+     },
+     "level": {
+      "type": "integer",
+      "description": "Heading level 1, 2, or 3. Defaults to 1.",
+      "enum": [
+       1,
+       2,
+       3
+      ]
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "paste",
+      "primitive": "clipboard.paste",
+      "args": {
+       "text": "{% input.text %}",
+       "html": "{% ( $lvl := input.level in [1,2,3] ? input.level : 1; $esc := $replace($replace($replace(input.text, '&', '&amp;'), '<', '&lt;'), '>', '&gt;'); '<h' & $string($lvl) & '>' & $esc & '</h' & $string($lvl) & '>' ) %}",
+       "target": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       }
+      }
+     }
+    ],
+    "output": "{% { 'heading': input.text, 'level': input.level in [1,2,3] ? input.level : 1, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm an <h1>/<h2>/<h3> tag appeared. If it rendered as a plain <p>, the pasted heading HTML was not honored — report it.' } %}"
+   }
+  },
+  {
+   "name": "docs.bullets",
+   "description": "Insert a real Google Docs BULLETED LIST (native <ul> list items, not dash-prefixed plain text) at the cursor from an array of item strings. Pastes an HTML <ul><li>…</li></ul> via the frame locator so Docs renders proper bullets with indentation. Use for PRD/report lists instead of typing '- item' lines with docs.append. PRECONDITION: cursor in the editor (the frame locator self-focuses). VALIDATED LIVE 2026-07-05: a pasted <ul><li>…</li></ul> rendered as a real Docs bulleted list (confirmed <ul> + 3 <li> in /mobilebasic). Pass ordered:true for a numbered <ol> list instead.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "items"
+    ],
+    "properties": {
+     "items": {
+      "type": "array",
+      "description": "List item strings, one per bullet.",
+      "items": {
+       "type": "string"
+      }
+     },
+     "ordered": {
+      "type": "boolean",
+      "description": "true for a numbered (ordered) list; omit/false for bullets."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "paste",
+      "primitive": "clipboard.paste",
+      "args": {
+       "text": "{% $join($map(input.items, function($i) { '• ' & $i }), '\n') %}",
+       "html": "{% ( $tag := input.ordered = true ? 'ol' : 'ul'; $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $lis := $join($map(input.items, function($i) { '<li>' & $esc($i) & '</li>' })); '<' & $tag & '>' & $lis & '</' & $tag & '>' ) %}",
+       "target": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       }
+      }
+     }
+    ],
+    "output": "{% { 'items_inserted': $count(input.items), 'ordered': input.ordered = true, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm <ul>/<ol> + <li> tags appeared. If the items rendered as plain <p> lines, the list HTML was not honored — report it.' } %}"
+   }
+  },
+  {
+   "name": "docs.rich_append",
+   "description": "Append a paragraph with INLINE formatting (bold, italic, mixed runs) at the cursor. Pass html = a small HTML fragment using inline tags — <strong>/<b> for bold, <em>/<i> for italic, plain text between — e.g. \"Revenue rose <strong>40%</strong> in <em>Q3</em>.\". Docs converts these to real inline runs (font-weight:700 / font-style:italic). Use this instead of docs.append when a sentence needs emphasis on specific words (docs.append is plain text only; docs.heading/docs.bullets are block-level). VALIDATED LIVE 2026-07-05: a pasted <strong>/<em> run rendered as real bold/italic spans inside one paragraph (confirmed font-weight:700 + font-style:italic in /mobilebasic). PRECONDITION: cursor in the editor (the frame locator self-focuses). Keep the fragment to inline formatting; for headings/lists/tables use the dedicated actions.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "html"
+    ],
+    "properties": {
+     "html": {
+      "type": "string",
+      "description": "Inline-formatted HTML fragment, e.g. 'The <strong>key result</strong> is <em>measurable</em>.' Use <strong>/<b> and <em>/<i>; plain text otherwise."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "paste",
+      "primitive": "clipboard.paste",
+      "args": {
+       "text": "{% $trim($replace(input.html, /<[^>]*>/, '')) %}",
+       "html": "{% '<p>' & input.html & '</p>' %}",
+       "target": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       }
+      }
+     }
+    ],
+    "output": "{% { 'appended_html': input.html, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A formatted paragraph was pasted. Verify: re-fetch /mobilebasic and look for font-weight:700 (bold) / font-style:italic runs. If it rendered flat, the inline HTML was not honored — report it.' } %}"
+   }
+  },
+  {
+   "name": "docs.title.set",
+   "description": "Set the document title via the toolbar 'Rename' input (a real DOM input, not canvas). Clicks the input, selects all, and types the new title.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "title"
+    ],
+    "properties": {
+     "title": {
+      "type": "string",
+      "description": "New document title."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findTitle",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "input[aria-label='Rename'], .docs-title-input"
+       }
+      }
+     },
+     {
+      "id": "focusTitle",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findTitle.output.clickable_center.x %}",
+       "y": "{% steps.findTitle.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "setTitle",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.title %}",
+       "mode": "replace",
+       "target": {
+        "selector": "input[aria-label='Rename'], .docs-title-input"
+       }
+      }
+     },
+     {
+      "id": "commitTitle",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "Enter"
+      }
+     }
+    ],
+    "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify with docs.read after a brief settle (title comes from the doc <title>, which updates once Docs saves).' } %}"
+   }
+  },
+  {
+   "name": "docs.cursor_to_paragraph",
+   "description": "Place the caret at the START of paragraph N by POSITION (non-Find, human-like): Ctrl+Home to document start, then step down N logical paragraphs with Ctrl+Down (wrap-proof — counts paragraphs, not visual lines), then Home to the line start. paragraph is 0-based, matching docs.read's block order. Composed entirely from the existing trusted keyboard.press primitive via a for_each loop — no new primitive needed. After it lands, edit in place with trusted text.type/keyboard.press. VERIFY via docs.read / mobilebasic block tags.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "paragraph"
+    ],
+    "properties": {
+     "paragraph": {
+      "type": "integer",
+      "description": "0-based paragraph/block index (as docs.read orders them) to place the caret at."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "toStart",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "Home",
+       "modifiers": [
+        "Control"
+       ],
+       "trusted": true
+      }
+     },
+     {
+      "id": "downN",
+      "primitive": "keyboard.press",
+      "for_each": "{% [1..input.paragraph] %}",
+      "max_items": 50,
+      "args": {
+       "key": "ArrowDown",
+       "modifiers": [
+        "Control"
+       ],
+       "trusted": true
+      }
+     },
+     {
+      "id": "lineStart",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "Home",
+       "trusted": true
+      }
+     }
+    ],
+    "output": "{% { 'paragraph': input.paragraph, 'method':'ctrl-home + for_each ctrl-down (workflow loop, no new primitive)', 'next_step':'Caret placed at paragraph ' & $string(input.paragraph) & ' start by position. Edit with trusted text.type/keyboard.press; verify via docs.read block tags.' } %}"
+   }
+  },
+  {
+   "name": "docs.locate",
+   "description": "Turn a QUOTED text snippet into exact caret numbers: {found, matches, para, offset, snippet_chars}. This does NOT move the caret - it only computes. You are bad at counting characters; this is good at it. Use the numbers VERBATIM: docs.cursor_to_paragraph {paragraph: para} then docs.cursor_forward {chars: offset} lands the caret at the snippet START; docs.select_forward {chars: snippet_chars} selects it. Requires matches:1 - if 0, re-read and fix your quote; if >1, use a longer snippet.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "doc_id",
+     "snippet"
+    ],
+    "properties": {
+     "doc_id": {
+      "type": "string",
+      "description": "Document id (URL segment after /document/d/)."
+     },
+     "snippet": {
+      "type": "string",
+      "description": "EXACT text quoted from docs.read (straight/curly quotes both match)."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "fetch",
+      "primitive": "page.fetch",
+      "args": {
+       "url": "{% 'https://docs.google.com/document/d/' & input.doc_id & '/mobilebasic' %}"
+      }
+     }
+    ],
+    "output": "{% (\n  $unesc := function($s) {\n    $replace($replace($replace($replace($replace($replace($s,\n      '&nbsp;', '\\u00a0'), '&#39;', \"'\"), '&quot;', '\"'), '&lt;', '<'), '&gt;', '>'), '&amp;', '&')\n  };\n  $norm := function($s) {\n    $replace($replace($replace($replace($replace($s, '\\u2019', \"'\"), '\\u2018', \"'\"), '\\u201c', '\"'), '\\u201d', '\"'), '\\u00a0', ' ')\n  };\n  $c0 := $substringBefore($substringAfter($substringAfter(steps.fetch.output.body, 'doc-content'), '>'), 'google-footer');\n  $c := $replace($c0, /<style[\\s\\S]*?<\\/style>/, '');\n  $c := $replace($c, /<script[\\s\\S]*?<\\/script>/, '');\n  $rawBlocks := $split($c, /<\\/(?:p|h[1-6])>/);\n  $nrb := $count($rawBlocks);\n  $blocks := $map([1..$nrb-1], function($i) { $unesc($replace($rawBlocks[$i-1], /<[^>]*>/, '')) });\n\n  $needle := $norm(input.snippet);\n  $hits := $filter($map([1..$count($blocks)], function($i) {\n    ( $nb := $norm($blocks[$i-1]);\n      $contains($nb, $needle) ? { 'para': $i-1, 'offset': $length($substringBefore($nb, $needle)) } : null )\n  }), function($h) { $exists($h.para) });\n  { 'found': $count($hits) = 1, 'matches': $count($hits),\n    'para': $hits[0].para, 'offset': $hits[0].offset, 'snippet_chars': $length($needle),\n    'next_step': $count($hits) = 0 ? 'NOT FOUND: re-run docs.read and quote the text exactly.' :\n                 $count($hits) > 1 ? 'AMBIGUOUS: use a longer snippet with more surrounding words.' :\n                 'Walk with these numbers verbatim: docs.cursor_to_paragraph {paragraph: ' & $string($hits[0].para) & '} then docs.cursor_forward {chars: ' & $string($hits[0].offset) & '}; to select the snippet add docs.select_forward {chars: ' & $string($length($needle)) & '}.' }\n) %}"
+   }
+  },
+  {
+   "name": "docs.undo",
+   "description": "Undo the last edit(s) (trusted Ctrl+Z x count). THE recovery tool: when the post-edit docs.read shows a wrong result, undo and retry - never patch corruption with more edits.",
+   "input_schema": {
+    "type": "object",
+    "properties": {
+     "count": {
+      "type": "integer",
+      "description": "Undo steps (default 1)."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "undo",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "z",
+       "modifiers": [
+        "Control"
+       ],
+       "trusted": true,
+       "repeat": "{% input.count ? input.count : 1 %}"
+      }
+     }
+    ],
+    "output": "{% { 'undone': input.count ? input.count : 1, 'next_step': 'docs.read to confirm the rollback before retrying.' } %}"
+   }
+  },
+  {
+   "name": "docs.read",
+   "description": "Read the document. Without 'paragraph': title + numbered paragraph OVERVIEW (index, length, first 160 chars of each) - your low-token orientation. With 'paragraph': that ONE paragraph's FULL exact text - use it to quote precise snippets for docs.locate and to VERIFY an edit landed. The canvas DOM is blind; never read via snapshot. doc_id = URL segment after /document/d/.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "doc_id"
+    ],
+    "properties": {
+     "doc_id": {
+      "type": "string"
+     },
+     "paragraph": {
+      "type": "integer",
+      "description": "Optional 0-based paragraph index for a full-text read of just that paragraph."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "fetch",
+      "primitive": "page.fetch",
+      "args": {
+       "url": "{% 'https://docs.google.com/document/d/' & input.doc_id & '/mobilebasic' %}"
+      }
+     }
+    ],
+    "output": "{% (\n  $unesc := function($s) {\n    $replace($replace($replace($replace($replace($replace($s,\n      '&nbsp;', '\\u00a0'), '&#39;', \"'\"), '&quot;', '\"'), '&lt;', '<'), '&gt;', '>'), '&amp;', '&')\n  };\n  $c0 := $substringBefore($substringAfter($substringAfter(steps.fetch.output.body, 'doc-content'), '>'), 'google-footer');\n  $c := $replace($c0, /<style[\\s\\S]*?<\\/style>/, '');\n  $c := $replace($c, /<script[\\s\\S]*?<\\/script>/, '');\n  $rawBlocks := $split($c, /<\\/(?:p|h[1-6])>/);\n  $nrb := $count($rawBlocks);\n  $blocks := $map([1..$nrb-1], function($i) { $unesc($replace($rawBlocks[$i-1], /<[^>]*>/, '')) });\n\n  $title := $substringBefore($substringAfter(steps.fetch.output.body, '<title>'), '</title>');\n  $exists(input.paragraph) ?\n    ( $pi := input.paragraph; $txt := $reduce([1..$count($blocks)], function($acc,$i){ $i-1 = $pi ? $blocks[$i-1] : $acc }, ''); { 'paragraph': $pi, 'chars': $length($txt), 'text': $txt } ) :\n    { 'title': $title,\n      'paragraphs': $map([1..$count($blocks)], function($i) {\n        { 'i': $i-1, 'chars': $length($blocks[$i-1]),\n          'preview': $length($blocks[$i-1]) > 160 ? $substring($blocks[$i-1], 0, 160) & '…' : $blocks[$i-1] } }) }\n) %}"
+   }
+  },
+  {
+   "name": "docs.cursor_forward",
+   "description": "Move the caret forward to character offset N (0-2000) within the CURRENT paragraph. PREFER passing text (the current paragraph string from docs.read/docs.locate) so the caret WORD-JUMPS (Ctrl+Right) most of the way then fine-tunes with a few char steps — far fewer keystrokes, immune to the char-walk coalescing that made long walks land short. Without text it falls back to a pure character walk. Use the offset from docs.locate VERBATIM after docs.cursor_to_paragraph. No Find, no coordinates, never count characters yourself.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "chars"
+    ],
+    "properties": {
+     "chars": {
+      "type": "integer",
+      "description": "Target character offset within the paragraph (0-2000), from docs.locate."
+     },
+     "text": {
+      "type": "string",
+      "description": "OPTIONAL: the current paragraph's text (from docs.read/docs.locate). When present, the walk jumps by words (Ctrl+Right) then fine-tunes by chars — recommended. Omit to fall back to a pure character walk."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "wjRight",
+      "for_each": "{% input.text ? [1..$count($filter([1..input.chars], function($i){ $substring(input.text, $i, 1) != ' ' and $substring(input.text, $i, 1) != '' and $substring(input.text, $i-1, 1) = ' ' }))] : [] %}",
+      "max_items": 50,
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "modifiers": [
+        "Control"
+       ],
+       "repeat": 1
+      },
+      "settle_after": {
+       "delay_ms": 60
+      }
+     },
+     {
+      "id": "wjChar",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "repeat": "{% input.text ? input.chars - ($starts := $filter([1..input.chars], function($i){ $substring(input.text, $i, 1) != ' ' and $substring(input.text, $i, 1) != '' and $substring(input.text, $i-1, 1) = ' ' }); $count($starts) = 0 ? 0 : $starts[$count($starts)-1]) : 0 %}"
+      }
+     },
+     {
+      "id": "c1",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "repeat": "{% input.text ? 0 : $min([input.chars, 1000]) %}"
+      }
+     },
+     {
+      "id": "c2",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "repeat": "{% input.text ? 0 : $max([input.chars - 1000, 0]) %}"
+      }
+     }
+    ],
+    "output": "{% { 'chars': input.chars, 'mode': input.text ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}"
+   }
+  },
+  {
+   "name": "docs.words_forward",
+   "description": "Move the caret FORWARD by N whole WORDS, RELIABLY (closed-loop): each word-jump is gated on the accessibility layer confirming the caret landed on the expected word, so it never coalesces like an open-loop burst. Pass words (how many), text (the current paragraph from docs.read), and from (the caret's current character offset within the paragraph). Computes the expected word sequence and drives keyboard.press_gated in path mode. HALTS if the caret ever lands on an unexpected word — then docs.read and retry (the doc diverged from your model). For an exact sub-word offset, follow with docs.cursor_forward for the few remaining chars.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "words",
+     "text",
+     "from"
+    ],
+    "properties": {
+     "words": {
+      "type": "integer",
+      "description": "Number of words to move (1-50)."
+     },
+     "text": {
+      "type": "string",
+      "description": "The current paragraph's text (from docs.read)."
+     },
+     "from": {
+      "type": "integer",
+      "description": "The caret's current character offset within the paragraph (0-based)."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "gatedWords",
+      "primitive": "keyboard.press_gated",
+      "args": {
+       "key": "Control+ArrowRight",
+       "stop": "path",
+       "expect": "{% ( $len := $length(input.text); $starts := $filter([0..$len - 1], function($i){ $substring(input.text,$i,1) != ' ' and ($i = 0 or $substring(input.text,$i-1,1) = ' ') }); $future := $filter($starts, function($s){ $s > input.from }); $take := $filter($future, function($s,$i){ $i < input.words }); $map($take, function($s){( $word := $split($substring(input.text, $s), ' ')[0]; $chars := $map([0..$length($word)-1], function($i){( $c := $substring($word,$i,1); $exists($match($c, /[A-Za-z0-9]/)) ? $c : '[' & $c & ']?' )}); '^' & $join($chars) & '$' )}) ) %}",
+       "polarity": "match",
+       "max_presses": 60
+      }
+     }
+    ],
+    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}"
+   }
+  },
+  {
+   "name": "docs.cursor_backward",
+   "description": "Move the caret BACKWARD N characters (1-2000) from its current position. PREFER passing text (the current paragraph string) AND from (the caret's current character offset within the paragraph) so the caret WORD-JUMPS left (Ctrl+Left) most of the way then fine-tunes with a few char steps — far fewer keystrokes, immune to the char-walk coalescing. Without text/from it falls back to a pure ArrowLeft character walk. No Find, no coordinates.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "chars"
+    ],
+    "properties": {
+     "chars": {
+      "type": "integer",
+      "description": "Characters to move backward (1-2000)."
+     },
+     "text": {
+      "type": "string",
+      "description": "OPTIONAL: the current paragraph's text (from docs.read). Enables word-jump; requires from too."
+     },
+     "from": {
+      "type": "integer",
+      "description": "OPTIONAL: the caret's current character offset within the paragraph (0-based). Required for word-jump."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "wjLeft",
+      "for_each": "{% (input.text and $exists(input.from)) ? [1..$count($filter([0..input.from - 1], function($i){ ($i = 0 or ($substring(input.text,$i,1) != ' ' and $substring(input.text,$i,1) != '' and $substring(input.text,$i-1,1) = ' ')) and $i >= (input.from - input.chars) and $i < input.from }))] : [] %}",
+      "max_items": 50,
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowLeft",
+       "trusted": true,
+       "modifiers": [
+        "Control"
+       ],
+       "repeat": 1
+      },
+      "settle_after": {
+       "delay_ms": 60
+      }
+     },
+     {
+      "id": "wjLeftChar",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowLeft",
+       "trusted": true,
+       "repeat": "{% (input.text and $exists(input.from)) ? ( $tgt := input.from - input.chars; $starts := $filter([0..input.from - 1], function($i){ ($i = 0 or ($substring(input.text,$i,1) != ' ' and $substring(input.text,$i,1) != '' and $substring(input.text,$i-1,1) = ' ')) and $i >= $tgt and $i < input.from }); $count($starts) = 0 ? input.chars : $starts[0] - $tgt ) : 0 %}"
+      }
+     },
+     {
+      "id": "cb1",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowLeft",
+       "trusted": true,
+       "repeat": "{% (input.text and $exists(input.from)) ? 0 : $min([input.chars, 1000]) %}"
+      }
+     },
+     {
+      "id": "cb2",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowLeft",
+       "trusted": true,
+       "repeat": "{% (input.text and $exists(input.from)) ? 0 : $max([input.chars - 1000, 0]) %}"
+      }
+     }
+    ],
+    "output": "{% { 'chars': input.chars, 'mode': (input.text and $exists(input.from)) ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}"
+   }
+  },
+  {
+   "name": "docs.words_backward",
+   "description": "Move the caret BACKWARD by N whole WORDS, RELIABLY (closed-loop): each word-jump is gated on the accessibility layer confirming the caret landed on the expected word, so it never coalesces like an open-loop burst. Pass words (how many), text (the current paragraph from docs.read), and from (the caret's current character offset within the paragraph). Computes the expected word sequence and drives keyboard.press_gated in path mode. HALTS if the caret ever lands on an unexpected word — then docs.read and retry (the doc diverged from your model). For an exact sub-word offset, follow with docs.cursor_forward for the few remaining chars.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "words",
+     "text",
+     "from"
+    ],
+    "properties": {
+     "words": {
+      "type": "integer",
+      "description": "Number of words to move (1-50)."
+     },
+     "text": {
+      "type": "string",
+      "description": "The current paragraph's text (from docs.read)."
+     },
+     "from": {
+      "type": "integer",
+      "description": "The caret's current character offset within the paragraph (0-based)."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "gatedWords",
+      "primitive": "keyboard.press_gated",
+      "args": {
+       "key": "Control+ArrowLeft",
+       "stop": "path",
+       "expect": "{% ( $len := $length(input.text); $starts := $filter([0..$len - 1], function($i){ $substring(input.text,$i,1) != ' ' and ($i = 0 or $substring(input.text,$i-1,1) = ' ') }); $past := $reverse($filter($starts, function($s){ $s < input.from })); $take := $filter($past, function($s,$i){ $i < input.words }); $map($take, function($s){( $word := $split($substring(input.text, $s), ' ')[0]; $chars := $map([0..$length($word)-1], function($i){( $c := $substring($word,$i,1); $exists($match($c, /[A-Za-z0-9]/)) ? $c : '[' & $c & ']?' )}); '^' & $join($chars) & '$' )}) ) %}",
+       "polarity": "match",
+       "max_presses": 60
+      }
+     }
+    ],
+    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}"
+   }
+  },
+  {
+   "name": "docs.select_forward",
+   "description": "Extend the selection forward N characters (1-2000) then OVERTYPE the whole selection atomically with text.type {trusted:true}. Use snippet_chars from docs.locate verbatim. Never adjust a selection with arrow keys.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "chars"
+    ],
+    "properties": {
+     "chars": {
+      "type": "integer",
+      "description": "Characters to walk (1-2000)."
+     }
+    }
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "c1",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "repeat": "{% $min([input.chars, 1000]) %}",
+       "modifiers": [
+        "Shift"
+       ]
+      }
+     },
+     {
+      "id": "c2",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "ArrowRight",
+       "trusted": true,
+       "repeat": "{% $max([input.chars - 1000, 0]) %}",
+       "modifiers": [
+        "Shift"
+       ]
+      }
+     }
+    ],
+    "output": "{% { 'chars': input.chars, 'next_step': 'Done. Verify with docs.read.' } %}"
+   }
+  }
+ ],
+ "workflows": [],
+ "state_projections": [
+  {
+   "name": "doc.markers",
+   "description": "Paragraph-addressed CURSOR markers for canvas Docs — POSITIONAL ONLY, the human model. A human editing a doc knows where they are from having read it; they do not search for a paragraph they just wrote. Resolve any location as (paragraph_index, char_offset) computed from docs.read block order, then: docs.cursor_to_paragraph {paragraph} -> docs.cursor_forward {chars} -> docs.select_forward {chars} -> OVERTYPE the whole selection atomically with trusted text.type (never adjust a selection with arrow keys afterwards; selection+Enter = replace with paragraph break; selection+Backspace = delete). Find/Ctrl+F is BANNED for editing: live failure modes catalogued 2026-07-07 — stale '0 of 0' counts, quote characters break queries, signatures cannot cross NBSP or invisible breaks. Verify every edit via docs.read after a ~2s settle; the a11y announcement stream (screen-reader mode) narrates caret/selection state live.",
+   "snapshot": {
+    "version": 1,
+    "source": "dom",
+    "extract": [],
+    "projection": {
+     "language": "jsonata",
+     "expression": "{% { 'surface':'docs','note':'positional cursor markers: (paragraph_index, char_offset) from docs.read; navigate with cursor_to_paragraph + cursor_forward; select with select_forward; overtype atomically' } %}"
+    }
+   },
+   "markers": []
+  },
+  {
+   "name": "docs.caret",
+   "description": "CLOSED-LOOP caret confirmation: the word the caret is currently ON (from the Docs a11y live region #docs-aria-speakable) plus its pixel x (from .kix-cursor). Read this AFTER each single navigation keypress to confirm where the caret actually landed, then gate the next press on it. If the reported word does not match what you expected after a try or two, HALT and re-read the doc (docs.read) — the document has diverged from your model; do not keep pressing.",
+   "snapshot": {
+    "version": 1,
+    "source": "dom",
+    "extract": [
+     {
+      "id": "speak",
+      "selector": "#docs-aria-speakable",
+      "fields": {
+       "word": {
+        "property": "innerText",
+        "trim": true
+       }
+      }
+     },
+     {
+      "id": "cursor",
+      "selector": ".kix-cursor",
+      "fields": {
+       "transform": {
+        "attribute": "style"
+       }
+      }
+     }
+    ],
+    "projection": {
+     "language": "jsonata",
+     "expression": "{% ( $t := records.cursor.transform; $mx := $match($t, /translate\\(?([-0-9.]+)px/); $x := $count($mx) > 0 ? $number($mx[0].groups[0]) : null; { 'caret_word': records.speak.word, 'caret_x_px': $x, 'note': 'Confirmed caret position. Gate your next keypress on caret_word; on mismatch after 1-2 tries, HALT and docs.read (doc diverged from your model).' } ) %}"
+    },
+    "output_schema": {
+     "type": "object",
+     "properties": {
+      "caret_word": {
+       "type": "string"
+      },
+      "caret_x_px": {
+       "type": [
+        "number",
+        "null"
+       ]
+      }
+     }
+    }
+   }
+  }
+ ],
+ "quality_score": null
+}
