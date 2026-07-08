@@ -5763,61 +5763,6 @@
    }
   },
   {
-   "name": "trello.card.close",
-   "description": "Close the open Trello card route/modal by clicking Close dialog. Use this before board-level operations such as adding a card to a list, moving cards, scrolling board columns, or reading visible board columns when the current tab URL is /c/.",
-   "input_schema": {
-    "type": "object",
-    "properties": {},
-    "additionalProperties": false
-   },
-   "workflow": {
-    "version": 1,
-    "expression_language": "jsonata",
-    "steps": [
-     {
-      "id": "hideOverlay",
-      "primitive": "overlay.menu.hide",
-      "on_error": "continue"
-     },
-     {
-      "id": "findCloseButton",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[role='dialog'] button, .window button",
-        "text_contains": "Close dialog"
-       }
-      }
-     },
-     {
-      "id": "clickCloseButton",
-      "primitive": "pointer.click",
-      "args": {
-       "x": "{% steps.findCloseButton.output.clickable_center.x %}",
-       "y": "{% steps.findCloseButton.output.clickable_center.y %}"
-      }
-     },
-     {
-      "id": "verifyBoard",
-      "primitive": "locator.text_content",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='board-view']"
-       }
-      },
-      "on_error": "continue"
-     }
-    ],
-    "output": "{% {'closed': true, 'board_text': steps.verifyBoard.output.text, 'verification_required': 'Confirm the active tab URL is the board route or board text is visible before board-level mutations.'} %}"
-   },
-   "x_actions": {
-    "source": {
-     "component": "TrelloCardCloseWorkflow",
-     "why": "Board-level Trello composer actions can misfire when executed while a direct /c/ card route is active."
-    }
-   }
-  },
-  {
    "name": "trello.card.description_links.read",
    "description": "Read the links (anchor text and href) inside the currently open Trello card description. Use this to verify saved URLs: Trello renders raw URLs as titled smart links, so a pasted URL disappears from the visible modal text but remains as the anchor href. Verify source provenance (for example a Linear issue URL) by checking the href values returned here, never by searching modal text for the raw URL.",
    "input_schema": {
