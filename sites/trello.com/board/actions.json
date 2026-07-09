@@ -1346,13 +1346,6 @@
       "args": {
        "key": "Escape"
       },
-      "settle_after": {
-       "locator": {
-        "selector": "[data-testid='card-back-name'], [data-testid='card-back-title-input']"
-       },
-       "state": "hidden",
-       "timeout_ms": 4000
-      },
       "on_error": "continue"
      },
      {
@@ -1674,22 +1667,18 @@
       "args": {
        "x": "{% steps.findConfirmDelete.output.clickable_center.x %}",
        "y": "{% steps.findConfirmDelete.output.clickable_center.y %}"
-      },
-      "settle_after": {
-       "locator": {
-        "selector": "[data-testid='card-back-name']"
-       },
-       "state": "hidden",
-       "timeout_ms": 8000
       }
      },
      {
       "id": "verifyCardGone",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='card-back-name']"
-       }
+       "selector": "[data-testid='card-back-name']"
+      },
+      "retry_until": "{% steps.verifyCardGone.output.match_count = 0 %}",
+      "max_attempts": 6,
+      "after_each": {
+       "primitive": "overlay.menu.hide"
       },
       "on_error": "continue"
      },
@@ -1872,12 +1861,14 @@
      },
      {
       "id": "verifyListGone",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='list-name'], [data-testid='list-header']",
-        "text_equals": "{% input.list_name %}"
-       }
+       "selector": "[data-testid='list-name']"
+      },
+      "retry_until": "{% steps.verifyListGone.output.match_count = 0 %}",
+      "max_attempts": 6,
+      "after_each": {
+       "primitive": "overlay.menu.hide"
       },
       "on_error": "continue"
      },
@@ -2785,13 +2776,6 @@
       "primitive": "keyboard.press",
       "args": {
        "key": "Escape"
-      },
-      "settle_after": {
-       "locator": {
-        "selector": "[data-testid='card-back-name']"
-       },
-       "state": "hidden",
-       "timeout_ms": 4000
       },
       "on_error": "continue"
      },
@@ -5809,13 +5793,6 @@
       "primitive": "keyboard.press",
       "args": {
        "key": "Escape"
-      },
-      "settle_after": {
-       "locator": {
-        "selector": "[data-testid='card-back-name']"
-       },
-       "state": "hidden",
-       "timeout_ms": 5000
       }
      },
      {
@@ -5982,23 +5959,19 @@
        "x": "{% steps.findPlannerToggle.output.clickable_center.x %}",
        "y": "{% steps.findPlannerToggle.output.clickable_center.y %}"
       },
-      "settle_after": {
-       "locator": {
-        "selector": "[data-testid='planner']"
-       },
-       "state": "hidden",
-       "timeout_ms": 5000
-      },
       "on_error": "stop",
       "when": "{% $exists(steps.checkPlannerOpen.output.bounding_box) %}"
      },
      {
       "id": "verifyPlannerClosed",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='planner']"
-       }
+       "selector": "[data-testid='planner']"
+      },
+      "retry_until": "{% steps.verifyPlannerClosed.output.match_count = 0 %}",
+      "max_attempts": 6,
+      "after_each": {
+       "primitive": "overlay.menu.hide"
       },
       "on_error": "continue"
      }
