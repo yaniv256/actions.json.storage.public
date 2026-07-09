@@ -1544,7 +1544,7 @@
   },
   {
    "name": "trello.card.delete",
-   "description": "PERMANENTLY delete the currently open Trello card — unrecoverable. Use ONLY when the user explicitly says delete permanently. When the user says archive, remove, or clean up, use trello.card.archive instead. Never escalate an archive request into a delete, and report the exact operation performed (archived vs deleted) in your answer.",
+   "description": "PERMANENTLY delete the currently open Trello card — unrecoverable. Use ONLY when the user explicitly says delete permanently. When the user says archive, remove, or clean up, use trello.card.archive instead. Never escalate an archive request into a delete, and report the exact operation performed (archived vs deleted) in your answer.\n\n⚠️ SAFETY (2026-07-09): every locator in this workflow is scoped to [data-testid='popover']. Do NOT widen any of them to a bare `button` or `[role='dialog'] button`. MEASURED: with a card modal open and the archive popover absent — an ordinary state — `[role='dialog'] button` + text_contains 'Delete' resolves to exactly one element: the card's `Delete checklist` button (aria-label='Delete checklist', clickable). Since clickDelete carries on_error:null it would CLICK it, destroying the card's checklist while the card survives, and verifyCardGone (on_error:continue) would not object. This is a WRONG MUTATION, not a no-op. The chain is only reachable when clickArchive's settle_after times out silently — which engine change 6a3903f (a timed-out settle_after fails its step) closes. Both fixes are required; neither alone is sufficient.",
    "input_schema": {
     "type": "object",
     "properties": {},
@@ -1618,8 +1618,7 @@
       },
       "settle_after": {
        "locator": {
-        "selector": "[data-testid='card-back-delete-button'], button",
-        "text_contains": "Delete"
+        "selector": "[data-testid='popover'] [data-testid='card-back-delete-card-button'], [data-testid='popover'] [data-testid='card-back-delete-button']"
        },
        "state": "visible",
        "timeout_ms": 6000
@@ -1630,7 +1629,7 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='card-back-delete-card-button'], [data-testid='card-back-delete-button'], [role='dialog'] button",
+        "selector": "[data-testid='popover'] [data-testid='card-back-delete-card-button'], [data-testid='popover'] [data-testid='card-back-delete-button'], [data-testid='popover'] button",
         "text_contains": "Delete"
        }
       },
@@ -1658,7 +1657,7 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='popover-confirm-button'], [data-testid='popover-confirm'] button, section[role='dialog'] button",
+        "selector": "[data-testid='popover-confirm-button'], [data-testid='popover'] button",
         "text_contains": "Delete"
        }
       },
@@ -4509,10 +4508,9 @@
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='checklist-progress-bar-percentage'], [data-testid='checklist-container']"
+        "selector": "[data-testid='checklist-progress-percentage']"
        }
-      },
-      "on_error": "continue"
+      }
      },
      {
       "id": "readUnchecked",
