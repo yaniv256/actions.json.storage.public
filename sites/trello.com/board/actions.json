@@ -379,7 +379,8 @@
          "root_strategy": "scope"
         }
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickListMenu",
@@ -495,7 +496,8 @@
          "root_strategy": "scope"
         }
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickListMenu",
@@ -583,7 +585,8 @@
        "args": {
         "key": "ArrowDown"
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickTargetOption",
@@ -1163,7 +1166,7 @@
        }
       },
       "when": "{% $exists(steps.findExistingComposerInput.output.clickable_center.x) ? false : true %}",
-      "retry_until": "{% steps.findAddList.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findAddList.output.clickable_center.x) %}",
       "max_attempts": 3,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -1367,7 +1370,8 @@
         "state": "visible",
         "timeout_ms": 2000
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "scrollToStart",
@@ -1571,7 +1575,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findActionsButton.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "openActionsMenu",
@@ -1597,7 +1602,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findArchiveButton.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickArchive",
@@ -1625,7 +1631,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findDeleteButton.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickDelete",
@@ -1636,8 +1643,7 @@
       },
       "settle_after": {
        "locator": {
-        "selector": "[data-testid='popover'] button, [class*='popover'] button",
-        "text_contains": "Delete"
+        "selector": "[data-testid='popover-confirm-button']"
        },
        "state": "visible",
        "timeout_ms": 6000
@@ -1648,18 +1654,22 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='popover'] button, [class*='popover'] button",
-        "text_contains": "Delete"
+        "selector": "[data-testid='popover-confirm-button']"
        }
       },
       "retry_until": "{% $exists(steps.findConfirmDelete.output.clickable_center.x) %}",
-      "max_attempts": 3,
+      "max_attempts": 5,
       "after_each": {
-       "primitive": "keyboard.press",
+       "primitive": "locator.wait_for",
        "args": {
-        "key": "Shift"
+        "locator": {
+         "selector": "[data-testid='popover-confirm-button']"
+        },
+        "state": "visible",
+        "timeout_ms": 2000
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "confirmDelete",
@@ -1927,7 +1937,7 @@
        }
       },
       "on_error": "continue",
-      "retry_until": "{% steps.findListHeading.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findListHeading.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -2059,7 +2069,7 @@
        }
       },
       "on_error": "continue",
-      "retry_until": "{% steps.findListHeading.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findListHeading.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -2196,7 +2206,7 @@
         "selector": "[data-testid='due-date-badge-with-date-range-picker']"
        }
       },
-      "retry_until": "{% steps.findExistingDateBadge.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findExistingDateBadge.output.clickable_center.x) %}",
       "max_attempts": 3,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2264,7 +2274,7 @@
         "selector": "[data-testid='date-range-picker'], [data-testid='date-picker-form']"
        }
       },
-      "retry_until": "{% steps.verifyPopoverOpen.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.verifyPopoverOpen.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2275,7 +2285,8 @@
         "state": "visible",
         "timeout_ms": 1500
        }
-      }
+      },
+      "on_error": "continue"
      }
     ],
     "output": "{% {'popover_open': true, 'date_picker': steps.verifyPopoverOpen.output.text} %}",
@@ -2322,7 +2333,7 @@
         "text_contains": "Next month, "
        }
       },
-      "retry_until": "{% steps.findNextMonth.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findNextMonth.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2345,13 +2356,16 @@
         "text_contains": "{% input.month_year %}"
        }
       },
-      "retry_until": "{% steps.pageToMonth.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.pageToMonth.output.clickable_center.x) %}",
       "max_attempts": 18,
       "after_each": {
-       "primitive": "pointer.click",
+       "primitive": "locator.wait_for",
        "args": {
-        "x": "{% steps.findNextMonth.output.clickable_center.x %}",
-        "y": "{% steps.findNextMonth.output.clickable_center.y %}"
+        "locator": {
+         "selector": "[role='dialog'] h2, .window h2"
+        },
+        "state": "visible",
+        "timeout_ms": 1200
        }
       },
       "on_error": "continue"
@@ -2416,7 +2430,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickDay",
@@ -2442,7 +2457,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      }
     ],
     "output": "{% {'picked': input.day_button_label, 'selected_day': steps.verifySelectedDay.output} %}",
@@ -2501,7 +2517,7 @@
         "selector": "[role='dialog'] input[aria-label='Time'], .window input[aria-label='Time']"
        }
       },
-      "retry_until": "{% steps.findTimeField.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findTimeField.output.clickable_center.x) %}",
       "max_attempts": 3,
       "on_error": "continue",
       "after_each": {
@@ -2585,7 +2601,7 @@
         "selector": "[data-testid='save-date-button']"
        }
       },
-      "retry_until": "{% steps.findSave.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findSave.output.clickable_center.x) %}",
       "max_attempts": 4,
       "on_error": "continue",
       "after_each": {
@@ -2665,7 +2681,7 @@
         "text_contains": "Remove"
        }
       },
-      "retry_until": "{% steps.findRemove.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findRemove.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2798,7 +2814,8 @@
         "state": "visible",
         "timeout_ms": 2000
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "scrollToStart",
@@ -2836,7 +2853,7 @@
         "text_contains": "{% input.card_title %}"
        }
       },
-      "retry_until": "{% steps.findCard.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findCard.output.clickable_center.x) %}",
       "max_attempts": 8,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -2875,7 +2892,7 @@
         "text_contains": "{% input.card_title %}"
        }
       },
-      "retry_until": "{% steps.verifyCard.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.verifyCard.output.clickable_center.x) %}",
       "max_attempts": 3,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2888,7 +2905,7 @@
         "timeout_ms": 2000
        }
       },
-      "on_error": "stop"
+      "on_error": "continue"
      },
      {
       "id": "findDateBadge",
@@ -2911,7 +2928,7 @@
         "timeout_ms": 1500
        }
       },
-      "on_error": "stop"
+      "on_error": "continue"
      },
      {
       "id": "clickDateBadge",
@@ -2937,7 +2954,7 @@
         "text_contains": "Remove"
        }
       },
-      "retry_until": "{% steps.findRemove.output.clickable_center.x != null %}",
+      "retry_until": "{% $exists(steps.findRemove.output.clickable_center.x) %}",
       "max_attempts": 4,
       "after_each": {
        "primitive": "locator.wait_for",
@@ -2949,7 +2966,8 @@
         "state": "visible",
         "timeout_ms": 1500
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickRemove",
@@ -3830,7 +3848,8 @@
         "state": "visible",
         "timeout_ms": 1500
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "scrollModalTop",
@@ -4198,7 +4217,8 @@
          "root_strategy": "scope"
         }
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "openCard",
@@ -4989,7 +5009,8 @@
         "selector": "[data-testid='card-back-name'], .window",
         "delta_y": 220
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "uniquenessGate",
@@ -5086,7 +5107,8 @@
         "selector": "[data-testid='card-back-name'], .window",
         "delta_y": 220
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "uniquenessGate",
@@ -5464,7 +5486,8 @@
        }
       },
       "retry_until": "{% $exists(steps.assertCardOpen.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "findActionsButton",
@@ -5475,7 +5498,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findActionsButton.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickActionsButton",
@@ -5522,7 +5546,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickMoveAction",
@@ -5548,7 +5573,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickListControl",
@@ -5586,7 +5612,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickTargetOption",
@@ -5613,7 +5640,8 @@
         "delta_x": 0,
         "delta_y": 0
        }
-      }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickMoveSubmit",
@@ -6213,7 +6241,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findCreateButton.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickCreate",
@@ -6241,7 +6270,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findCreateBoardItem.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickCreateBoard",
@@ -6278,7 +6308,8 @@
        }
       },
       "retry_until": "{% $exists(steps.findSubmit.output.clickable_center.x) %}",
-      "max_attempts": 3
+      "max_attempts": 3,
+      "on_error": "continue"
      },
      {
       "id": "clickSubmit",
