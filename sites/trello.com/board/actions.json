@@ -1688,7 +1688,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% {'deleted': $not($exists(steps.verifyCardGone.output.clickable_center.x)), 'verification_required': 'Confirm with a trello.board projection that the card title is no longer present; deleted:true here means the card-back closed, but VERIFY BY BOARD MODEL.'} %}",
+    "output": "{% { 'deleted_card': $exists(input.title) ? input.title : 'open card', 'card_back_still_open': steps.verifyCardGone.output.match_count > 0, 'deleted': steps.verifyCardGone.output.match_count = 0, 'verification_required': 'deleted:true means no card-back remains (verifyCardGone observed match_count 0). The step retries and HARD-FAILS (workflow_retry_exhausted) if the card is still open, so a successful call already proves the delete. Confirm via the trello.board projection.' } %}",
     "x_state_machine": {
      "requires_state": {
       "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
@@ -1878,7 +1878,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'archived_list': input.list_name, 'list_still_visible': $exists(steps.verifyListGone.output.clickable_center.x), 'archived': $not($exists(steps.verifyListGone.output.clickable_center.x)), 'verification_required': 'archived:true means the list header is no longer on the board (verifyListGone did not find it). If list_still_visible is true, the Archive item did not resolve in the popover — re-open the list menu and retry; confirm via the trello.board projection.' } %}"
+    "output": "{% { 'archived_list': input.list_name, 'list_still_visible': steps.verifyListGone.output.match_count > 0, 'archived': steps.verifyListGone.output.match_count = 0, 'verification_required': 'archived:true means no list header remains (verifyListGone observed match_count 0). The step retries and HARD-FAILS (workflow_retry_exhausted) if the list is still present, so a successful call already proves the archive. Confirm via the trello.board projection.' } %}"
    },
    "x_actions": {
     "source": {
@@ -5992,7 +5992,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% {'planner_was_open': $exists(steps.checkPlannerOpen.output.bounding_box), 'planner_closed': $not($exists(steps.verifyPlannerClosed.output.bounding_box))} %}"
+    "output": "{% { 'planner_open': steps.verifyPlannerClosed.output.match_count > 0, 'closed': steps.verifyPlannerClosed.output.match_count = 0, 'verification_required': 'closed:true means no planner panel remains (verifyPlannerClosed observed match_count 0). The step retries and HARD-FAILS if the panel is still present.' } %}"
    },
    "x_actions": {
     "source": {
