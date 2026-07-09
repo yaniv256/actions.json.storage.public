@@ -1,333 +1,814 @@
 {
-  "protocol": "actions.json",
-  "version": "0.1.0-working",
-  "surface": {
-    "site": "github.com",
-    "surface": "repo",
-    "url_patterns": ["https://github.com/*/*"],
-    "description": "GitHub repository pages: file browsing, the web file editor, and the commit dialog. Generic repo operations work on ANY repository. When the current repo is one of the agent-memory storage repos (actions.json.storage.{private,public,shared}), a special-case context layer supplies the memory-authoring conventions."
-  },
-  "observed_at": "2026-07-04T09:40:00.000Z",
-  "prompt": {
-    "role": "GitHub repository operator",
-    "mission": "Read, edit, and commit files in repositories the user has authorized, treating every commit as auditable history. Prefer small, verifiable changes. Never operate outside the repository the task names. Fill owner/repo/path from the task — no repository is hardcoded.",
-    "boundaries": "Stay inside the named repository. Never touch account settings, other repos, or organization pages. Destructive or history-rewriting operations (force push equivalents, deletions of files) require explicit user instruction naming the file.",
-    "storage_special_case": "If the current repository is an agent-memory storage repo — its name matches actions.json.storage.private, actions.json.storage.public, or actions.json.storage.shared — call github.storage.context FIRST. Those repos are how the agent maintains durable memory of what it learns authoring site maps, and they carry extra conventions (draft path, PR-on-branch discipline, scope guard)."
-  },
-  "skill": {
-    "path": "SKILL.md",
-    "when_to_read": "Read when the user asks you to preserve, save, or author a working primitive sequence as a new actions.json entry, and before any commit through the GitHub web UI."
-  },
-  "requires": {
-    "signed_in": true
-  },
-  "states": {
-    "repo_home": "Repository landing page: file list plus rendered README below it.",
-    "blob_view": "Single-file view with rendered or raw content; press 'e' here to edit.",
-    "editor": "CodeMirror web editor at /edit/<branch>/<path>; 'Commit changes...' button (NOTE the trailing ellipsis) in the top-right toolbar.",
-    "commit_dialog": "Modal dialog after clicking 'Commit changes...': commit message input, extended description (may be AUTO-FILLED by GitHub with an AI summary of the diff — read it, it is an honest witness of what actually changed), radio 'Commit directly to the main branch' vs new-branch+PR, and a confirm button labeled exactly 'Commit changes' (no ellipsis)."
-  },
-  "tools": [
-    {
-      "name": "github.map",
-      "description": "Return operating guidance for the GitHub repository map. Call this FIRST on any GitHub repo. Generic file-operation tools work on any repository — fill owner/repo/path from the task. IMPORTANT: if the current repo name matches actions.json.storage.{private,public,shared}, this is an agent-memory storage repo — call github.storage.context BEFORE authoring or committing, to get the draft conventions, the PR-on-branch discipline, and the superproject operations.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "x_actions": {
-        "static_output": {
-          "ok": true,
-          "site": "github.com",
-          "surface": "repo",
-          "generic_first": "These tools operate on ANY repo: github.repo.file.open, github.file.edit_mode.enter, github.file.editor.append_line, github.file.commit_to_main, github.repo.file.create, github.repo.file.create_pr, github.pr.confirm_create, github.repo.file.delete, github.file.rendered.verify_contains. Supply owner/repo/path from the task.",
-          "recommended_sequence": [
-            "browser.navigate (standalone) to the repo/file/new-file page you need",
-            "github.repo.file.open — open a file's blob view",
-            "github.file.edit_mode.enter — press 'e' to open the web editor",
-            "edit (github.file.editor.append_line for appends; github.repo.file.create for whole new files)",
-            "github.file.commit_to_main OR github.repo.file.create_pr + github.pr.confirm_create",
-            "verify with github.file.rendered.verify_contains AND the commit dialog's auto-diff description"
-          ],
-          "storage_special_case": "If repo name matches actions.json.storage.{private,public,shared}: call github.storage.context first. Those repos are the agent's durable memory. Drafts go to drafts/<site>/<action>.json on a branch as a PR, never a direct commit to main. The superproject actions.json.storage owns two operations (github.storage.superproject.pin_update, .sync_down) that are declared but not yet implemented.",
-          "hard_won_gotchas": [
-            "'Commit changes...' (open button) has a trailing ellipsis; 'Commit changes' (confirm inside dialog) has none — scope the confirm lookup to the dialog.",
-            "NEVER text.insert mode=replace without an explicit target locator — if focus is in the document it selects and replaces the ENTIRE file (this wiped a README).",
-            "browser.navigate is a standalone tool, NOT a workflow step — it tears down the runtime; call it yourself first to open the editor/blob/new-file page.",
-            "READ the commit dialog's auto-filled diff description — if it reports removals you did not intend, cancel and fix forward. Presence-only verification misses wipes.",
-            "CodeMirror virtualizes long files; a dom.snapshot_text may not see all lines."
-          ]
-        }
-      }
-    },
-    {
-      "name": "github.storage.context",
-      "description": "SPECIAL CASE — call this when the current repo is an agent-memory storage repo (name matches actions.json.storage.private, actions.json.storage.public, or actions.json.storage.shared). Returns the memory-authoring conventions: what these repos are for, where drafts go, the PR-on-branch rule, and the scope guard. The generic github.repo.* tools then do the actual file operations; this tool only supplies the storage-repo context.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "x_actions": {
-        "static_output": {
-          "ok": true,
-          "role": "The actions.json.storage.{private,public,shared} repos ARE the agent's durable memory. As the agent explores websites, hits errors, and authors reusable actions.json entries, it deposits those learnings here so no agent has to rediscover them. Treat every write as an update to shared, auditable memory.",
-          "repo_from_task": "The specific repo (owner and which of private/public/shared) comes from the task — nothing is hardcoded. These conventions apply whichever storage repo you are in.",
-          "draft_path_convention": "drafts/<site-domain>/<action-name>.json — one draft file per action, e.g. drafts/trello.com/trello.card.comment.delete.json.",
-          "branch_convention": "draft-<site>-<action> — no spaces, e.g. draft-trello-card-comment-delete.",
-          "draft_is_a_pr": "A DRAFT ALWAYS GOES ON A BRANCH AS A PULL REQUEST — never a direct commit to main, not even into the drafts folder. A PR is how the entry is reviewed before it touches shared memory: a wrong draft is a red diff a human can reject, not a mutation of the repo everyone runs. Use github.repo.file.create_pr then github.pr.confirm_create. Report the /pull/ URL; do NOT merge it yourself.",
-          "scope_guard": "Never modify existing map files under sites/**/actions.json directly (those change only through review). Never touch repo settings. If a draft filename already exists, pick a suffixed name (<action-name>-2.json) rather than overwriting.",
-          "superproject_note": "The top-level actions.json.storage superproject pins each of these repos as a git submodule. After you commit into a submodule, the superproject still points at the OLD commit until its pin is bumped. Two superproject operations exist for this — github.storage.superproject.pin_update and github.storage.superproject.sync_down — but they are DECLARED, NOT YET IMPLEMENTED (see those tools)."
-        }
-      }
-    },
-    {
-      "name": "github.storage.superproject.pin_update",
-      "description": "SPECIAL CASE / SUPERPROJECT — bump the top-level actions.json.storage superproject's recorded submodule pointer after one of its submodules (private/public/shared) receives a new commit, so the memory write is not orphaned. DECLARED BUT NOT YET IMPLEMENTED.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "x_actions": {
-        "static_output": {
-          "ok": false,
-          "implemented": false,
-          "operation": "actions.json.storage.superproject.pin_update",
-          "message": "Not yet implemented. The actions.json.storage superproject needs its submodule pin bumped after a submodule (private/public/shared) receives a new commit; otherwise the superproject still points at the old commit and the memory write is orphaned. This operation is declared to mark that the superproject is special and owns it — but the web-UI mechanism has not been discovered or live-validated yet. Implement and validate it on the real page before relying on it. Do NOT claim the superproject pin was updated by calling this."
-        }
-      }
-    },
-    {
-      "name": "github.storage.superproject.sync_down",
-      "description": "SPECIAL CASE / SUPERPROJECT — sync the top-level actions.json.storage superproject's latest pinned state DOWN into the agent's live working storage set, so a freshly authored map becomes usable immediately (the inverse of pin_update). DECLARED BUT NOT YET IMPLEMENTED.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "x_actions": {
-        "static_output": {
-          "ok": false,
-          "implemented": false,
-          "operation": "actions.json.storage.superproject.sync_down",
-          "message": "Not yet implemented. Syncing the superproject's latest pinned state into the agent's live working storage set — so a map the agent just authored becomes live in its current working set immediately — is declared to mark that the superproject is special and owns it, but the mechanism has not been built or validated yet. Implement it before relying on it. Do NOT claim the working set was synced by calling this."
-        }
-      }
-    },
-    {
-      "name": "github.repo.file.open",
-      "description": "From a repository page, open a file's blob view by clicking its link in the file list. Pass the repo-relative path (e.g. README.md). Works on any repo. Verifies the blob view rendered before returning.",
-      "input_schema": {
-        "type": "object",
-        "required": ["file_path"],
-        "properties": {
-          "file_path": { "type": "string", "description": "Repo-relative file path as it appears in the file list, e.g. README.md" },
-          "branch": { "type": "string", "description": "Branch name, default main", "default": "main" }
-        },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          {
-            "id": "findFileLink",
-            "primitive": "locator.element_info",
-            "args": { "locator": { "selector": "{% 'a[href$=\"/blob/' & (input.branch ? input.branch : 'main') & '/' & input.file_path & '\"]' %}" } }
-          },
-          {
-            "id": "openFile",
-            "primitive": "pointer.click",
-            "args": { "x": "{% steps.findFileLink.output.clickable_center.x %}", "y": "{% steps.findFileLink.output.clickable_center.y %}" },
-            "settle_after": { "locator": { "selector": "[data-testid='latest-commit'], .react-blob-view-header-sticky, .markdown-body" }, "state": "visible", "timeout_ms": 6000 }
-          }
-        ],
-        "output": "{% {'opened': input.file_path, 'next_step': 'Use github.file.edit_mode.enter to edit this file.'} %}"
-      }
-    },
-    {
-      "name": "github.file.edit_mode.enter",
-      "description": "From a file's blob view, enter the web editor using GitHub's 'e' hotkey. DISCOVERED 2026-07-04: the visible Edit pencil button is often absent from DOM queries, but the 'e' hotkey works reliably from the blob view. Verifies the CodeMirror editor mounted.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          {
-            "id": "pressEditHotkey",
-            "primitive": "keyboard.press",
-            "args": { "key": "e" },
-            "settle_after": { "locator": { "selector": "div.cm-editor" }, "state": "visible", "timeout_ms": 6000 }
-          },
-          {
-            "id": "verifyEditor",
-            "primitive": "locator.element_info",
-            "args": { "locator": { "selector": "div.cm-editor" } }
-          }
-        ],
-        "output": "{% {'editor_open': $exists(steps.verifyEditor.output.clickable_center), 'warning': 'CodeMirror VIRTUALIZES long files: dom.snapshot_text may not see all lines. Do not verify content counts from a snapshot alone.', 'next_step': 'github.file.editor.append_line or manual edits, then github.file.commit_to_main.'} %}"
-      }
-    },
-    {
-      "name": "github.file.editor.append_line",
-      "description": "Append one line to the END of the file open in the CodeMirror editor. Clicks into the editor, jumps to document end (Ctrl+End), then inserts a newline plus the text in APPEND mode. HARD RULE (incident 2026-07-04): never use text.insert mode=replace in this editor without an explicit target locator — if focus is in the document, replace mode selects the ENTIRE document and replaces it. That exact mistake wiped a README.",
-      "input_schema": {
-        "type": "object",
-        "required": ["line_text"],
-        "properties": { "line_text": { "type": "string", "description": "The single line of text to append at end of file." } },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "findEditor", "primitive": "locator.element_info", "args": { "locator": { "selector": "div.cm-editor .cm-content" } } },
-          { "id": "focusEditor", "primitive": "pointer.click", "args": { "x": "{% steps.findEditor.output.clickable_center.x %}", "y": "{% steps.findEditor.output.clickable_center.y %}" } },
-          { "id": "jumpToEnd", "primitive": "keyboard.press", "args": { "key": "Control+End" } },
-          { "id": "appendLine", "primitive": "text.insert", "args": { "text": "{% '\n' & input.line_text %}", "mode": "append" } }
-        ],
-        "output": "{% {'appended': input.line_text, 'next_step': 'Call github.file.commit_to_main. Its output includes the auto-filled diff description — CHECK it matches the change you intended before treating the commit as correct.'} %}"
-      }
-    },
-    {
-      "name": "github.file.commit_to_main",
-      "description": "Commit the current editor changes directly to the main branch via the commit dialog. GOTCHAS (2026-07-04): the toolbar button's visible text is 'Commit changes...' WITH a trailing ellipsis — exact-text and aria-label lookups miss it; the final confirm button inside the dialog is labeled 'Commit changes' without ellipsis — scope the confirm lookup to the dialog. An input with id commit-summary-input exists in the DOM BEFORE the dialog opens — do not target it until the dialog is visible. The extended-description field may auto-fill with GitHub's AI summary of the diff: the output returns that text — READ IT. If it describes removals you did not intend (e.g. 'Removed the ... documentation'), CANCEL instead of committing.",
-      "input_schema": {
-        "type": "object",
-        "required": ["commit_message"],
-        "properties": { "commit_message": { "type": "string", "description": "Commit summary line." } },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "findOpenDialogButton", "primitive": "locator.element_info", "args": { "locator": { "selector": "button", "text_contains": "Commit changes" } } },
-          { "id": "openDialog", "primitive": "pointer.click", "args": { "x": "{% steps.findOpenDialogButton.output.clickable_center.x %}", "y": "{% steps.findOpenDialogButton.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "[role='dialog'] input" }, "state": "visible", "timeout_ms": 5000 } },
-          { "id": "readAutoDescription", "primitive": "locator.text_content", "args": { "locator": { "selector": "[role='dialog']" } }, "on_error": "continue" },
-          { "id": "findMessageInput", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] input[type='text'], [role='dialog'] input:not([type='radio']):not([type='checkbox'])" } } },
-          { "id": "focusMessage", "primitive": "pointer.click", "args": { "x": "{% steps.findMessageInput.output.clickable_center.x %}", "y": "{% steps.findMessageInput.output.clickable_center.y %}" } },
-          { "id": "insertMessage", "primitive": "text.insert", "args": { "text": "{% input.commit_message %}", "mode": "replace" } },
-          { "id": "findDirectRadio", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] label", "text_contains": "Commit directly to the main branch" } } },
-          { "id": "chooseDirect", "primitive": "pointer.click", "args": { "x": "{% steps.findDirectRadio.output.clickable_center.x %}", "y": "{% steps.findDirectRadio.output.clickable_center.y %}" } },
-          { "id": "findConfirm", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] button", "text_contains": "Commit changes" } } },
-          { "id": "confirmCommit", "primitive": "pointer.click", "args": { "x": "{% steps.findConfirm.output.clickable_center.x %}", "y": "{% steps.findConfirm.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 1500 } }
-        ],
-        "output": "{% {'committed_message': input.commit_message, 'dialog_text_with_auto_description': steps.readAutoDescription.output.text, 'verify_warning': 'Committed does not mean correct. The dialog text above includes GitHub auto-summary of the diff — if it mentions removals or changes you did not intend, the commit changed more than you meant: fix forward immediately. Presence-only verification (my line is there) misses wipes; verify what SHOULD NOT have changed too.'} %}"
-      }
-    },
-    {
-      "name": "github.repo.file.create",
-      "description": "Write the given full content into the currently-open EMPTY new-file editor and commit it directly to main, in one action. For NON-DRAFT one-off writes only — a draft must go through github.repo.file.create_pr (PR on a branch), not this. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY to https://github.com/<owner>/<repo>/new/main?filename=<file_path> (fill owner/repo/path from the task) so the empty editor is open. (browser.navigate cannot be a workflow step — it tears down the runtime; call it standalone first.) The editor starts EMPTY, so content is inserted into a blank document with NO append hazard and NO select-all. To REVISE an existing file, delete it with github.repo.file.delete then recreate — never edit-in-place. file_content is the ENTIRE file.",
-      "input_schema": {
-        "type": "object",
-        "required": ["file_content", "commit_message"],
-        "properties": {
-          "file_content": { "type": "string", "description": "The complete file content. For a .json draft this is exactly one top-level object, top to bottom." },
-          "commit_message": { "type": "string", "description": "Commit summary, e.g. 'draft: trello.card.comment.delete'." }
-        },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "findEditor", "primitive": "locator.element_info", "args": { "locator": { "selector": "div.cm-editor .cm-content" } } },
-          { "id": "focusEditor", "primitive": "pointer.click", "args": { "x": "{% steps.findEditor.output.clickable_center.x %}", "y": "{% steps.findEditor.output.clickable_center.y %}" } },
-          { "id": "insertContent", "primitive": "text.insert", "args": { "text": "{% input.file_content %}", "mode": "append" } },
-          { "id": "commit", "primitive": "actions.site", "args": { "mode": "call", "action": "github.file.commit_to_main", "arguments": { "commit_message": "{% input.commit_message %}" } } }
-        ],
-        "output": "{% {'created': input.file_path, 'commit_dialog_text': steps.commit.output.dialog_text_with_auto_description, 'next_step': 'Verify on the raw view (https://raw.githubusercontent.com/<owner>/<repo>/main/<file_path>) that the file begins with the opening brace, ends with the matching close, and — for a .json draft — contains exactly ONE top-level object. If the commit dialog auto-description mentions anything beyond adding one file, inspect before trusting.'} %}"
-      }
-    },
-    {
-      "name": "github.repo.file.create_pr",
-      "description": "PREFERRED WAY TO SUBMIT A DRAFT. Writes the given full content into the currently-open EMPTY new-file editor, ON A NEW BRANCH, and opens a pull request — never committing to main. This is the required path for authoring actions.json drafts into a storage repo: they land on a branch and come in as a reviewable PR, so a wrong entry is a red diff in review, not a mutation of shared memory. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY (not as part of this action) to https://github.com/<owner>/<repo>/new/main?filename=<your file_path> (fill owner/repo/path from the task) so the empty new-file editor is open. (browser.navigate cannot be a workflow step — it tears down the runtime the workflow runs in; call it standalone first.) Then call this action: it inserts the content into the blank editor (no append hazard), selects 'Create a new branch for this commit and start a pull request', sets the branch name, and clicks 'Propose changes'. That click NAVIGATES to the PR compare page and ends this action. TWO-STEP: immediately AFTER this returns, call github.pr.confirm_create to click 'Create pull request' and get the /pull/ URL. (The two steps are split because Propose changes navigates, and a workflow cannot span a navigation.)",
-      "input_schema": {
-        "type": "object",
-        "required": ["file_content", "branch_name", "pr_title"],
-        "properties": {
-          "file_content": { "type": "string", "description": "The complete file content (for a .json draft, exactly one top-level object)." },
-          "branch_name": { "type": "string", "description": "New branch name, e.g. draft-trello-comment-delete. No spaces." },
-          "pr_title": { "type": "string", "description": "Pull request title / commit summary, e.g. 'draft: trello.card.comment.delete'." }
-        },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "findEditor", "primitive": "locator.element_info", "args": { "locator": { "selector": "div.cm-editor .cm-content" } } },
-          { "id": "focusEditor", "primitive": "pointer.click", "args": { "x": "{% steps.findEditor.output.clickable_center.x %}", "y": "{% steps.findEditor.output.clickable_center.y %}" } },
-          { "id": "insertContent", "primitive": "text.insert", "args": { "text": "{% input.file_content %}", "mode": "append" } },
-          { "id": "findOpenDialogButton", "primitive": "locator.element_info", "args": { "locator": { "selector": "button", "text_contains": "Commit changes" } } },
-          { "id": "openDialog", "primitive": "pointer.click", "args": { "x": "{% steps.findOpenDialogButton.output.clickable_center.x %}", "y": "{% steps.findOpenDialogButton.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "[role='dialog'] input" }, "state": "visible", "timeout_ms": 5000 } },
-          { "id": "findMessageInput", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] input[type='text'], [role='dialog'] input:not([type='radio']):not([type='checkbox'])" } } },
-          { "id": "focusMessage", "primitive": "pointer.click", "args": { "x": "{% steps.findMessageInput.output.clickable_center.x %}", "y": "{% steps.findMessageInput.output.clickable_center.y %}" } },
-          { "id": "insertMessage", "primitive": "text.insert", "args": { "text": "{% input.pr_title %}", "mode": "replace" } },
-          { "id": "findNewBranchRadio", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] label", "text_contains": "Create a new branch" } } },
-          { "id": "chooseNewBranch", "primitive": "pointer.click", "args": { "x": "{% steps.findNewBranchRadio.output.clickable_center.x %}", "y": "{% steps.findNewBranchRadio.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "[role='dialog'] input[aria-label='PR target branch'], [role='dialog'] input[placeholder='PR target branch'], [role='dialog'] input[name='new-branch-name-input']" }, "state": "visible", "timeout_ms": 4000 } },
-          { "id": "findBranchInput", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] input[aria-label='PR target branch'], [role='dialog'] input[placeholder='PR target branch'], [role='dialog'] input[name='new-branch-name-input']" } } },
-          { "id": "focusBranchInput", "primitive": "pointer.click", "args": { "x": "{% steps.findBranchInput.output.clickable_center.x %}", "y": "{% steps.findBranchInput.output.clickable_center.y %}" } },
-          { "id": "setBranchName", "primitive": "text.insert", "args": { "text": "{% input.branch_name %}", "mode": "replace" } },
-          { "id": "findProposeButton", "primitive": "locator.element_info", "args": { "locator": { "selector": "[role='dialog'] button", "text_contains": "Propose changes" } } },
-          { "id": "clickPropose", "primitive": "pointer.click", "args": { "x": "{% steps.findProposeButton.output.clickable_center.x %}", "y": "{% steps.findProposeButton.output.clickable_center.y %}" }, "on_error": "continue" }
-        ],
-        "output": "{% {'branch': input.branch_name, 'committed_on_branch': true, 'next_step': 'The branch is created and Propose changes was clicked, which NAVIGATES to the PR compare page and ends this action (a navigation tears down the workflow runtime — that is expected, not a failure). NOW call github.pr.confirm_create to click Create pull request on the compare page and get the /pull/ URL. Do not claim a PR exists until that returns a /pull/ URL.'} %}"
-      }
-    },
-    {
-      "name": "github.pr.confirm_create",
-      "description": "Click 'Create pull request' on the PR compare page and return the resulting PR URL. Call this AFTER github.repo.file.create_pr (which ends by clicking 'Propose changes', landing you on the compare page). Split out because 'Propose changes' navigates — a single workflow cannot span that navigation. Confirms success only when the resulting URL contains /pull/.",
-      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "findCreatePr", "primitive": "locator.element_info", "args": { "locator": { "selector": "button", "text_contains": "Create pull request" } } },
-          { "id": "clickCreatePr", "primitive": "pointer.click", "args": { "x": "{% steps.findCreatePr.output.clickable_center.x %}", "y": "{% steps.findCreatePr.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "[data-testid='issue-metadata-sticky'], .gh-header-meta, .js-issue-title, [data-testid='pull-request-title']" }, "state": "visible", "timeout_ms": 10000 }, "on_error": "continue" },
-          { "id": "readUrl", "primitive": "page.info", "args": {} }
-        ],
-        "output": "{% {'pr_url': steps.readUrl.output.url, 'opened_pr': $contains(steps.readUrl.output.url ? steps.readUrl.output.url : '', '/pull/'), 'note': 'Clicking Create pull request NAVIGATES to the new PR, which can disconnect this tab runtime — so the final readUrl step may fail or return empty EVEN WHEN THE PR WAS CREATED SUCCESSFULLY (validated live 2026-07-05: this action errored on readUrl while the PR opened fine). A failure or empty pr_url here is therefore NOT proof the PR was not created. VERIFY the PR the authoritative way: check the repo Pull requests tab (or open the branch) for a PR from your branch — do not conclude failure from this call''s return alone.', 'next_step': 'opened_pr true + pr_url with /pull/ = success. If this call errored or pr_url is empty, do NOT retry blindly — first check the Pull requests tab; the PR likely already exists. Report the PR URL for review; do NOT merge.'} %}"
-      }
-    },
-    {
-      "name": "github.repo.file.delete",
-      "description": "Delete the file whose blob view is CURRENTLY OPEN, via its overflow menu, committing the deletion directly to main. Use this as the FIRST half of revising a draft, then recreate. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY to https://github.com/<owner>/<repo>/blob/main/<file_path> (fill owner/repo/path from the task) so the file's blob view is open. (browser.navigate cannot be a workflow step; call it standalone first.) Avoids the append-vs-replace trap (editing in place is unreliable and appends). Only deletes the one open file.",
-      "input_schema": {
-        "type": "object",
-        "required": ["commit_message"],
-        "properties": { "commit_message": { "type": "string", "description": "Commit summary, e.g. 'remove stale draft trello.card.comment.delete'." } },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "openOverflowMenu", "primitive": "locator.element_info", "args": { "locator": { "selector": "button[aria-label='Edit and raw actions'], button[aria-haspopup='true'][aria-label*='More'], [data-testid='more-file-actions-button-outline'], button[aria-label*='More options']" } } },
-          { "id": "clickOverflow", "primitive": "pointer.click", "args": { "x": "{% steps.openOverflowMenu.output.clickable_center.x %}", "y": "{% steps.openOverflowMenu.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "a, button, [role='menuitem']", "text_contains": "Delete file" }, "state": "visible", "timeout_ms": 4000 } },
-          { "id": "findDeleteItem", "primitive": "locator.element_info", "args": { "locator": { "selector": "a, button, [role='menuitem']", "text_contains": "Delete file" } } },
-          { "id": "clickDeleteItem", "primitive": "pointer.click", "args": { "x": "{% steps.findDeleteItem.output.clickable_center.x %}", "y": "{% steps.findDeleteItem.output.clickable_center.y %}" }, "settle_after": { "locator": { "selector": "button", "text_contains": "Commit changes" }, "state": "visible", "timeout_ms": 5000 } },
-          { "id": "commit", "primitive": "actions.site", "args": { "mode": "call", "action": "github.file.commit_to_main", "arguments": { "commit_message": "{% input.commit_message %}" } } }
-        ],
-        "output": "{% {'deleted': input.file_path, 'commit_dialog_text': steps.commit.output.dialog_text_with_auto_description, 'next_step': 'File deleted. To replace it, call github.repo.file.create with the corrected full content.'} %}"
-      }
-    },
-    {
-      "name": "github.file.rendered.verify_contains",
-      "description": "Verify the rendered file view (markdown-body) contains the given text. WARNING: presence-only. A wipe that leaves your sentinel intact passes this check — pair it with reading the latest commit's auto-description or the full rendered text when the edit was subtractive.",
-      "input_schema": {
-        "type": "object",
-        "required": ["expected_text"],
-        "properties": { "expected_text": { "type": "string", "description": "Text expected in the rendered file view. Avoid leading '- ' and raw URLs (rendering transforms them)." } },
-        "additionalProperties": false
-      },
-      "workflow": {
-        "version": 1,
-        "expression_language": "jsonata",
-        "steps": [
-          { "id": "readRendered", "primitive": "locator.text_content", "args": { "locator": { "selector": "article.markdown-body, .markdown-body" } } }
-        ],
-        "output": "{% {'verified': $contains(steps.readRendered.output.text ? steps.readRendered.output.text : '', input.expected_text), 'rendered_length_chars': $length(steps.readRendered.output.text ? steps.readRendered.output.text : ''), 'note': 'verified=true only proves presence. Compare rendered_length_chars against expectation when checking that content was NOT lost.'} %}"
-      }
-    }
+ "protocol": "actions.json",
+ "version": "0.1.0-working",
+ "surface": {
+  "site": "github.com",
+  "surface": "repo",
+  "url_patterns": [
+   "https://github.com/*/*"
   ],
-  "x_actions": {
-    "files": [
-      {
-        "id": "github-authoring-skill",
-        "path": "SKILL.md",
-        "kind": "skill",
-        "title": "Action Authoring Skill — preserve what worked",
-        "description": "How to formulate a verified primitive sequence as an actions.json entry and preserve it as a draft file in a storage repo through this GitHub tab. Includes the paid-for authoring rules (locator identity, no untargeted replace, diff-aware verification).",
-        "read_when": "Read when the user asks you to preserve, save, or author a working primitive sequence as a new actions.json entry, and before any commit through the GitHub web UI."
+  "description": "GitHub repository pages: file browsing, the web file editor, and the commit dialog. Generic repo operations work on ANY repository. When the current repo is one of the agent-memory storage repos (actions.json.storage.{private,public,shared}), a special-case context layer supplies the memory-authoring conventions."
+ },
+ "observed_at": "2026-07-04T09:40:00.000Z",
+ "prompt": {
+  "role": "GitHub repository operator",
+  "mission": "Read, edit, and commit files in repositories the user has authorized, treating every commit as auditable history. Prefer small, verifiable changes. Never operate outside the repository the task names. Fill owner/repo/path from the task — no repository is hardcoded.",
+  "boundaries": "Stay inside the named repository. Never touch account settings, other repos, or organization pages. Destructive or history-rewriting operations (force push equivalents, deletions of files) require explicit user instruction naming the file.",
+  "storage_special_case": "If the current repository is an agent-memory storage repo — its name matches actions.json.storage.private, actions.json.storage.public, or actions.json.storage.shared — call github.storage.context FIRST. Those repos are how the agent maintains durable memory of what it learns authoring site maps, and they carry extra conventions (draft path, PR-on-branch discipline, scope guard)."
+ },
+ "skill": {
+  "path": "SKILL.md",
+  "when_to_read": "Read when the user asks you to preserve, save, or author a working primitive sequence as a new actions.json entry, and before any commit through the GitHub web UI."
+ },
+ "requires": {
+  "signed_in": true
+ },
+ "states": {
+  "repo_home": "Repository landing page: file list plus rendered README below it.",
+  "blob_view": "Single-file view with rendered or raw content; press 'e' here to edit.",
+  "editor": "CodeMirror web editor at /edit/<branch>/<path>; 'Commit changes...' button (NOTE the trailing ellipsis) in the top-right toolbar.",
+  "commit_dialog": "Modal dialog after clicking 'Commit changes...': commit message input, extended description (may be AUTO-FILLED by GitHub with an AI summary of the diff — read it, it is an honest witness of what actually changed), radio 'Commit directly to the main branch' vs new-branch+PR, and a confirm button labeled exactly 'Commit changes' (no ellipsis)."
+ },
+ "tools": [
+  {
+   "name": "github.map",
+   "description": "Return operating guidance for the GitHub repository map. Call this FIRST on any GitHub repo. Generic file-operation tools work on any repository — fill owner/repo/path from the task. IMPORTANT: if the current repo name matches actions.json.storage.{private,public,shared}, this is an agent-memory storage repo — call github.storage.context BEFORE authoring or committing, to get the draft conventions, the PR-on-branch discipline, and the superproject operations.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "x_actions": {
+    "static_output": {
+     "ok": true,
+     "site": "github.com",
+     "surface": "repo",
+     "generic_first": "These tools operate on ANY repo: github.repo.file.open, github.file.edit_mode.enter, github.file.editor.append_line, github.file.commit_to_main, github.repo.file.create, github.repo.file.create_pr, github.pr.confirm_create, github.repo.file.delete, github.file.rendered.verify_contains. Supply owner/repo/path from the task.",
+     "recommended_sequence": [
+      "browser.navigate (standalone) to the repo/file/new-file page you need",
+      "github.repo.file.open — open a file's blob view",
+      "github.file.edit_mode.enter — press 'e' to open the web editor",
+      "edit (github.file.editor.append_line for appends; github.repo.file.create for whole new files)",
+      "github.file.commit_to_main OR github.repo.file.create_pr + github.pr.confirm_create",
+      "verify with github.file.rendered.verify_contains AND the commit dialog's auto-diff description"
+     ],
+     "storage_special_case": "If repo name matches actions.json.storage.{private,public,shared}: call github.storage.context first. Those repos are the agent's durable memory. Drafts go to drafts/<site>/<action>.json on a branch as a PR, never a direct commit to main. The superproject actions.json.storage owns two operations (github.storage.superproject.pin_update, .sync_down) that are declared but not yet implemented.",
+     "hard_won_gotchas": [
+      "'Commit changes...' (open button) has a trailing ellipsis; 'Commit changes' (confirm inside dialog) has none — scope the confirm lookup to the dialog.",
+      "NEVER text.insert mode=replace without an explicit target locator — if focus is in the document it selects and replaces the ENTIRE file (this wiped a README).",
+      "browser.navigate is a standalone tool, NOT a workflow step — it tears down the runtime; call it yourself first to open the editor/blob/new-file page.",
+      "READ the commit dialog's auto-filled diff description — if it reports removals you did not intend, cancel and fix forward. Presence-only verification misses wipes.",
+      "CodeMirror virtualizes long files; a dom.snapshot_text may not see all lines."
+     ]
+    }
+   }
+  },
+  {
+   "name": "github.storage.context",
+   "description": "SPECIAL CASE — call this when the current repo is an agent-memory storage repo (name matches actions.json.storage.private, actions.json.storage.public, or actions.json.storage.shared). Returns the memory-authoring conventions: what these repos are for, where drafts go, the PR-on-branch rule, and the scope guard. The generic github.repo.* tools then do the actual file operations; this tool only supplies the storage-repo context.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "x_actions": {
+    "static_output": {
+     "ok": true,
+     "role": "The actions.json.storage.{private,public,shared} repos ARE the agent's durable memory. As the agent explores websites, hits errors, and authors reusable actions.json entries, it deposits those learnings here so no agent has to rediscover them. Treat every write as an update to shared, auditable memory.",
+     "repo_from_task": "The specific repo (owner and which of private/public/shared) comes from the task — nothing is hardcoded. These conventions apply whichever storage repo you are in.",
+     "draft_path_convention": "drafts/<site-domain>/<action-name>.json — one draft file per action, e.g. drafts/trello.com/trello.card.comment.delete.json.",
+     "branch_convention": "draft-<site>-<action> — no spaces, e.g. draft-trello-card-comment-delete.",
+     "draft_is_a_pr": "A DRAFT ALWAYS GOES ON A BRANCH AS A PULL REQUEST — never a direct commit to main, not even into the drafts folder. A PR is how the entry is reviewed before it touches shared memory: a wrong draft is a red diff a human can reject, not a mutation of the repo everyone runs. Use github.repo.file.create_pr then github.pr.confirm_create. Report the /pull/ URL; do NOT merge it yourself.",
+     "scope_guard": "Never modify existing map files under sites/**/actions.json directly (those change only through review). Never touch repo settings. If a draft filename already exists, pick a suffixed name (<action-name>-2.json) rather than overwriting.",
+     "superproject_note": "The top-level actions.json.storage superproject pins each of these repos as a git submodule. After you commit into a submodule, the superproject still points at the OLD commit until its pin is bumped. Two superproject operations exist for this — github.storage.superproject.pin_update and github.storage.superproject.sync_down — but they are DECLARED, NOT YET IMPLEMENTED (see those tools)."
+    }
+   }
+  },
+  {
+   "name": "github.storage.superproject.pin_update",
+   "description": "SPECIAL CASE / SUPERPROJECT — bump the top-level actions.json.storage superproject's recorded submodule pointer after one of its submodules (private/public/shared) receives a new commit, so the memory write is not orphaned. DECLARED BUT NOT YET IMPLEMENTED.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "x_actions": {
+    "static_output": {
+     "ok": false,
+     "implemented": false,
+     "operation": "actions.json.storage.superproject.pin_update",
+     "message": "Not yet implemented. The actions.json.storage superproject needs its submodule pin bumped after a submodule (private/public/shared) receives a new commit; otherwise the superproject still points at the old commit and the memory write is orphaned. This operation is declared to mark that the superproject is special and owns it — but the web-UI mechanism has not been discovered or live-validated yet. Implement and validate it on the real page before relying on it. Do NOT claim the superproject pin was updated by calling this."
+    }
+   }
+  },
+  {
+   "name": "github.storage.superproject.sync_down",
+   "description": "SPECIAL CASE / SUPERPROJECT — sync the top-level actions.json.storage superproject's latest pinned state DOWN into the agent's live working storage set, so a freshly authored map becomes usable immediately (the inverse of pin_update). DECLARED BUT NOT YET IMPLEMENTED.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "x_actions": {
+    "static_output": {
+     "ok": false,
+     "implemented": false,
+     "operation": "actions.json.storage.superproject.sync_down",
+     "message": "Not yet implemented. Syncing the superproject's latest pinned state into the agent's live working storage set — so a map the agent just authored becomes live in its current working set immediately — is declared to mark that the superproject is special and owns it, but the mechanism has not been built or validated yet. Implement it before relying on it. Do NOT claim the working set was synced by calling this."
+    }
+   }
+  },
+  {
+   "name": "github.repo.file.open",
+   "description": "From a repository page, open a file's blob view by clicking its link in the file list. Pass the repo-relative path (e.g. README.md). Works on any repo. Verifies the blob view rendered before returning.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "file_path"
+    ],
+    "properties": {
+     "file_path": {
+      "type": "string",
+      "description": "Repo-relative file path as it appears in the file list, e.g. README.md"
+     },
+     "branch": {
+      "type": "string",
+      "description": "Branch name, default main",
+      "default": "main"
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findFileLink",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "{% 'a[href$=\"/blob/' & (input.branch ? input.branch : 'main') & '/' & input.file_path & '\"]' %}"
+       }
       }
-    ]
+     },
+     {
+      "id": "openFile",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findFileLink.output.clickable_center.x %}",
+       "y": "{% steps.findFileLink.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "[data-testid='latest-commit'], .react-blob-view-header-sticky, .markdown-body"
+       },
+       "state": "visible",
+       "timeout_ms": 6000
+      }
+     }
+    ],
+    "output": "{% {'opened': input.file_path, 'next_step': 'Use github.file.edit_mode.enter to edit this file.'} %}"
+   }
+  },
+  {
+   "name": "github.file.edit_mode.enter",
+   "description": "From a file's blob view, enter the web editor using GitHub's 'e' hotkey. DISCOVERED 2026-07-04: the visible Edit pencil button is often absent from DOM queries, but the 'e' hotkey works reliably from the blob view. Verifies the CodeMirror editor mounted.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "pressEditHotkey",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "e"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "div.cm-editor"
+       },
+       "state": "visible",
+       "timeout_ms": 6000
+      }
+     },
+     {
+      "id": "verifyEditor",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "div.cm-editor"
+       }
+      }
+     }
+    ],
+    "output": "{% {'editor_open': $exists(steps.verifyEditor.output.clickable_center), 'warning': 'CodeMirror VIRTUALIZES long files: dom.snapshot_text may not see all lines. Do not verify content counts from a snapshot alone.', 'next_step': 'github.file.editor.append_line or manual edits, then github.file.commit_to_main.'} %}"
+   }
+  },
+  {
+   "name": "github.file.editor.append_line",
+   "description": "Append one line to the END of the file open in the CodeMirror editor. Clicks into the editor, jumps to document end (Ctrl+End), then inserts a newline plus the text in APPEND mode. HARD RULE (incident 2026-07-04): never use text.insert mode=replace in this editor without an explicit target locator — if focus is in the document, replace mode selects the ENTIRE document and replaces it. That exact mistake wiped a README.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "line_text"
+    ],
+    "properties": {
+     "line_text": {
+      "type": "string",
+      "description": "The single line of text to append at end of file."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findEditor",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "div.cm-editor .cm-content"
+       }
+      }
+     },
+     {
+      "id": "focusEditor",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findEditor.output.clickable_center.x %}",
+       "y": "{% steps.findEditor.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "jumpToEnd",
+      "primitive": "keyboard.press",
+      "args": {
+       "key": "Control+End"
+      }
+     },
+     {
+      "id": "appendLine",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% '\n' & input.line_text %}",
+       "mode": "append"
+      }
+     }
+    ],
+    "output": "{% {'appended': input.line_text, 'next_step': 'Call github.file.commit_to_main. Its output includes the auto-filled diff description — CHECK it matches the change you intended before treating the commit as correct.'} %}"
+   }
+  },
+  {
+   "name": "github.file.commit_to_main",
+   "description": "Commit the current editor changes directly to the main branch via the commit dialog. GOTCHAS (2026-07-04): the toolbar button's visible text is 'Commit changes...' WITH a trailing ellipsis — exact-text and aria-label lookups miss it; the final confirm button inside the dialog is labeled 'Commit changes' without ellipsis — scope the confirm lookup to the dialog. An input with id commit-summary-input exists in the DOM BEFORE the dialog opens — do not target it until the dialog is visible. The extended-description field may auto-fill with GitHub's AI summary of the diff: the output returns that text — READ IT. If it describes removals you did not intend (e.g. 'Removed the ... documentation'), CANCEL instead of committing.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "commit_message"
+    ],
+    "properties": {
+     "commit_message": {
+      "type": "string",
+      "description": "Commit summary line."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findOpenDialogButton",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "button",
+        "text_contains": "Commit changes"
+       }
+      }
+     },
+     {
+      "id": "openDialog",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findOpenDialogButton.output.clickable_center.x %}",
+       "y": "{% steps.findOpenDialogButton.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "[role='dialog'] input"
+       },
+       "state": "visible",
+       "timeout_ms": 5000
+      }
+     },
+     {
+      "id": "readAutoDescription",
+      "primitive": "locator.text_content",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog']"
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "findMessageInput",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] input[type='text'], [role='dialog'] input:not([type='radio']):not([type='checkbox'])"
+       }
+      }
+     },
+     {
+      "id": "focusMessage",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findMessageInput.output.clickable_center.x %}",
+       "y": "{% steps.findMessageInput.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "insertMessage",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.commit_message %}",
+       "mode": "replace"
+      }
+     },
+     {
+      "id": "findDirectRadio",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] label",
+        "text_contains": "Commit directly to the main branch"
+       }
+      }
+     },
+     {
+      "id": "chooseDirect",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findDirectRadio.output.clickable_center.x %}",
+       "y": "{% steps.findDirectRadio.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "findConfirm",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] button",
+        "text_contains": "Commit changes"
+       }
+      }
+     },
+     {
+      "id": "confirmCommit",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findConfirm.output.clickable_center.x %}",
+       "y": "{% steps.findConfirm.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "delay_ms": 1500
+      }
+     }
+    ],
+    "output": "{% {'committed_message': input.commit_message, 'dialog_text_with_auto_description': steps.readAutoDescription.output.text, 'verify_warning': 'Committed does not mean correct. The dialog text above includes GitHub auto-summary of the diff — if it mentions removals or changes you did not intend, the commit changed more than you meant: fix forward immediately. Presence-only verification (my line is there) misses wipes; verify what SHOULD NOT have changed too.'} %}"
+   }
+  },
+  {
+   "name": "github.repo.file.create",
+   "description": "Write the given full content into the currently-open EMPTY new-file editor and commit it directly to main, in one action. For NON-DRAFT one-off writes only — a draft must go through github.repo.file.create_pr (PR on a branch), not this. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY to https://github.com/<owner>/<repo>/new/main?filename=<file_path> (fill owner/repo/path from the task) so the empty editor is open. (browser.navigate cannot be a workflow step — it tears down the runtime; call it standalone first.) The editor starts EMPTY, so content is inserted into a blank document with NO append hazard and NO select-all. To REVISE an existing file, delete it with github.repo.file.delete then recreate — never edit-in-place. file_content is the ENTIRE file.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "file_content",
+     "commit_message"
+    ],
+    "properties": {
+     "file_content": {
+      "type": "string",
+      "description": "The complete file content. For a .json draft this is exactly one top-level object, top to bottom."
+     },
+     "commit_message": {
+      "type": "string",
+      "description": "Commit summary, e.g. 'draft: trello.card.comment.delete'."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findEditor",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "div.cm-editor .cm-content"
+       }
+      }
+     },
+     {
+      "id": "focusEditor",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findEditor.output.clickable_center.x %}",
+       "y": "{% steps.findEditor.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "insertContent",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.file_content %}",
+       "mode": "append"
+      }
+     },
+     {
+      "id": "commit",
+      "primitive": "actions.site",
+      "args": {
+       "mode": "call",
+       "action": "github.file.commit_to_main",
+       "arguments": {
+        "commit_message": "{% input.commit_message %}"
+       }
+      }
+     }
+    ],
+    "output": "{% {'created': input.file_path, 'commit_dialog_text': steps.commit.output.dialog_text_with_auto_description, 'next_step': 'Verify on the raw view (https://raw.githubusercontent.com/<owner>/<repo>/main/<file_path>) that the file begins with the opening brace, ends with the matching close, and — for a .json draft — contains exactly ONE top-level object. If the commit dialog auto-description mentions anything beyond adding one file, inspect before trusting.'} %}"
+   }
+  },
+  {
+   "name": "github.repo.file.create_pr",
+   "description": "PREFERRED WAY TO SUBMIT A DRAFT. Writes the given full content into the currently-open EMPTY new-file editor, ON A NEW BRANCH, and opens a pull request — never committing to main. This is the required path for authoring actions.json drafts into a storage repo: they land on a branch and come in as a reviewable PR, so a wrong entry is a red diff in review, not a mutation of shared memory. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY (not as part of this action) to https://github.com/<owner>/<repo>/new/main?filename=<your file_path> (fill owner/repo/path from the task) so the empty new-file editor is open. (browser.navigate cannot be a workflow step — it tears down the runtime the workflow runs in; call it standalone first.) Then call this action: it inserts the content into the blank editor (no append hazard), selects 'Create a new branch for this commit and start a pull request', sets the branch name, and clicks 'Propose changes'. That click NAVIGATES to the PR compare page and ends this action. TWO-STEP: immediately AFTER this returns, call github.pr.confirm_create to click 'Create pull request' and get the /pull/ URL. (The two steps are split because Propose changes navigates, and a workflow cannot span a navigation.)",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "file_content",
+     "branch_name",
+     "pr_title"
+    ],
+    "properties": {
+     "file_content": {
+      "type": "string",
+      "description": "The complete file content (for a .json draft, exactly one top-level object)."
+     },
+     "branch_name": {
+      "type": "string",
+      "description": "New branch name, e.g. draft-trello-comment-delete. No spaces."
+     },
+     "pr_title": {
+      "type": "string",
+      "description": "Pull request title / commit summary, e.g. 'draft: trello.card.comment.delete'."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findEditor",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "div.cm-editor .cm-content"
+       }
+      }
+     },
+     {
+      "id": "focusEditor",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findEditor.output.clickable_center.x %}",
+       "y": "{% steps.findEditor.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "insertContent",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.file_content %}",
+       "mode": "append"
+      }
+     },
+     {
+      "id": "findOpenDialogButton",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "button",
+        "text_contains": "Commit changes"
+       }
+      }
+     },
+     {
+      "id": "openDialog",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findOpenDialogButton.output.clickable_center.x %}",
+       "y": "{% steps.findOpenDialogButton.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "[role='dialog'] input"
+       },
+       "state": "visible",
+       "timeout_ms": 5000
+      }
+     },
+     {
+      "id": "findMessageInput",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] input[type='text'], [role='dialog'] input:not([type='radio']):not([type='checkbox'])"
+       }
+      }
+     },
+     {
+      "id": "focusMessage",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findMessageInput.output.clickable_center.x %}",
+       "y": "{% steps.findMessageInput.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "insertMessage",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.pr_title %}",
+       "mode": "replace"
+      }
+     },
+     {
+      "id": "findNewBranchRadio",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] label",
+        "text_contains": "Create a new branch"
+       }
+      }
+     },
+     {
+      "id": "chooseNewBranch",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findNewBranchRadio.output.clickable_center.x %}",
+       "y": "{% steps.findNewBranchRadio.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "[role='dialog'] input[aria-label='PR target branch'], [role='dialog'] input[placeholder='PR target branch'], [role='dialog'] input[name='new-branch-name-input']"
+       },
+       "state": "visible",
+       "timeout_ms": 4000
+      }
+     },
+     {
+      "id": "findBranchInput",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] input[aria-label='PR target branch'], [role='dialog'] input[placeholder='PR target branch'], [role='dialog'] input[name='new-branch-name-input']"
+       }
+      }
+     },
+     {
+      "id": "focusBranchInput",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findBranchInput.output.clickable_center.x %}",
+       "y": "{% steps.findBranchInput.output.clickable_center.y %}"
+      }
+     },
+     {
+      "id": "setBranchName",
+      "primitive": "text.insert",
+      "args": {
+       "text": "{% input.branch_name %}",
+       "mode": "replace"
+      }
+     },
+     {
+      "id": "findProposeButton",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[role='dialog'] button",
+        "text_contains": "Propose changes"
+       }
+      }
+     },
+     {
+      "id": "clickPropose",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findProposeButton.output.clickable_center.x %}",
+       "y": "{% steps.findProposeButton.output.clickable_center.y %}"
+      },
+      "on_error": "continue"
+     }
+    ],
+    "output": "{% {'branch': input.branch_name, 'committed_on_branch': true, 'next_step': 'The branch is created and Propose changes was clicked, which NAVIGATES to the PR compare page and ends this action (a navigation tears down the workflow runtime — that is expected, not a failure). NOW call github.pr.confirm_create to click Create pull request on the compare page and get the /pull/ URL. Do not claim a PR exists until that returns a /pull/ URL.'} %}"
+   }
+  },
+  {
+   "name": "github.pr.confirm_create",
+   "description": "Click 'Create pull request' on the PR compare page and return the resulting PR URL. Call this AFTER github.repo.file.create_pr (which ends by clicking 'Propose changes', landing you on the compare page). Split out because 'Propose changes' navigates — a single workflow cannot span that navigation. Confirms success only when the resulting URL contains /pull/.",
+   "input_schema": {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "findCreatePr",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "button",
+        "text_contains": "Create pull request"
+       }
+      }
+     },
+     {
+      "id": "clickCreatePr",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findCreatePr.output.clickable_center.x %}",
+       "y": "{% steps.findCreatePr.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "[data-testid='issue-metadata-sticky'], .gh-header-meta, .js-issue-title, [data-testid='pull-request-title']"
+       },
+       "state": "visible",
+       "timeout_ms": 10000
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "readUrl",
+      "primitive": "page.info",
+      "args": {}
+     }
+    ],
+    "output": "{% {'pr_url': steps.readUrl.output.url, 'opened_pr': $contains(steps.readUrl.output.url ? steps.readUrl.output.url : '', '/pull/'), 'note': 'Clicking Create pull request NAVIGATES to the new PR, which can disconnect this tab runtime — so the final readUrl step may fail or return empty EVEN WHEN THE PR WAS CREATED SUCCESSFULLY (validated live 2026-07-05: this action errored on readUrl while the PR opened fine). A failure or empty pr_url here is therefore NOT proof the PR was not created. VERIFY the PR the authoritative way: check the repo Pull requests tab (or open the branch) for a PR from your branch — do not conclude failure from this calls return alone.', 'next_step': 'opened_pr true + pr_url with /pull/ = success. If this call errored or pr_url is empty, do NOT retry blindly — first check the Pull requests tab; the PR likely already exists. Report the PR URL for review; do NOT merge.'} %}"
+   }
+  },
+  {
+   "name": "github.repo.file.delete",
+   "description": "Delete the file whose blob view is CURRENTLY OPEN, via its overflow menu, committing the deletion directly to main. Use this as the FIRST half of revising a draft, then recreate. PRECONDITION — the agent MUST FIRST call the browser.navigate tool DIRECTLY to https://github.com/<owner>/<repo>/blob/main/<file_path> (fill owner/repo/path from the task) so the file's blob view is open. (browser.navigate cannot be a workflow step; call it standalone first.) Avoids the append-vs-replace trap (editing in place is unreliable and appends). Only deletes the one open file.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "commit_message"
+    ],
+    "properties": {
+     "commit_message": {
+      "type": "string",
+      "description": "Commit summary, e.g. 'remove stale draft trello.card.comment.delete'."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "openOverflowMenu",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "button[aria-label='Edit and raw actions'], button[aria-haspopup='true'][aria-label*='More'], [data-testid='more-file-actions-button-outline'], button[aria-label*='More options']"
+       }
+      }
+     },
+     {
+      "id": "clickOverflow",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.openOverflowMenu.output.clickable_center.x %}",
+       "y": "{% steps.openOverflowMenu.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "a, button, [role='menuitem']",
+        "text_contains": "Delete file"
+       },
+       "state": "visible",
+       "timeout_ms": 4000
+      }
+     },
+     {
+      "id": "findDeleteItem",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "a, button, [role='menuitem']",
+        "text_contains": "Delete file"
+       }
+      }
+     },
+     {
+      "id": "clickDeleteItem",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% steps.findDeleteItem.output.clickable_center.x %}",
+       "y": "{% steps.findDeleteItem.output.clickable_center.y %}"
+      },
+      "settle_after": {
+       "locator": {
+        "selector": "button",
+        "text_contains": "Commit changes"
+       },
+       "state": "visible",
+       "timeout_ms": 5000
+      }
+     },
+     {
+      "id": "commit",
+      "primitive": "actions.site",
+      "args": {
+       "mode": "call",
+       "action": "github.file.commit_to_main",
+       "arguments": {
+        "commit_message": "{% input.commit_message %}"
+       }
+      }
+     }
+    ],
+    "output": "{% {'deleted': input.file_path, 'commit_dialog_text': steps.commit.output.dialog_text_with_auto_description, 'next_step': 'File deleted. To replace it, call github.repo.file.create with the corrected full content.'} %}"
+   }
+  },
+  {
+   "name": "github.file.rendered.verify_contains",
+   "description": "Verify the rendered file view (markdown-body) contains the given text. WARNING: presence-only. A wipe that leaves your sentinel intact passes this check — pair it with reading the latest commit's auto-description or the full rendered text when the edit was subtractive.",
+   "input_schema": {
+    "type": "object",
+    "required": [
+     "expected_text"
+    ],
+    "properties": {
+     "expected_text": {
+      "type": "string",
+      "description": "Text expected in the rendered file view. Avoid leading '- ' and raw URLs (rendering transforms them)."
+     }
+    },
+    "additionalProperties": false
+   },
+   "workflow": {
+    "version": 1,
+    "expression_language": "jsonata",
+    "steps": [
+     {
+      "id": "readRendered",
+      "primitive": "locator.text_content",
+      "args": {
+       "locator": {
+        "selector": "article.markdown-body, .markdown-body"
+       }
+      }
+     }
+    ],
+    "output": "{% {'verified': $contains(steps.readRendered.output.text ? steps.readRendered.output.text : '', input.expected_text), 'rendered_length_chars': $length(steps.readRendered.output.text ? steps.readRendered.output.text : ''), 'note': 'verified=true only proves presence. Compare rendered_length_chars against expectation when checking that content was NOT lost.'} %}"
+   }
   }
+ ],
+ "x_actions": {
+  "files": [
+   {
+    "id": "github-authoring-skill",
+    "path": "SKILL.md",
+    "kind": "skill",
+    "title": "Action Authoring Skill — preserve what worked",
+    "description": "How to formulate a verified primitive sequence as an actions.json entry and preserve it as a draft file in a storage repo through this GitHub tab. Includes the paid-for authoring rules (locator identity, no untargeted replace, diff-aware verification).",
+    "read_when": "Read when the user asks you to preserve, save, or author a working primitive sequence as a new actions.json entry, and before any commit through the GitHub web UI."
+   }
+  ]
+ }
 }

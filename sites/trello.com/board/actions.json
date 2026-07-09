@@ -5051,7 +5051,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means THIS item\\'s checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "x_actions": {
     "source": {
@@ -5149,7 +5149,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means THIS item\\'s checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "postcondition": {
     "projection": "trello.card_modal",
