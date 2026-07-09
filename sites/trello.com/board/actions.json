@@ -2090,6 +2090,19 @@
         "selector": "[data-testid='list-add-card-button']",
         "text_contains": "Add a card"
        }
+      },
+      "on_error": "continue",
+      "retry_until": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $exists($buttons[0].clickable_center.x)) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='list-add-card-button']"
+        },
+        "state": "visible",
+        "timeout_ms": 1500
+       }
       }
      },
      {
@@ -2106,7 +2119,7 @@
        "state": "visible",
        "timeout_ms": 5000
       },
-      "when": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $exists($buttons[0].clickable_center.x)) %}"
+      "on_error": "stop"
      },
      {
       "id": "insertTitle",
@@ -3942,7 +3955,19 @@
         "text_contains": "Save"
        }
       },
-      "on_error": "stop"
+      "on_error": "continue",
+      "retry_until": "{% $exists(steps.findSave.output.clickable_center.x) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[role='dialog'] [data-testid='description-save-button'], .window [data-testid='description-save-button']"
+        },
+        "state": "visible",
+        "timeout_ms": 1500
+       }
+      }
      },
      {
       "id": "clickSave",
@@ -3951,7 +3976,6 @@
        "x": "{% steps.findSave.output.clickable_center.x %}",
        "y": "{% steps.findSave.output.clickable_center.y %}"
       },
-      "when": "{% steps.findSave.output.clickable_center.x != null %}",
       "settle_after": {
        "delay_ms": 500
       },
@@ -5936,7 +5960,20 @@
         "selector": "button[data-testid='panel-nav-planner-button']"
        }
       },
-      "when": "{% $exists(steps.checkPlannerOpen.output.bounding_box) %}"
+      "when": "{% $exists(steps.checkPlannerOpen.output.bounding_box) %}",
+      "retry_until": "{% $exists(steps.findPlannerToggle.output.clickable_center.x) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "button[data-testid='panel-nav-planner-button']"
+        },
+        "state": "visible",
+        "timeout_ms": 1500
+       }
+      },
+      "on_error": "continue"
      },
      {
       "id": "clickPlannerToggle",
@@ -5945,14 +5982,15 @@
        "x": "{% steps.findPlannerToggle.output.clickable_center.x %}",
        "y": "{% steps.findPlannerToggle.output.clickable_center.y %}"
       },
-      "when": "{% $exists(steps.findPlannerToggle.output.clickable_center.x) %}",
       "settle_after": {
        "locator": {
         "selector": "[data-testid='planner']"
        },
        "state": "hidden",
        "timeout_ms": 5000
-      }
+      },
+      "on_error": "stop",
+      "when": "{% $exists(steps.checkPlannerOpen.output.bounding_box) %}"
      },
      {
       "id": "verifyPlannerClosed",
