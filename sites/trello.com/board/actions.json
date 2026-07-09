@@ -5019,7 +5019,7 @@
   },
   {
    "name": "trello.card.checklist_item.complete",
-   "description": "Mark an existing checklist item complete on the currently open Trello card. Precondition: the currently open card must be the card that owns the checklist item. If the work task opened or created another card, first return to the checklist-owner card, then call trello.card.checklist_unchecked_items.read unless the user provided exact checklist text. Pass only an exact item_text copied from the card; do not invent labels such as 'matching validation item'. Validation checklist items are evidence gates: do not call this action unless the underlying requested operation already succeeded and was verified through a board/card projection. If the operation failed or could not be verified, report the blocker and leave the item unchecked. Finds the exact checklist row by item text, clicks the human-visible checkbox lane only when the item is currently unchecked, and verifies the item's aria-checked state. Use this after completing a validation task; do not claim checklist completion from text visibility alone. KNOWN LIMITATION (2026-07-08): this action resolves the checklist item by TEXT, but checklist items are NON-UNIQUE, so it can toggle/anchor the WRONG item and mis-resolved adds spawn DUPLICATES. UNRELIABLE until rewritten to target by INDEX/position or stable check-item id (see investigations/trello-checklist-operations-unreliable.md). Until then: verify each item's aria-checked by a model read after every op; do NOT trust success reports.",
+   "description": "Toggle one checklist item on the open Trello card by its exact item text. Trello renders checklist item names OUTSIDE the DOM text layer: a check-item-container carries no textContent at all, and check-item-name does not exist. The item name survives ONLY as the aria-label of the row's 1x1 visually-hidden input[type=checkbox] — so the row is resolved with dom.observe.visible (a READ resolver; element_info demands clickability and rejects a 1x1 input), and the visible label[data-testid='clickable-checkbox'] whose box contains that input is clicked. Verify by aria-checked, or by the Trello REST API for ground truth.",
    "input_schema": {
     "type": "object",
     "required": [
@@ -5047,21 +5047,17 @@
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
-        "text_contains": "Description"
+        "selector": "[data-testid='card-back-name']"
        }
       }
      },
      {
       "id": "findItemRow",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
-        "text_contains": "{% input.item_text %}"
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
-      "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
+      "retry_until": "{% ($t := input.item_text; $rows := steps.findItemRow.output.matches[$contains(text, $t)]; $count($rows) > 0) %}",
       "max_attempts": 6,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -5074,12 +5070,9 @@
      },
      {
       "id": "uniquenessGate",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-name']",
-        "text_contains": "{% input.item_text %}"
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
       "on_error": "continue"
      },
@@ -5109,8 +5102,8 @@
       "id": "clickItemCheckbox",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.x) %}",
-       "y": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.y) %}"
+       "x": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.x) %}",
+       "y": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.y) %}"
       },
       "settle_after": {
        "delay_ms": 500
@@ -5119,24 +5112,9 @@
      },
      {
       "id": "findRowAfter",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "retry_until": "{% $exists(steps.findRowAfter.output.bounding_box) %}",
-      "max_attempts": 4,
-      "after_each": {
-       "primitive": "locator.wait_for",
-       "args": {
-        "locator": {
-         "selector": "[data-testid='check-item-container']"
-        },
-        "state": "visible",
-        "timeout_ms": 1000
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
       "on_error": "continue"
      },
@@ -5144,28 +5122,35 @@
       "id": "verifyState",
       "primitive": "dom.observe.visible",
       "args": {
-       "selector": "[data-testid='check-item-container'] input[type='checkbox'][aria-checked='true']"
+       "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']"
       },
-      "retry_until": "{% ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) %}",
-      "max_attempts": 4,
+      "retry_until": "{% ($t := input.item_text; $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0) %}",
+      "max_attempts": 5,
       "after_each": {
-       "primitive": "overlay.menu.hide"
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='checklist-items']"
+        },
+        "state": "visible",
+        "timeout_ms": 600
+       }
       },
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% ($t := input.item_text; {'item': $t, 'complete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': $count(steps.uniquenessGate.output.matches[$contains(text, $t)]) > 1}) %}"
    },
    "x_actions": {
     "source": {
-     "component": "TrelloChecklistItemCompleteWorkflow",
-     "why": "Hosted GPT Realtime could perform and verify a checklist task but could not mark it complete because the map exposed checklist text without a checked-state mutation. This action targets the visible checkbox wrapper, establishes Trello hover state before clicking, and verifies aria-checked for the exact item."
+     "component": "TrelloChecklistItemToggle",
+     "why": "2026-07-09: findItemRow bound [data-testid='check-item-container']:has([data-testid='check-item-name']) with text_contains. Measured live on a 9-item checklist: 9 rows match check-item-container, ZERO match the :has() because check-item-name exists nowhere, every row's textContent is \"\", and the item text appears in NO element on the page (searched all of document.querySelectorAll('*')). Trello keeps the name only as the input's aria-label -- the accessible name a screen reader would announce. resolveLocatorCandidates searches textContent+aria-label+title+value, so a read on the input matches by item text. The blind agent's path and the blind human's path are the same element."
     }
    }
   },
   {
    "name": "trello.card.checklist_item.uncomplete",
-   "description": "Mark an existing checked checklist item incomplete on the currently open Trello card. Use this to repair a false-positive validation check when the underlying task did not actually succeed. Precondition: the currently open card must own the checklist item. Pass exact item_text copied from the card, then verify the item's aria-checked state is false. KNOWN LIMITATION (2026-07-08): this action resolves the checklist item by TEXT, but checklist items are NON-UNIQUE, so it can toggle/anchor the WRONG item and mis-resolved adds spawn DUPLICATES. UNRELIABLE until rewritten to target by INDEX/position or stable check-item id (see investigations/trello-checklist-operations-unreliable.md). Until then: verify each item's aria-checked by a model read after every op; do NOT trust success reports.",
+   "description": "Toggle one checklist item on the open Trello card by its exact item text. Trello renders checklist item names OUTSIDE the DOM text layer: a check-item-container carries no textContent at all, and check-item-name does not exist. The item name survives ONLY as the aria-label of the row's 1x1 visually-hidden input[type=checkbox] — so the row is resolved with dom.observe.visible (a READ resolver; element_info demands clickability and rejects a 1x1 input), and the visible label[data-testid='clickable-checkbox'] whose box contains that input is clicked. Verify by aria-checked, or by the Trello REST API for ground truth.",
    "input_schema": {
     "type": "object",
     "required": [
@@ -5193,21 +5178,17 @@
       "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
-        "text_contains": "Description"
+        "selector": "[data-testid='card-back-name']"
        }
       }
      },
      {
       "id": "findItemRow",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
-        "text_contains": "{% input.item_text %}"
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
-      "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
+      "retry_until": "{% ($t := input.item_text; $rows := steps.findItemRow.output.matches[$contains(text, $t)]; $count($rows) > 0) %}",
       "max_attempts": 6,
       "after_each": {
        "primitive": "viewport.scroll",
@@ -5220,12 +5201,9 @@
      },
      {
       "id": "uniquenessGate",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-name']",
-        "text_contains": "{% input.item_text %}"
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
       "on_error": "continue"
      },
@@ -5255,8 +5233,8 @@
       "id": "clickItemCheckbox",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.x) %}",
-       "y": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.y) %}"
+       "x": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.x) %}",
+       "y": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.y) %}"
       },
       "settle_after": {
        "delay_ms": 500
@@ -5265,24 +5243,9 @@
      },
      {
       "id": "findRowAfter",
-      "primitive": "locator.element_info",
+      "primitive": "dom.observe.visible",
       "args": {
-       "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
-        "text_contains": "{% input.item_text %}"
-       }
-      },
-      "retry_until": "{% $exists(steps.findRowAfter.output.bounding_box) %}",
-      "max_attempts": 4,
-      "after_each": {
-       "primitive": "locator.wait_for",
-       "args": {
-        "locator": {
-         "selector": "[data-testid='check-item-container']"
-        },
-        "state": "visible",
-        "timeout_ms": 1000
-       }
+       "selector": "[data-testid='checklist-items'] input[type='checkbox']"
       },
       "on_error": "continue"
      },
@@ -5290,17 +5253,24 @@
       "id": "verifyState",
       "primitive": "dom.observe.visible",
       "args": {
-       "selector": "[data-testid='check-item-container'] input[type='checkbox'][aria-checked='false']"
+       "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']"
       },
-      "retry_until": "{% ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) %}",
-      "max_attempts": 4,
+      "retry_until": "{% ($t := input.item_text; $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0) %}",
+      "max_attempts": 5,
       "after_each": {
-       "primitive": "overlay.menu.hide"
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='checklist-items']"
+        },
+        "state": "visible",
+        "timeout_ms": 600
+       }
       },
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': $count(steps.uniquenessGate.output.matches[$contains(text, $t)]) > 1}) %}"
    },
    "postcondition": {
     "projection": "trello.card_modal",
@@ -5309,8 +5279,8 @@
    },
    "x_actions": {
     "source": {
-     "component": "TrelloChecklistItemUncompleteWorkflow",
-     "why": "Validation checklist items are evidence gates. Agents need a visible-UI repair action when a false-positive completion is detected."
+     "component": "TrelloChecklistItemToggle",
+     "why": "2026-07-09: findItemRow bound [data-testid='check-item-container']:has([data-testid='check-item-name']) with text_contains. Measured live on a 9-item checklist: 9 rows match check-item-container, ZERO match the :has() because check-item-name exists nowhere, every row's textContent is \"\", and the item text appears in NO element on the page (searched all of document.querySelectorAll('*')). Trello keeps the name only as the input's aria-label -- the accessible name a screen reader would announce. resolveLocatorCandidates searches textContent+aria-label+title+value, so a read on the input matches by item text. The blind agent's path and the blind human's path are the same element."
     }
    }
   },
@@ -7156,9 +7126,9 @@
      "projection": "trello.card_modal",
      "verify": {
       "language": "jsonata",
-      "expression": "{% $exists(state.modal.checklist_items[text = $$.input.item_text and aria_checked = 'true']) %}"
+      "expression": "{% $exists(state.modal.checklist_items[$contains(text, $$.input.item_text) and aria_checked = 'true']) %}"
      },
-     "failure_message": "The exact Trello checklist item was not checked after the completion workflow. The current card may not be the checklist-owner card; reopen the card that contains the checklist item and retry."
+     "failure_message": "The Trello checklist item matching that text was not checked after the workflow. Verify against the Trello REST API before retrying: a retry on a toggle UNDOES a successful click. If the item is absent, the current card may not own the checklist."
     },
     "trello.card.close": {
      "projection": "trello.card_modal",
