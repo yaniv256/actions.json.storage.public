@@ -1986,7 +1986,7 @@
   },
   {
    "name": "trello.card.create",
-   "description": "Create a Trello card in a named list end to end with no agent primitives: reset from any inherited card modal/popover to the board lists surface, locate the list (scrolling the board region if needed), open its Add a card composer, type the title, submit with Enter, and close the composer. Treat the returned ok/postcondition as creation evidence only. Before claiming user-visible verification, run a target-bound read such as trello.card.by_title.open with the exact created title or a board/list projection that contains the exact title and expected source URL; a generic board read that omits the target card or target list is not verification.",
+   "description": "Create a card at the bottom of a named Trello list on the open board. Resolves the list's own \"Add a card\" button by its ACCESSIBLE NAME -- Trello labels each one aria-label=\"Add a card in <list>\" -- so no geometry, no board scrolling, and no heading lookup is needed; locator.element_info scrolls the button into view itself. A wrong list_name matches zero buttons and fails loudly with target_not_found; it can never file into a neighbouring list. Verify by reading the board projection.",
    "input_schema": {
     "type": "object",
     "required": [
@@ -2001,11 +2001,6 @@
      "title": {
       "type": "string",
       "description": "Exact card title to create."
-     },
-     "scroll_delta_x": {
-      "type": "number",
-      "default": 520,
-      "description": "Optional signed board horizontal scroll between list-heading lookup attempts."
      }
     },
     "additionalProperties": false
@@ -2013,7 +2008,7 @@
    "x_actions": {
     "source": {
      "component": "TrelloCardCreate",
-     "why": "Lifts card creation from open-composer-plus-manual-typing to a single primitive-free workflow."
+     "why": "2026-07-09 REWRITE. The old workflow filtered candidate add-card buttons by bounding_box.left against the LIST HEADING's box (+-24px). Measured live: headings start at x=20/304/588/872 and their buttons at 304/588/872 -- offset by exactly one 284px column -- so the gate matched NOTHING for any list, always exhausted its retry ladder, and every call failed. Widening the window would have been WORSE: Backlog's nearest button at 304 is NEXT's, so cards would silently file into the neighbouring list. Trello labels every add-card button aria-label=\"Add a card in <list>\", and resolveLocatorCandidates searches textContent+aria-label+title+value, so text_contains resolves exactly one button per list and element_info auto-scrolls it into view (Backlog's sits below the fold with 19 cards). Deleted: scrollToStart, findListHeading, findAddCardButtons, the geometry expressions, and the scroll_delta_x input. NOTE text_equals compares the JOINED haystack (\"Add a card Add a card in Backlog\") and can never match here -- use text_contains."
     }
    },
    "workflow": {
@@ -2052,80 +2047,30 @@
       }
      },
      {
-      "id": "scrollToStart",
-      "primitive": "viewport.scroll",
-      "args": {
-       "delta_x": -6000,
-       "delta_y": 0,
-       "scope": {
-        "selector": "[data-testid='lists']",
-        "root_strategy": "scope"
-       }
-      },
-      "on_error": "continue"
-     },
-     {
-      "id": "findListHeading",
-      "primitive": "locator.element_info",
-      "args": {
-       "locator": {
-        "selector": "[data-testid='list-name']",
-        "text_contains": "{% input.list_name %}"
-       }
-      },
-      "on_error": "continue",
-      "retry_until": "{% $exists(steps.findListHeading.output.clickable_center.x) %}",
-      "max_attempts": 4,
-      "after_each": {
-       "primitive": "viewport.scroll",
-       "args": {
-        "delta_x": "{% input.scroll_delta_x ? input.scroll_delta_x : 520 %}",
-        "delta_y": 0,
-        "scope": {
-         "selector": "[data-testid='lists']",
-         "root_strategy": "scope"
-        }
-       }
-      }
-     },
-     {
-      "id": "findAddCardButtons",
+      "id": "findAddCardButton",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
         "selector": "[data-testid='list-add-card-button']",
-        "text_contains": "Add a card"
-       }
-      },
-      "on_error": "continue",
-      "retry_until": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $exists($buttons[0].clickable_center.x)) %}",
-      "max_attempts": 4,
-      "after_each": {
-       "primitive": "locator.wait_for",
-       "args": {
-        "locator": {
-         "selector": "[data-testid='list-add-card-button']"
-        },
-        "state": "visible",
-        "timeout_ms": 1500
+        "text_contains": "{% 'Add a card in ' & input.list_name %}"
        }
       }
      },
      {
-      "id": "clickMatchingAddCard",
+      "id": "clickAddCard",
       "primitive": "pointer.click",
       "args": {
-       "x": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $buttons[0].clickable_center.x) %}",
-       "y": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $buttons[0].clickable_center.y) %}"
+       "x": "{% steps.findAddCardButton.output.clickable_center.x %}",
+       "y": "{% steps.findAddCardButton.output.clickable_center.y %}"
       },
+      "on_error": "stop",
       "settle_after": {
        "locator": {
-        "selector": "[data-testid='list-card-composer-textarea'], [contenteditable='true'][data-testid='list-card-composer-textarea'], textarea[placeholder*='title' i], textarea[aria-label*='card title' i]"
+        "selector": "[data-testid='list-card-composer-textarea']"
        },
        "state": "visible",
        "timeout_ms": 5000
-      },
-      "on_error": "stop"
+      }
      },
      {
       "id": "insertTitle",
@@ -2134,7 +2079,7 @@
        "text": "{% input.title %}",
        "mode": "replace",
        "target": {
-        "selector": "[data-testid='list-card-composer-textarea'], [contenteditable='true'][data-testid='list-card-composer-textarea'], textarea[placeholder*='title' i], textarea[aria-label*='card title' i]"
+        "selector": "[data-testid='list-card-composer-textarea']"
        }
       }
      },
@@ -2159,9 +2104,29 @@
       "args": {
        "key": "Escape"
       }
+     },
+     {
+      "id": "verifyCardPresent",
+      "primitive": "dom.observe.visible",
+      "args": {
+       "selector": "[data-testid='card-name']"
+      },
+      "retry_until": "{% ($t := input.title; $count(steps.verifyCardPresent.output.matches[$contains(text, $t)]) > 0) %}",
+      "max_attempts": 5,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='lists']"
+        },
+        "state": "visible",
+        "timeout_ms": 600
+       }
+      },
+      "on_error": "continue"
      }
     ],
-    "output": "{% {'created_in_list': input.list_name, 'title': input.title, 'list_heading': steps.findListHeading.output} %}"
+    "output": "{% ($t := input.title; {'created_in_list': input.list_name, 'title': $t, 'created': $count(steps.verifyCardPresent.output.matches[$contains(text, $t)]) > 0}) %}"
    }
   },
   {
