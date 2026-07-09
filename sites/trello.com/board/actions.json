@@ -1626,7 +1626,7 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='card-back-delete-button'], .window button, [role='dialog'] button",
+        "selector": "[data-testid='card-back-delete-card-button'], [data-testid='card-back-delete-button'], [role='dialog'] button",
         "text_contains": "Delete"
        }
       },
@@ -1654,7 +1654,8 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='popover-confirm-button']"
+        "selector": "[data-testid='popover-confirm-button'], [data-testid='popover-confirm'] button, section[role='dialog'] button",
+        "text_contains": "Delete"
        }
       },
       "retry_until": "{% $exists(steps.findConfirmDelete.output.clickable_center.x) %}",
