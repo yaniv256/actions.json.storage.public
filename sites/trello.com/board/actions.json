@@ -5029,29 +5029,77 @@
       "on_error": "continue"
      },
      {
-      "id": "clickItemCheckbox",
-      "primitive": "pointer.click",
-      "args": {
-       "x": "{% steps.findItemRow.output.clickable_center.x %}",
-       "y": "{% steps.findItemRow.output.clickable_center.y %}"
-      },
-      "settle_after": {
-       "delay_ms": 500
-      }
-     },
-     {
-      "id": "verifyState",
+      "id": "findCheckbox",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name']) input[type='checkbox'][aria-checked='true']",
+        "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false']) label[data-testid='clickable-checkbox']"
+       }
+      },
+      "retry_until": "{% $count(steps.findCheckbox.output.candidates) > 0 %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false']) label[data-testid='clickable-checkbox']"
+        },
+        "state": "visible",
+        "timeout_ms": 1200
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "clickItemCheckbox",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.x) %}",
+       "y": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.y) %}"
+      },
+      "settle_after": {
+       "delay_ms": 500
+      },
+      "on_error": "stop"
+     },
+     {
+      "id": "findRowAfter",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
         "text_contains": "{% input.item_text %}"
        }
+      },
+      "retry_until": "{% $exists(steps.findRowAfter.output.bounding_box) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='check-item-container']"
+        },
+        "state": "visible",
+        "timeout_ms": 1000
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "verifyState",
+      "primitive": "dom.observe.visible",
+      "args": {
+       "selector": "[data-testid='check-item-container'] input[type='checkbox'][aria-checked='true']"
+      },
+      "retry_until": "{% ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "overlay.menu.hide"
       },
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'completed': ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "x_actions": {
     "source": {
@@ -5127,29 +5175,77 @@
       "on_error": "continue"
      },
      {
-      "id": "clickItemCheckbox",
-      "primitive": "pointer.click",
-      "args": {
-       "x": "{% steps.findItemRow.output.clickable_center.x %}",
-       "y": "{% steps.findItemRow.output.clickable_center.y %}"
-      },
-      "settle_after": {
-       "delay_ms": 500
-      }
-     },
-     {
-      "id": "verifyState",
+      "id": "findCheckbox",
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name']) input[type='checkbox'][aria-checked='false']",
+        "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='true']) label[data-testid='clickable-checkbox']"
+       }
+      },
+      "retry_until": "{% $count(steps.findCheckbox.output.candidates) > 0 %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='true']) label[data-testid='clickable-checkbox']"
+        },
+        "state": "visible",
+        "timeout_ms": 1200
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "clickItemCheckbox",
+      "primitive": "pointer.click",
+      "args": {
+       "x": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.x) %}",
+       "y": "{% ($row := steps.findItemRow.output.bounding_box; $hit := steps.findCheckbox.output.candidates[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]; $hit[0].clickable_center.y) %}"
+      },
+      "settle_after": {
+       "delay_ms": 500
+      },
+      "on_error": "stop"
+     },
+     {
+      "id": "findRowAfter",
+      "primitive": "locator.element_info",
+      "args": {
+       "locator": {
+        "selector": "[data-testid='check-item-container']:has([data-testid='check-item-name'])",
         "text_contains": "{% input.item_text %}"
        }
+      },
+      "retry_until": "{% $exists(steps.findRowAfter.output.bounding_box) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "locator.wait_for",
+       "args": {
+        "locator": {
+         "selector": "[data-testid='check-item-container']"
+        },
+        "state": "visible",
+        "timeout_ms": 1000
+       }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "verifyState",
+      "primitive": "dom.observe.visible",
+      "args": {
+       "selector": "[data-testid='check-item-container'] input[type='checkbox'][aria-checked='false']"
+      },
+      "retry_until": "{% ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) %}",
+      "max_attempts": 4,
+      "after_each": {
+       "primitive": "overlay.menu.hide"
       },
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': $exists(steps.verifyState.output.clickable_center.x) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
+    "output": "{% { 'item': input.item_text, 'ambiguous': steps.uniquenessGate.output.candidate_count > 1, 'uncompleted': ($row := steps.findRowAfter.output.bounding_box; $count(steps.verifyState.output.matches[bounding_box.top >= $row.top - 4 and bounding_box.bottom <= $row.bottom + 4]) > 0) and $not(steps.uniquenessGate.output.candidate_count > 1), 'verification_required': 'FAIL if ambiguous:true (>1 item shares this text — non-unique, cannot safely target). completed:true means this items checkbox now reads checked; confirm via trello.card.checklist.read.' } %}"
    },
    "postcondition": {
     "projection": "trello.card_modal",
