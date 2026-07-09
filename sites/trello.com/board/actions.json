@@ -4503,7 +4503,7 @@
       }
      }
     ],
-    "output": "{% {'visible_unchecked_count': steps.findUncheckedRows.output.candidate_count, 'items': steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center, 'visibility': visibility }, 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'reveal': steps.revealFirstUnchecked.output, 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
+    "output": "{% {'visible_unchecked_count': steps.findUncheckedRows.output.candidate_count, 'items': [steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center, 'visibility': visibility }], 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'reveal': steps.revealFirstUnchecked.output, 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
    },
    "x_actions": {
     "source": {
@@ -4548,7 +4548,7 @@
       "id": "readUnchecked",
       "primitive": "dom.observe.visible",
       "args": {
-       "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false'])"
+       "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false']) [data-testid='check-item-name']"
       },
       "on_error": "continue"
      },
@@ -4556,7 +4556,7 @@
       "id": "readAllVisible",
       "primitive": "dom.observe.visible",
       "args": {
-       "selector": "[data-testid='check-item-container']"
+       "selector": "[data-testid='check-item-container'] [data-testid='check-item-name']"
       },
       "on_error": "continue"
      },
@@ -4566,7 +4566,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% ( $pct := $match(steps.readPercent.output.text, /[0-9]+%/).match; { 'percent_complete': $pct, 'complete': $pct = '100%', 'visible_item_count': steps.readAllVisible.output.match_count, 'visible_unchecked_count': steps.readUnchecked.output.match_count, 'visible_items': steps.readAllVisible.output.matches.text, 'unchecked_items': steps.readUnchecked.output.matches.text, 'warning': 'Trello VIRTUALIZES the checklist: off-screen rows are absent from the DOM, so visible_item_count is NOT the total. Judge completion ONLY by complete/percent_complete.' } ) %}",
+    "output": "{% ( $pct := $match(steps.readPercent.output.text, /[0-9]+%/).match; { 'percent_complete': $pct, 'complete': $pct = '100%', 'visible_item_count': steps.readAllVisible.output.match_count, 'visible_unchecked_count': steps.readUnchecked.output.match_count, 'visible_items': [steps.readAllVisible.output.matches.text], 'unchecked_items': [steps.readUnchecked.output.matches.text], 'warning': 'Trello VIRTUALIZES the checklist: off-screen rows are absent from the DOM, so visible_item_count is NOT the total. Judge completion ONLY by complete/percent_complete.' } ) %}",
     "x_state_machine": {
      "requires_state": {
       "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
