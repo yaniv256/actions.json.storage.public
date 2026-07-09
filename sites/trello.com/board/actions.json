@@ -6324,7 +6324,7 @@
   },
   {
    "name": "trello.board.create",
-   "description": "Create a NEW Trello board end to end with no agent primitives: open the top-nav Create menu, choose Create board, type the board name into the dialog's title field, and click the dialog's Create button. The new board opens (URL changes to /b/<id>/<slug>). Only the board title is required; Workspace and Visibility default. Verify by reading page.info (URL contains /b/) and the board title. Use this before adding lists or cards to a brand-new board.",
+   "description": "Create a NEW Trello board end to end with no agent primitives: open the top-nav Create menu, choose Create board, type the board name into the dialog's title field, and click the dialog's Create button. The new board opens (URL changes to /b/<id>/<slug>). Only the board title is required; Workspace and Visibility default. Verify by reading page.info (URL contains /b/) and the board title. Use this before adding lists or cards to a brand-new board.\n\n⚠️ READINESS (2026-07-09): clickCreate's settle_after and findCreateBoardItem both bound a bare `button` + text_contains 'Create board'. MEASURED: the header trigger itself carries aria-label=\"Create board or Workspace\", and resolveLocatorCandidates's haystack includes aria-label — so both resolved to THE BUTTON THEY JUST CLICKED. The settle satisfied instantly and proved nothing about whether the menu opened. A settle that matches its own trigger is worse than no settle. Both now bind [data-testid='header-create-board-button'] inside [data-testid='header-create-menu-popover']. Do NOT widen them back to `button`.",
    "input_schema": {
     "type": "object",
     "required": [
@@ -6377,8 +6377,7 @@
       },
       "settle_after": {
        "locator": {
-        "selector": "button",
-        "text_contains": "Create board"
+        "selector": "[data-testid='header-create-board-button']"
        },
        "state": "visible",
        "timeout_ms": 4000
@@ -6389,8 +6388,7 @@
       "primitive": "locator.element_info",
       "args": {
        "locator": {
-        "selector": "button",
-        "text_contains": "Create board"
+        "selector": "[data-testid='header-create-board-button']"
        }
       },
       "retry_until": "{% $exists(steps.findCreateBoardItem.output.clickable_center.x) %}",
