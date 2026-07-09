@@ -3827,7 +3827,7 @@
       "args": {
        "delta_y": -4000,
        "scope": {
-        "selector": "[role='dialog'] main, .window main"
+        "selector": "main"
        }
       },
       "on_error": "continue",
@@ -4603,7 +4603,7 @@
       "args": {
        "delta_y": -4000,
        "scope": {
-        "selector": "[role='dialog'] main, .window main"
+        "selector": "main"
        }
       },
       "on_error": "continue",
@@ -4748,7 +4748,7 @@
       "args": {
        "delta_y": -4000,
        "scope": {
-        "selector": "[role='dialog'] main, .window main"
+        "selector": "main"
        }
       },
       "on_error": "continue",
@@ -5062,12 +5062,12 @@
        }
       },
       "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
-      "max_attempts": 3,
+      "max_attempts": 6,
       "after_each": {
        "primitive": "viewport.scroll",
        "args": {
-        "selector": "[data-testid='card-back-name'], .window",
-        "delta_y": 220
+        "selector": "main",
+        "delta_y": 200
        }
       },
       "on_error": "continue"
@@ -5208,12 +5208,12 @@
        }
       },
       "retry_until": "{% $exists(steps.findItemRow.output.clickable_center.x) %}",
-      "max_attempts": 3,
+      "max_attempts": 6,
       "after_each": {
        "primitive": "viewport.scroll",
        "args": {
-        "selector": "[data-testid='card-back-name'], .window",
-        "delta_y": 220
+        "selector": "main",
+        "delta_y": 200
        }
       },
       "on_error": "continue"
