@@ -4448,7 +4448,7 @@
   },
   {
    "name": "trello.card.checklist_unchecked_items.read",
-   "description": "Reveal and read unchecked checklist items on the currently open Trello card as exact item strings. Use this before completing a checklist item when the user says the next unfinished item, matching validation item, relevant checklist item, or any semantic description rather than exact text. This action scrolls the card body to the first unchecked row before extracting rows, so an empty result means no unchecked row is currently mounted after reveal. Copy one exact item_text from this result into trello.card.checklist_item.complete; never invent or paraphrase checklist item text.",
+   "description": "Reveal and read unchecked checklist items on the currently open Trello card as exact item strings. Use this before completing a checklist item when the user says the next unfinished item, matching validation item, relevant checklist item, or any semantic description rather than exact text. This action scrolls the card body to the first unchecked row before extracting rows, so an empty result means no unchecked row is currently mounted after reveal. Copy one exact item_text from this result into trello.card.checklist_item.complete; never invent or paraphrase checklist item text. NOTE: Trello VIRTUALIZES the checklist — off-screen rows are absent from the DOM, so `visible_unchecked_count` counts only rows currently rendered and is NOT the number of unchecked items. For completion use trello.card.checklist.read's `complete`/`percent_complete`.",
    "input_schema": {
     "type": "object",
     "properties": {},
@@ -4483,7 +4483,7 @@
       }
      }
     ],
-    "output": "{% {'item_count': steps.findUncheckedRows.output.candidate_count, 'items': steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center, 'visibility': visibility }, 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'reveal': steps.revealFirstUnchecked.output, 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
+    "output": "{% {'visible_unchecked_count': steps.findUncheckedRows.output.candidate_count, 'items': steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center, 'visibility': visibility }, 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'reveal': steps.revealFirstUnchecked.output, 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
    },
    "x_actions": {
     "source": {
@@ -4494,7 +4494,7 @@
   },
   {
    "name": "trello.card.checklist.read",
-   "description": "PROJECTION — read the currently-open Trello card's checklist as reliable structured data. Returns every item's text and checked state plus counts (checked_count / total / complete). Use this to judge whether a card is done BEFORE moving it to Done, and anywhere you need the real checklist state — never scrape the DOM ad-hoc (unreliable). Takes no arguments; it reads whatever card is open. Open the card first (trello.card.by_title.open).",
+   "description": "PROJECTION — read the open Trello card's checklist. Returns `percent_complete` (Trello's own authoritative badge, e.g. \"0%\"/\"100%\") and `complete` (true only at 100%), plus the checklist rows CURRENTLY IN THE DOM with each row's real `checked` state. IMPORTANT: Trello VIRTUALIZES the checklist — off-screen rows are absent from the DOM entirely, so `visible_item_count` is NOT the total and MUST NOT be used to judge completion. Judge completion ONLY by `complete`/`percent_complete`. Takes no arguments; reads whatever card is open (open it first with trello.card.by_title.open).",
    "workflow": {
     "version": 1,
     "expression_language": "jsonata",
@@ -4515,12 +4515,28 @@
       }
      },
      {
-      "id": "readItems",
-      "primitive": "locator.element_info",
+      "id": "readPercent",
+      "primitive": "locator.text_content",
       "args": {
        "locator": {
-        "selector": "[data-testid='check-item-container']"
+        "selector": "[data-testid='checklist-progress-bar-percentage'], [data-testid='checklist-container']"
        }
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "readUnchecked",
+      "primitive": "dom.observe.visible",
+      "args": {
+       "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false'])"
+      },
+      "on_error": "continue"
+     },
+     {
+      "id": "readAllVisible",
+      "primitive": "dom.observe.visible",
+      "args": {
+       "selector": "[data-testid='check-item-container']"
       },
       "on_error": "continue"
      },
@@ -4530,7 +4546,7 @@
       "on_error": "continue"
      }
     ],
-    "output": "{% { 'total': steps.readItems.output.candidate_count, 'items': steps.readItems.output.candidates.text, 'verification_required': 'This lists every checklist item on the open card. For per-item checked state + checked_count, this projection reads rows; a card is DONE only when every item is checked. Do NOT move a card to Done unless its checklist is fully complete.' } %}",
+    "output": "{% ( $pct := $match(steps.readPercent.output.text, /[0-9]+%/).match; { 'percent_complete': $pct, 'complete': $pct = '100%', 'visible_item_count': steps.readAllVisible.output.match_count, 'visible_unchecked_count': steps.readUnchecked.output.match_count, 'visible_items': steps.readAllVisible.output.matches.text, 'unchecked_items': steps.readUnchecked.output.matches.text, 'warning': 'Trello VIRTUALIZES the checklist: off-screen rows are absent from the DOM, so visible_item_count is NOT the total. Judge completion ONLY by complete/percent_complete.' } ) %}",
     "x_state_machine": {
      "requires_state": {
       "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
