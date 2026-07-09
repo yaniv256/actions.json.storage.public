@@ -581,9 +581,13 @@
       "retry_until": "{% $exists(steps.findTargetOption.output.clickable_center.x) %}",
       "max_attempts": 3,
       "after_each": {
-       "primitive": "keyboard.press",
+       "primitive": "locator.wait_for",
        "args": {
-        "key": "ArrowDown"
+        "locator": {
+         "selector": "[id*='react-select'][id*='option']"
+        },
+        "state": "visible",
+        "timeout_ms": 1200
        }
       },
       "on_error": "continue"
