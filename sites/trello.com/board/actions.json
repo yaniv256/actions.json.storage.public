@@ -1544,7 +1544,7 @@
     },
     {
       "name": "trello.card.delete",
-      "description": "PERMANENTLY delete the currently open Trello card \u2014 unrecoverable. Use ONLY when the user explicitly says delete permanently. When the user says archive, remove, or clean up, use trello.card.archive instead. Never escalate an archive request into a delete, and report the exact operation performed (archived vs deleted) in your answer.\n\n\u26a0\ufe0f SAFETY (2026-07-09): every locator in this workflow is scoped to [data-testid='popover']. Do NOT widen any of them to a bare `button` or `[role='dialog'] button`. MEASURED: with a card modal open and the archive popover absent \u2014 an ordinary state \u2014 `[role='dialog'] button` + text_contains 'Delete' resolves to exactly one element: the card's `Delete checklist` button (aria-label='Delete checklist', clickable). Since clickDelete carries on_error:null it would CLICK it, destroying the card's checklist while the card survives, and verifyCardGone (on_error:continue) would not object. This is a WRONG MUTATION, not a no-op. The chain is only reachable when clickArchive's settle_after times out silently \u2014 which engine change 6a3903f (a timed-out settle_after fails its step) closes. Both fixes are required; neither alone is sufficient.",
+      "description": "PERMANENTLY delete the currently open Trello card \u2014 unrecoverable. Use ONLY when the user explicitly says delete permanently. When the user says archive, remove, or clean up, use trello.card.archive instead. Never escalate an archive request into a delete, and report the exact operation performed (archived vs deleted) in your answer.\n\nTHE REAL FLOW, measured live 2026-07-10 on a throwaway card. Trello has no direct delete: Actions > Archive, and only THEN does the card grow a banner with Restore + Delete.\n\n  card-back-actions-button   exists, labelled 'Actions'   -> opens a role=dialog\n  card-back-archive-button   exists ONLY once that menu is open\n  card-back-delete-card-button   appears ONLY after archiving\n\nDo not scope this workflow to [data-testid='popover']; that selector matches zero elements in the live delete flow. The permanent Delete button is [data-testid='card-back-delete-card-button']; the final confirm is [data-testid='popover-confirm-button']. Verify by card modal absence and then by the trello.board projection.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -1569,6 +1569,16 @@
             "id": "hideOverlay",
             "primitive": "overlay.menu.hide",
             "on_error": "continue"
+          },
+          {
+            "id": "assertCardModal",
+            "primitive": "locator.text_content",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
+                "text_contains": "Description"
+              }
+            }
           },
           {
             "id": "findActionsButton",
@@ -1618,7 +1628,7 @@
             },
             "settle_after": {
               "locator": {
-                "selector": "[data-testid='popover'] [data-testid='card-back-delete-card-button'], [data-testid='popover'] [data-testid='card-back-delete-button']"
+                "selector": "[data-testid='card-back-delete-card-button']"
               },
               "state": "visible",
               "timeout_ms": 6000
@@ -1629,8 +1639,7 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='popover'] [data-testid='card-back-delete-card-button'], [data-testid='popover'] [data-testid='card-back-delete-button'], [data-testid='popover'] button",
-                "text_contains": "Delete"
+                "selector": "[data-testid='card-back-delete-card-button']"
               }
             },
             "retry_until": "{% $exists(steps.findDeleteButton.output.clickable_center.x) %}",
@@ -1657,8 +1666,8 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='popover-confirm-button'], [data-testid='popover'] button",
-                "text_contains": "Delete"
+                "selector": "[data-testid='popover-confirm-button']",
+                "text_equals": "Delete"
               }
             },
             "retry_until": "{% $exists(steps.findConfirmDelete.output.clickable_center.x) %}",
@@ -1685,16 +1694,16 @@
           },
           {
             "id": "verifyCardGone",
-            "primitive": "dom.observe.visible",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='card-back-name']"
+              "selector": "[data-testid='card-back-name']",
+              "attributes": [
+                "text"
+              ]
             },
             "retry_until": "{% steps.verifyCardGone.output.match_count = 0 %}",
-            "max_attempts": 6,
-            "after_each": {
-              "primitive": "overlay.menu.hide"
-            },
-            "on_error": "continue"
+            "max_attempts": 5,
+            "on_error": "stop"
           },
           {
             "id": "showOverlay",
@@ -1805,7 +1814,7 @@
     },
     {
       "name": "trello.list.archive",
-      "description": "Archive a Trello list by name. Resolves the list's own menu button directly via its accessible name ('More actions on <list>') \u2014 never by position \u2014 then clicks 'Archive this list' and verifies the list is gone. Archived lists can be restored from board menu > Archived items > Lists. Do not claim success unless the postcondition passes.",
+      "description": "Archive a Trello list by name. Resolves the named list wrapper first, scrolls horizontally until that exact list is visible, clicks that wrapper's own menu button by scoped geometry, clicks 'Archive this list', confirms the second-step 'Archive list' button, and verifies the list is gone. Archived lists can be restored from board menu > Archived items > Lists. Do not claim success unless the postcondition passes.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -1837,54 +1846,125 @@
             "on_error": "continue"
           },
           {
+            "id": "scrollToStart",
+            "primitive": "viewport.scroll",
+            "args": {
+              "delta_x": -6000,
+              "delta_y": 0,
+              "scope": {
+                "selector": "[data-testid='lists']",
+                "root_strategy": "scope"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findList",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-wrapper']",
+                "text_contains": "{% input.list_name %}"
+              }
+            },
+            "retry_until": "{% $exists(steps.findList.output.bounding_box.right) %}",
+            "max_attempts": 8,
+            "after_each": {
+              "primitive": "viewport.scroll",
+              "args": {
+                "delta_x": 700,
+                "delta_y": 0,
+                "scope": {
+                  "selector": "[data-testid='lists']",
+                  "root_strategy": "scope"
+                }
+              }
+            },
+            "on_error": "continue"
+          },
+          {
             "id": "openListMenu",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='list-edit-menu-button']",
-                "text_contains": "{% 'More actions on ' & input.list_name %}"
-              }
+              "x": "{% steps.findList.output.bounding_box.right - 24 + (steps.findList.output.clickable_center.x - steps.findList.output.clickable_center.x) %}",
+              "y": "{% steps.findList.output.bounding_box.top + 16 + (steps.findList.output.clickable_center.y - steps.findList.output.clickable_center.y) %}"
             },
             "settle_after": {
-              "delay_ms": 300
+              "locator": {
+                "selector": "[data-testid='list-actions-popover']"
+              },
+              "state": "visible",
+              "timeout_ms": 5000
             }
+          },
+          {
+            "id": "findArchiveList",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-actions-archive-list-button']",
+                "text_contains": "Archive this list"
+              }
+            },
+            "retry_until": "{% $exists(steps.findArchiveList.output.clickable_center.x) %}",
+            "max_attempts": 5,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='list-actions-archive-list-button']",
+                  "text_contains": "Archive this list",
+                  "timeout_ms": 400
+                }
+              }
+            },
+            "on_error": "continue"
           },
           {
             "id": "clickArchiveList",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='popover'] button, [data-testid='popover'] [role='menuitem']",
-                "text_equals": "Archive this list"
-              }
-            },
-            "retry_until": "{% $exists(steps.clickArchiveList.output) %}",
-            "max_attempts": 3,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='popover']"
-                },
-                "timeout_ms": 400
-              }
+              "x": "{% steps.findArchiveList.output.clickable_center.x %}",
+              "y": "{% steps.findArchiveList.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
             }
           },
           {
+            "id": "findConfirmArchiveList",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "button.ybVBgfOiuWZJtD",
+                "text_contains": "Archive list"
+              }
+            },
+            "retry_until": "{% $exists(steps.findConfirmArchiveList.output.clickable_center.x) %}",
+            "max_attempts": 5,
+            "on_error": "continue"
+          },
+          {
+            "id": "clickConfirmArchiveList",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findConfirmArchiveList.output.clickable_center.x %}",
+              "y": "{% steps.findConfirmArchiveList.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 700
+            }
+          },
+          {
             "id": "verifyListGone",
             "primitive": "dom.observe.visible",
             "args": {
-              "selector": "[data-testid='list-name']"
+              "selector": "[data-testid='list-name']",
+              "text_contains": "{% input.list_name %}"
             },
             "retry_until": "{% steps.verifyListGone.output.match_count = 0 %}",
             "max_attempts": 6,
-            "after_each": {
-              "primitive": "overlay.menu.hide"
-            },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
             "id": "showOverlay",
