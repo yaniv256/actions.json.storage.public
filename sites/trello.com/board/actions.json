@@ -2216,7 +2216,7 @@
     },
     {
       "name": "trello.card.create",
-      "description": "Create a card at the bottom of a named Trello list on the open board. Resolves the list's own \"Add a card\" button by its ACCESSIBLE NAME -- Trello labels each one aria-label=\"Add a card in <list>\" -- so no geometry, no board scrolling, and no heading lookup is needed; locator.element_info scrolls the button into view itself. A wrong list_name matches zero buttons and fails loudly with target_not_found; it can never file into a neighbouring list. Verify by reading the board projection.",
+      "description": "Create a card at the bottom of a named Trello list on the open board. Normalizes any inherited composer state by canceling an open card composer, then resolves the target list's own Add a card opener by accessible name, types into the single open composer, clicks its Add card button, and verifies the exact card title. Verify again by reading the board projection.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -2238,7 +2238,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardCreate",
-          "why": "2026-07-09 REWRITE. The old workflow filtered candidate add-card buttons by bounding_box.left against the LIST HEADING's box (+-24px). Measured live: headings start at x=20/304/588/872 and their buttons at 304/588/872 -- offset by exactly one 284px column -- so the gate matched NOTHING for any list, always exhausted its retry ladder, and every call failed. Widening the window would have been WORSE: Backlog's nearest button at 304 is NEXT's, so cards would silently file into the neighbouring list. Trello labels every add-card button aria-label=\"Add a card in <list>\", and resolveLocatorCandidates searches textContent+aria-label+title+value, so text_contains resolves exactly one button per list and element_info auto-scrolls it into view (Backlog's sits below the fold with 19 cards). Deleted: scrollToStart, findListHeading, findAddCardButtons, the geometry expressions, and the scroll_delta_x input. NOTE text_equals compares the JOINED haystack (\"Add a card Add a card in Backlog\") and can never match here -- use text_contains."
+          "why": "2026-07-10 STATE-MACHINE REWRITE. The 2026-07-09 rewrite correctly used the opener's aria-label, but only modeled the closed-composer state. A dispatch timeout could click Add a card and leave a composer open; the next run then failed at findAddCardButton because the opener is replaced by composer controls. The first repair tried CSS :has() to scope inside the target list, but text.insert with that selector wedged the runtime. The workflow now uses a safer state-machine normalization: cancel any inherited card composer, then open the target list by aria label so the composer textarea and submit button are unique."
         }
       },
       "workflow": {
@@ -2277,6 +2277,36 @@
             }
           },
           {
+            "id": "readOpenComposer",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='list-card-composer-cancel-button']"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findCancelOpenComposer",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-card-composer-cancel-button']"
+              }
+            },
+            "when": "{% steps.readOpenComposer.output.match_count > 0 %}"
+          },
+          {
+            "id": "clickCancelOpenComposer",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findCancelOpenComposer.output.clickable_center.x %}",
+              "y": "{% steps.findCancelOpenComposer.output.clickable_center.y %}"
+            },
+            "when": "{% steps.readOpenComposer.output.match_count > 0 %}",
+            "settle_after": {
+              "delay_ms": 300
+            }
+          },
+          {
             "id": "findAddCardButton",
             "primitive": "locator.element_info",
             "args": {
@@ -2303,6 +2333,17 @@
             }
           },
           {
+            "id": "assertTargetComposerReady",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-card-composer-textarea']"
+              },
+              "state": "visible",
+              "timeout_ms": 5000
+            }
+          },
+          {
             "id": "insertTitle",
             "primitive": "text.insert",
             "args": {
@@ -2314,18 +2355,24 @@
             }
           },
           {
-            "id": "submitCard",
-            "primitive": "keyboard.press",
+            "id": "findSubmitCard",
+            "primitive": "locator.element_info",
             "args": {
-              "key": "Enter"
+              "locator": {
+                "selector": "[data-testid='list-card-composer-add-card-button']",
+                "text_contains": "{% 'Add card in ' & input.list_name %}"
+              }
+            }
+          },
+          {
+            "id": "submitCard",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findSubmitCard.output.clickable_center.x %}",
+              "y": "{% steps.findSubmitCard.output.clickable_center.y %}"
             },
             "settle_after": {
-              "locator": {
-                "selector": "[data-testid='card-name']",
-                "text_contains": "{% input.title %}"
-              },
-              "state": "visible",
-              "timeout_ms": 8000
+              "delay_ms": 800
             }
           },
           {
