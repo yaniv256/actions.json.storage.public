@@ -1,0 +1,82 @@
+{
+  "accepted_gaps": [
+    {
+      "finding_id": "weak-postcondition:docs.append:missing",
+      "rationale": "Google Docs renders the editor as canvas; the reliable post-write state is the same-origin /mobilebasic document model read by docs.read. The current state-projection engine is DOM-extract only and cannot run page.fetch, so automatic postconditions cannot honestly verify this workflow yet. The workflow output requires explicit docs.read verification after settle.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.table.append:missing",
+      "rationale": "Google Docs table verification requires the /mobilebasic document model after server-side regeneration; DOM extraction cannot see the canvas-rendered document. Explicit docs.read or /mobilebasic verification remains required until fetch-backed state projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.heading:missing",
+      "rationale": "Heading verification requires /mobilebasic readback for h1/h2/h3 structure. The current state-projection engine cannot fetch that model, so this gap is accepted and bounded to the Docs fetch-backed projection limitation.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.bullets:missing",
+      "rationale": "List verification requires /mobilebasic readback for ul/ol/li structure. The current state-projection engine cannot fetch that model; explicit docs.read verification remains required.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.rich_append:missing",
+      "rationale": "Rich text verification requires /mobilebasic readback for formatting spans. The current state-projection engine is DOM-extract only; explicit docs.read or /mobilebasic verification remains required.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.title.set:missing",
+      "rationale": "Title verification is available through docs.read after save propagation, but docs.read is an action backed by page.fetch, not a state projection. Accepted until fetch-backed projections or action-backed postconditions are implemented.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.cursor_to_paragraph:missing",
+      "rationale": "Caret placement verification needs the Docs a11y/canvas caret model plus document-model readback; automatic postconditions cannot express it with DOM-only projections today. The map directs callers to verify via docs.read/caret workflow after movement.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.undo:missing",
+      "rationale": "Undo verification requires re-reading the document model after rollback. The readback exists as docs.read but not as a state projection, so the gap is accepted pending fetch-backed projections.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.cursor_forward:missing",
+      "rationale": "Character movement verification requires closed-loop caret/document-model state that is not currently available as an automatic postcondition projection. Explicit docs.read/caret verification remains required.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.words_forward:missing",
+      "rationale": "Word movement is already gated by a11y feedback in the workflow result, but the audit requires state_projection postconditions. Accepted until the postcondition model can consume a11y/caret or fetch-backed document state.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.cursor_backward:missing",
+      "rationale": "Backward character movement needs closed-loop caret/document-model verification. The current automatic postcondition engine cannot express that with DOM-only projections.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.words_backward:missing",
+      "rationale": "Backward word movement is a11y-gated in the workflow result, but not expressible as a state_projection postcondition today. Accepted pending caret/a11y or fetch-backed postcondition support.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    },
+    {
+      "finding_id": "weak-postcondition:docs.select_forward:missing",
+      "rationale": "Selection verification on Google Docs requires caret/a11y state and document-model readback. The DOM-only projection engine cannot express it yet; callers must verify the subsequent edit through docs.read.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-10"
+    }
+  ]
+}

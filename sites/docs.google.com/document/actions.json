@@ -59,6 +59,18 @@
     "expression_language": "jsonata",
     "steps": [
      {
+      "id": "editorReady",
+      "primitive": "locator.wait_for",
+      "args": {
+       "locator": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       },
+       "state": "attached",
+       "timeout_ms": 5000
+      }
+     },
+     {
       "id": "paste",
       "primitive": "clipboard.paste",
       "args": {
@@ -70,7 +82,13 @@
       }
      }
     ],
-    "output": "{% { 'appended': input.text, 'inserted_length': steps.paste.output.inserted_length, 'accepted': steps.paste.output.default_prevented, 'next_step': 'Wait ~1s (canvas repaints async) then docs.read to verify; do not trust this return alone.' } %}"
+    "output": "{% { 'appended': input.text, 'inserted_length': steps.paste.output.inserted_length, 'accepted': steps.paste.output.default_prevented, 'next_step': 'Wait ~1s (canvas repaints async) then docs.read to verify; do not trust this return alone.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true,
+     "requires_state": {
+      "selector": "[contenteditable='true']"
+     }
+    }
    }
   },
   {
@@ -112,7 +130,10 @@
       }
      }
     ],
-    "output": "{% { 'rows_inserted': $count(input.rows), 'cols': $count(input.rows[0]), 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A real Docs table was pasted (the frame locator self-focuses the editor). Verify: docs.read after ~1-2s (cell text flattens into body), or re-fetch /mobilebasic and count <table>/<td>. Only if accepted is false (cold doc, nothing landed) pointer.click the canvas once to place the cursor, then retry.' } %}"
+    "output": "{% { 'rows_inserted': $count(input.rows), 'cols': $count(input.rows[0]), 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A real Docs table was pasted (the frame locator self-focuses the editor). Verify: docs.read after ~1-2s (cell text flattens into body), or re-fetch /mobilebasic and count <table>/<td>. Only if accepted is false (cold doc, nothing landed) pointer.click the canvas once to place the cursor, then retry.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -145,6 +166,18 @@
     "expression_language": "jsonata",
     "steps": [
      {
+      "id": "editorReady",
+      "primitive": "locator.wait_for",
+      "args": {
+       "locator": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       },
+       "state": "attached",
+       "timeout_ms": 5000
+      }
+     },
+     {
       "id": "paste",
       "primitive": "clipboard.paste",
       "args": {
@@ -157,7 +190,13 @@
       }
      }
     ],
-    "output": "{% { 'heading': input.text, 'level': input.level in [1,2,3] ? input.level : 1, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm an <h1>/<h2>/<h3> tag appeared. If it rendered as a plain <p>, the pasted heading HTML was not honored — report it.' } %}"
+    "output": "{% { 'heading': input.text, 'level': input.level in [1,2,3] ? input.level : 1, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm an <h1>/<h2>/<h3> tag appeared. If it rendered as a plain <p>, the pasted heading HTML was not honored — report it.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true,
+     "requires_state": {
+      "selector": "[contenteditable='true']"
+     }
+    }
    }
   },
   {
@@ -188,6 +227,18 @@
     "expression_language": "jsonata",
     "steps": [
      {
+      "id": "editorReady",
+      "primitive": "locator.wait_for",
+      "args": {
+       "locator": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       },
+       "state": "attached",
+       "timeout_ms": 5000
+      }
+     },
+     {
       "id": "paste",
       "primitive": "clipboard.paste",
       "args": {
@@ -200,7 +251,13 @@
       }
      }
     ],
-    "output": "{% { 'items_inserted': $count(input.items), 'ordered': input.ordered = true, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm <ul>/<ol> + <li> tags appeared. If the items rendered as plain <p> lines, the list HTML was not honored — report it.' } %}"
+    "output": "{% { 'items_inserted': $count(input.items), 'ordered': input.ordered = true, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify: re-fetch /mobilebasic and confirm <ul>/<ol> + <li> tags appeared. If the items rendered as plain <p> lines, the list HTML was not honored — report it.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true,
+     "requires_state": {
+      "selector": "[contenteditable='true']"
+     }
+    }
    }
   },
   {
@@ -224,6 +281,18 @@
     "expression_language": "jsonata",
     "steps": [
      {
+      "id": "editorReady",
+      "primitive": "locator.wait_for",
+      "args": {
+       "locator": {
+        "frame": ".docs-texteventtarget-iframe",
+        "selector": "[contenteditable='true']"
+       },
+       "state": "attached",
+       "timeout_ms": 5000
+      }
+     },
+     {
       "id": "paste",
       "primitive": "clipboard.paste",
       "args": {
@@ -236,7 +305,13 @@
       }
      }
     ],
-    "output": "{% { 'appended_html': input.html, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A formatted paragraph was pasted. Verify: re-fetch /mobilebasic and look for font-weight:700 (bold) / font-style:italic runs. If it rendered flat, the inline HTML was not honored — report it.' } %}"
+    "output": "{% { 'appended_html': input.html, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'A formatted paragraph was pasted. Verify: re-fetch /mobilebasic and look for font-weight:700 (bold) / font-style:italic runs. If it rendered flat, the inline HTML was not honored — report it.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true,
+     "requires_state": {
+      "selector": "[contenteditable='true']"
+     }
+    }
    }
   },
   {
@@ -259,6 +334,11 @@
     "version": 1,
     "expression_language": "jsonata",
     "steps": [
+     {
+      "id": "hideOverlay",
+      "primitive": "overlay.menu.hide",
+      "on_error": "continue"
+     },
      {
       "id": "findTitle",
       "primitive": "locator.element_info",
@@ -293,6 +373,11 @@
       "args": {
        "key": "Enter"
       }
+     },
+     {
+      "id": "showOverlay",
+      "primitive": "overlay.menu.show",
+      "on_error": "continue"
      }
     ],
     "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify with docs.read after a brief settle (title comes from the doc <title>, which updates once Docs saves).' } %}"
@@ -350,7 +435,10 @@
       }
      }
     ],
-    "output": "{% { 'paragraph': input.paragraph, 'method':'ctrl-home + for_each ctrl-down (workflow loop, no new primitive)', 'next_step':'Caret placed at paragraph ' & $string(input.paragraph) & ' start by position. Edit with trusted text.type/keyboard.press; verify via docs.read block tags.' } %}"
+    "output": "{% { 'paragraph': input.paragraph, 'method':'ctrl-home + for_each ctrl-down (workflow loop, no new primitive)', 'next_step':'Caret placed at paragraph ' & $string(input.paragraph) & ' start by position. Edit with trusted text.type/keyboard.press; verify via docs.read block tags.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -458,7 +546,10 @@
       }
      }
     ],
-    "output": "{% { 'undone': input.count ? input.count : 1, 'next_step': 'docs.read to confirm the rollback before retrying.' } %}"
+    "output": "{% { 'undone': input.count ? input.count : 1, 'next_step': 'docs.read to confirm the rollback before retrying.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -563,7 +654,10 @@
       }
      }
     ],
-    "output": "{% { 'chars': input.chars, 'mode': input.text ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}"
+    "output": "{% { 'chars': input.chars, 'mode': input.text ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -608,7 +702,10 @@
       }
      }
     ],
-    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}"
+    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -683,7 +780,10 @@
       }
      }
     ],
-    "output": "{% { 'chars': input.chars, 'mode': (input.text and $exists(input.from)) ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}"
+    "output": "{% { 'chars': input.chars, 'mode': (input.text and $exists(input.from)) ? 'word-jump + char fine-tune' : 'char-walk', 'next_step': 'Done. Verify with docs.read.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -728,7 +828,10 @@
       }
      }
     ],
-    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}"
+    "output": "{% { 'words': input.words, 'result': steps.gatedWords.output, 'next_step': 'Landed word-by-word via a11y-gated jumps. If it halted, docs.read and retry — the doc diverged. For an exact offset within the word, docs.cursor_forward the remaining chars.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   },
   {
@@ -775,7 +878,10 @@
       }
      }
     ],
-    "output": "{% { 'chars': input.chars, 'next_step': 'Done. Verify with docs.read.' } %}"
+    "output": "{% { 'chars': input.chars, 'next_step': 'Done. Verify with docs.read.' } %}",
+    "x_state_machine": {
+     "overlay_safe": true
+    }
    }
   }
  ],
