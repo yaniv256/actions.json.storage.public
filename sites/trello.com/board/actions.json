@@ -4755,7 +4755,8 @@
             "id": "findChecklistButton",
             "args": {
               "locator": {
-                "selector": "[data-testid='card-back-checklist-button'], [data-testid='checklist-add-button'], button[aria-label='Checklist' i]"
+                "selector": "button, [role='button']",
+                "text_equals": "Checklist"
               }
             },
             "primitive": "locator.element_info"
