@@ -66,7 +66,7 @@
     },
     {
       "name": "slides.textbox.paste",
-      "description": "Paste text into the Google Slides text box that is CURRENTLY in edit mode. PRECONDITION: double-click the target text box on the canvas first (pointer.double_click its center) so it enters edit mode and its inner editor iframe is focused. This pastes into the same-origin editor iframe's inner contenteditable via clipboard.paste with a frame-target locator (the identical mechanism validated for Google Docs). For rich content, also pass html. VERIFY with a screenshot (canvas repaints asynchronously).",
+      "description": "Paste text into the Google Slides text box that is CURRENTLY in edit mode. PRECONDITION: double-click the target text box on the canvas first (pointer.double_click its center) so it enters edit mode and its inner editor iframe is focused. This pastes into the same-origin editor iframe's inner contenteditable via clipboard.paste with a frame-target locator (the identical mechanism validated for Google Docs). For rich content, also pass html. VERIFY with slides.read after a ~1-2s settle; use screenshot only for visual/layout confirmation because Slides screenshots are unreliable and token-heavy.",
       "input_schema": {
         "type": "object",
         "required": ["text"],
@@ -90,7 +90,7 @@
             }
           }
         ],
-        "output": "{% { 'pasted': input.text, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Verify with a SCREENSHOT (canvas repaints async). If accepted is false, the text box was not in edit mode — double-click it on the canvas first.' } %}"
+        "output": "{% { 'pasted': input.text, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Wait ~1-2s, then verify with slides.read { deck_id } and confirm the changed slide text. Use screenshot only for visual/layout confirmation. If accepted is false, the text box was not in edit mode — double-click it on the canvas first.' } %}"
       }
     },
     {
@@ -129,7 +129,7 @@
             "args": { "key": "Enter" }
           }
         ],
-        "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify by screenshot (the Rename input reflects it once Slides saves).' } %}"
+        "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify with slides.read { deck_id } after a ~1-2s settle and confirm deck_title equals the requested title. Screenshot is only for visual/layout confirmation.' } %}"
       }
     }
   ],
