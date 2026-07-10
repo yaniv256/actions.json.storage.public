@@ -1125,7 +1125,7 @@
     },
     {
       "name": "trello.board.calendar_events.read",
-      "description": "Read visible cards in Trello Calendar view. Use after opening Calendar to explain what dated work appears on the month view.",
+      "description": "Read visible cards in Trello Calendar view. Fails or returns empty unless the real Calendar wrapper is mounted; do not use Board-view card links as calendar evidence.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -1137,10 +1137,10 @@
           "target_url_contains": "trello.com",
           "arguments": {
             "scope": {
-              "selector": "[data-testid='calendar-wrapper'], body",
+              "selector": "[data-testid='calendar-wrapper']",
               "root_strategy": "scope"
             },
-            "item_selector": "[data-testid='calendar-event'], a[href*='/c/']",
+            "item_selector": "[data-testid='calendar-event'], [data-testid='calendar-wrapper'] a[href*='/c/']",
             "fields": [
               {
                 "name": "title",
