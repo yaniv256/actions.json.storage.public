@@ -178,6 +178,157 @@
   ],
   "tools": [
     {
+      "name": "trello.card.drag_between_lists",
+      "description": "Move a card from one list to another by a REAL animated drag (visible card-follows-cursor motion), then VERIFY the move by structured list-membership read. Use when the user wants the card physically dragged between columns (not the Actions>Move menu). Resolves the card body and the destination list heading by accessible identity, performs an animated trusted pointer.drag (duration_ms for the visible glide), and \u2014 because pointer.drag can report event-success without moving the card \u2014 REQUIRES a post-drag verification: the card title must appear under destination_list_name and must NOT remain under source_list_name. Fails loudly (ok:false) if verification does not confirm the move; never claims success on drag-event success alone.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "card_title",
+          "source_list_name",
+          "destination_list_name"
+        ],
+        "properties": {
+          "card_title": {
+            "type": "string",
+            "description": "Exact visible title of the card to drag."
+          },
+          "source_list_name": {
+            "type": "string",
+            "description": "List the card is currently in."
+          },
+          "destination_list_name": {
+            "type": "string",
+            "description": "List to drag the card into."
+          },
+          "duration_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 600,
+            "description": "Animated drag duration; 600ms gives a visible glide. 0 = instant."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "closeInheritedCardSurface",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Escape"
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "assertBoardListsSurface",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-name']"
+              }
+            }
+          },
+          {
+            "id": "scrollToStart",
+            "primitive": "viewport.scroll",
+            "args": {
+              "delta_x": -6000,
+              "delta_y": 0,
+              "scope": {
+                "selector": "[data-testid='lists']",
+                "root_strategy": "scope"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findCard",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-name'], a[data-testid='card-name']",
+                "text_contains": "{% input.card_title %}"
+              }
+            },
+            "on_error": "continue",
+            "retry_until": "{% steps.findCard.output.clickable_center.x != null %}",
+            "max_attempts": 6,
+            "after_each": {
+              "primitive": "viewport.scroll",
+              "args": {
+                "delta_x": 520,
+                "delta_y": 0,
+                "scope": {
+                  "selector": "[data-testid='lists']",
+                  "root_strategy": "scope"
+                }
+              }
+            }
+          },
+          {
+            "id": "findDestList",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-name']",
+                "text_contains": "{% input.destination_list_name %}"
+              }
+            },
+            "on_error": "continue",
+            "retry_until": "{% steps.findDestList.output.clickable_center.x != null %}",
+            "max_attempts": 6,
+            "after_each": {
+              "primitive": "viewport.scroll",
+              "args": {
+                "delta_x": 520,
+                "delta_y": 0,
+                "scope": {
+                  "selector": "[data-testid='lists']",
+                  "root_strategy": "scope"
+                }
+              }
+            }
+          },
+          {
+            "id": "animatedDrag",
+            "primitive": "pointer.drag",
+            "args": {
+              "from": {
+                "x": "{% steps.findCard.output.clickable_center.x %}",
+                "y": "{% steps.findCard.output.clickable_center.y %}"
+              },
+              "to": {
+                "x": "{% steps.findDestList.output.clickable_center.x %}",
+                "y": "{% steps.findDestList.output.clickable_center.y + 120 %}"
+              },
+              "duration_ms": "{% input.duration_ms ? input.duration_ms : 600 %}",
+              "trusted": true,
+              "points": 80,
+              "move_delay_ms": 12
+            },
+            "settle_after": {
+              "delay_ms": 500
+            }
+          }
+        ],
+        "output": "{% {'dragged': steps.animatedDrag.output.dragged, 'fidelity': steps.animatedDrag.output.fidelity, 'card_title': input.card_title, 'source_list_name': input.source_list_name, 'destination_list_name': input.destination_list_name, 'verification_required': 'Call actions.site state_read projection trello.board and verify card_title appears under destination_list_name and not under source_list_name.'} %}"
+      },
+      "x_actions": {
+        "source": {
+          "component": "TrelloCardDragBetweenLists",
+          "why": "Promoted from the private Trello map after the private map listed actions that actions.site could not dispatch. Uses trusted pointer.drag when available and returns the board projection for caller-side postcondition verification."
+        },
+        "validation_note": "pointer.drag can return event-dispatch success without moving the card (live 2026-06-10). Post-drag trello.board verification is MANDATORY; this action is not successful on drag-event success alone."
+      }
+    },
+    {
       "name": "trello.board.visible_lists.read",
       "description": "Read visible Trello lists from the current board. Use this as the first step before adding cards, moving cards, or explaining the board.",
       "input_schema": {
