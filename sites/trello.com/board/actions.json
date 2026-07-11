@@ -4870,7 +4870,7 @@
     },
     {
       "name": "trello.card.checklist_unchecked_items.read",
-      "description": "Reveal and read unchecked checklist items on the currently open Trello card as exact item strings. Use this before completing a checklist item when the user says the next unfinished item, matching validation item, relevant checklist item, or any semantic description rather than exact text. This action scrolls the card body to the first unchecked row before extracting rows. Copy one exact item_text from this result into trello.card.checklist_item.complete; never invent or paraphrase checklist item text. Live-verified 2026-07-11 on extension 0.1.198 with a four-item checklist: it returned every mounted unchecked row with exact item text and clickable centers. An empty result means no mounted unchecked row was found after reveal; confirm with trello.card.checklist.read before concluding the checklist has no unfinished items. Larger virtualized checklists remain outside the measured boundary.",
+      "description": "Reveal and read unchecked checklist items on the currently open Trello card as exact item strings. Use this before completing a checklist item when the user says the next unfinished item, matching validation item, relevant checklist item, or any semantic description rather than exact text. This action scrolls the card body to the first unchecked row before extracting rows. Copy one exact item_text from this result into trello.card.checklist_item.complete; never invent or paraphrase checklist item text. Output is deliberately bounded to item text, checked state, and clickable center; low-level visibility and clipping diagnostics are not copied into the semantic result. Live-verified 2026-07-11 on extension 0.1.198 with a four-item checklist: it returned every mounted unchecked row with exact item text and clickable centers. An empty result means no mounted unchecked row was found after reveal; confirm with trello.card.checklist.read before concluding the checklist has no unfinished items. Larger virtualized checklists remain outside the measured boundary.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -4905,7 +4905,7 @@
             }
           }
         ],
-        "output": "{% {'visible_unchecked_count': steps.findUncheckedRows.output.candidate_count, 'items': [steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center, 'visibility': visibility }], 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'reveal': steps.revealFirstUnchecked.output, 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
+        "output": "{% {'visible_unchecked_count': steps.findUncheckedRows.output.candidate_count, 'items': [steps.findUncheckedRows.output.candidates.{ 'item_text': text, 'checked': 'false', 'clickable_center': clickable_center }], 'revealed_first_unchecked': $exists(steps.revealFirstUnchecked.output.visibility), 'binding_rule': 'Copy an exact item_text from items into trello.card.checklist_item.complete; do not invent checklist item text.'} %}"
       },
       "x_actions": {
         "source": {
