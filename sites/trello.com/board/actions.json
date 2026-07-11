@@ -7591,6 +7591,14 @@
           },
           "failure_message": "The Trello checklist item matching that text was not checked after the workflow. Verify against the Trello REST API before retrying: a retry on a toggle UNDOES a successful click. If the item is absent, the current card may not own the checklist."
         },
+        "trello.card.checklist_item.uncomplete": {
+          "projection": "trello.card_modal",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% $exists(state.modal.checklist_items[$contains(text, $$.input.item_text) and aria_checked = 'false']) %}"
+          },
+          "failure_message": "The Trello checklist item matching that text was not unchecked after the workflow. Read the exact checklist item state before retrying: a retry on a toggle can REDO a successful uncheck. If the item is absent, the current card may not own the checklist."
+        },
         "trello.card.close": {
           "projection": "trello.card_modal",
           "verify": {
