@@ -5510,11 +5510,11 @@
             }
           },
           {
-            "id": "findTargetCheckbox",
+            "id": "resolveExactIdentity",
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
                 "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
@@ -5522,23 +5522,40 @@
                 }
               }
             },
-            "retry_until": "{% steps.findTargetCheckbox.output.candidate_count = 1 and $exists(steps.findTargetCheckbox.output.clickable_center.x) %}",
+            "retry_until": "{% steps.resolveExactIdentity.output.candidate_count = 1 and $exists(steps.resolveExactIdentity.output.clickable_center.x) %}",
             "max_attempts": 6,
             "after_each": {
               "primitive": "viewport.scroll",
               "args": {
-                "selector": "main",
-                "delta_y": 200
+                "delta_y": 200,
+                "scope": {
+                  "selector": "main",
+                  "root_strategy": "scope"
+                }
               }
+            },
+            "on_error": "stop"
+          },
+          {
+            "id": "readStateBefore",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
             },
             "on_error": "stop"
           },
           {
             "id": "clickItemCheckbox",
             "primitive": "pointer.click",
+            "when": "{% ($t := input.item_text; $count(steps.readStateBefore.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 0) %}",
             "args": {
-              "x": "{% steps.findTargetCheckbox.output.clickable_center.x %}",
-              "y": "{% steps.findTargetCheckbox.output.clickable_center.y %}"
+              "x": "{% steps.resolveExactIdentity.output.clickable_center.x %}",
+              "y": "{% steps.resolveExactIdentity.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -5546,35 +5563,66 @@
             "on_error": "stop"
           },
           {
-            "id": "findRowAfter",
-            "primitive": "dom.observe.visible",
+            "id": "readStateAfter",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
             },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
-            "id": "verifyState",
-            "primitive": "dom.observe.visible",
+            "id": "resolveExactIdentityAgain",
+            "primitive": "locator.element_info",
+            "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 0) %}",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']"
-            },
-            "retry_until": "{% ($t := input.item_text; $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0) %}",
-            "max_attempts": 5,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='checklist-items']"
-                },
-                "state": "visible",
-                "timeout_ms": 600
+              "locator": {
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+                "text_equals": "{% input.item_text %}",
+                "retarget": {
+                  "closest": "[data-testid='check-item-container']",
+                  "selector": "label[data-testid='clickable-checkbox']"
+                }
               }
             },
-            "on_error": "continue"
+            "retry_until": "{% steps.resolveExactIdentityAgain.output.candidate_count = 1 and $exists(steps.resolveExactIdentityAgain.output.clickable_center.x) %}",
+            "max_attempts": 3,
+            "on_error": "stop"
+          },
+          {
+            "id": "clickItemCheckboxAgain",
+            "primitive": "pointer.click",
+            "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 0) %}",
+            "args": {
+              "x": "{% steps.resolveExactIdentityAgain.output.clickable_center.x %}",
+              "y": "{% steps.resolveExactIdentityAgain.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 500
+            },
+            "on_error": "stop"
+          },
+          {
+            "id": "verifyDesiredState",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "retry_until": "{% ($t := input.item_text; $count(steps.verifyDesiredState.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 1) %}",
+            "max_attempts": 3,
+            "on_error": "stop"
           }
         ],
-        "output": "{% ($t := input.item_text; {'item': $t, 'complete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': steps.findTargetCheckbox.output.ambiguous}) %}"
+        "output": "{% ($t := input.item_text; {'item': $t, 'complete': $count(steps.verifyDesiredState.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 1, 'already_desired': $count(steps.readStateBefore.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 1, 'ambiguous': steps.resolveExactIdentity.output.ambiguous}) %}"
       },
       "x_actions": {
         "source": {
@@ -5618,11 +5666,11 @@
             }
           },
           {
-            "id": "findTargetCheckbox",
+            "id": "resolveExactIdentity",
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']",
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
                 "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
@@ -5630,23 +5678,40 @@
                 }
               }
             },
-            "retry_until": "{% steps.findTargetCheckbox.output.candidate_count = 1 and $exists(steps.findTargetCheckbox.output.clickable_center.x) %}",
+            "retry_until": "{% steps.resolveExactIdentity.output.candidate_count = 1 and $exists(steps.resolveExactIdentity.output.clickable_center.x) %}",
             "max_attempts": 6,
             "after_each": {
               "primitive": "viewport.scroll",
               "args": {
-                "selector": "main",
-                "delta_y": 200
+                "delta_y": 200,
+                "scope": {
+                  "selector": "main",
+                  "root_strategy": "scope"
+                }
               }
+            },
+            "on_error": "stop"
+          },
+          {
+            "id": "readStateBefore",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
             },
             "on_error": "stop"
           },
           {
             "id": "clickItemCheckbox",
             "primitive": "pointer.click",
+            "when": "{% ($t := input.item_text; $count(steps.readStateBefore.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 0) %}",
             "args": {
-              "x": "{% steps.findTargetCheckbox.output.clickable_center.x %}",
-              "y": "{% steps.findTargetCheckbox.output.clickable_center.y %}"
+              "x": "{% steps.resolveExactIdentity.output.clickable_center.x %}",
+              "y": "{% steps.resolveExactIdentity.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -5654,35 +5719,66 @@
             "on_error": "stop"
           },
           {
-            "id": "findRowAfter",
-            "primitive": "dom.observe.visible",
+            "id": "readStateAfter",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
             },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
-            "id": "verifyState",
-            "primitive": "dom.observe.visible",
+            "id": "resolveExactIdentityAgain",
+            "primitive": "locator.element_info",
+            "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 0) %}",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']"
-            },
-            "retry_until": "{% ($t := input.item_text; $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0) %}",
-            "max_attempts": 5,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='checklist-items']"
-                },
-                "state": "visible",
-                "timeout_ms": 600
+              "locator": {
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+                "text_equals": "{% input.item_text %}",
+                "retarget": {
+                  "closest": "[data-testid='check-item-container']",
+                  "selector": "label[data-testid='clickable-checkbox']"
+                }
               }
             },
-            "on_error": "continue"
+            "retry_until": "{% steps.resolveExactIdentityAgain.output.candidate_count = 1 and $exists(steps.resolveExactIdentityAgain.output.clickable_center.x) %}",
+            "max_attempts": 3,
+            "on_error": "stop"
+          },
+          {
+            "id": "clickItemCheckboxAgain",
+            "primitive": "pointer.click",
+            "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 0) %}",
+            "args": {
+              "x": "{% steps.resolveExactIdentityAgain.output.clickable_center.x %}",
+              "y": "{% steps.resolveExactIdentityAgain.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 500
+            },
+            "on_error": "stop"
+          },
+          {
+            "id": "verifyDesiredState",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "retry_until": "{% ($t := input.item_text; $count(steps.verifyDesiredState.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 1) %}",
+            "max_attempts": 3,
+            "on_error": "stop"
           }
         ],
-        "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': steps.findTargetCheckbox.output.ambiguous}) %}"
+        "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyDesiredState.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 1, 'already_desired': $count(steps.readStateBefore.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 1, 'ambiguous': steps.resolveExactIdentity.output.ambiguous}) %}"
       },
       "postcondition": {
         "projection": "trello.card_modal",
