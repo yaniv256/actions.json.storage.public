@@ -85,8 +85,8 @@
         "output": "{% { 'pasted_tsv': input.tsv, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Wait ~1-2s (htmlview regenerates) then sheets.read to verify the range. If accepted is false, the grid was not focused — click the anchor cell on the canvas first, not the Name Box.' } %}"
       }
     },
-    {
-      "name": "sheets.range.paste_tsv_at_anchor",
+  {
+    "name": "sheets.range.paste_tsv_at_anchor",
       "description": "Select an anchor cell through the Name Box, re-focus the visible grid canvas, paste a TSV block, then verify the first TSV token appears in sheets.read. Use this instead of sheets.cell.set for artifacts and tables: it owns the focus sequence and returns verified:false when the write did not land. Defaults anchor_cell to A1. This action was added after live failure where sheets.cell.set returned ok:true for A1:C2 but sheets.read stayed empty.",
       "input_schema": {
         "type": "object",
@@ -99,7 +99,14 @@
         },
         "additionalProperties": false
       },
-      "workflow": {
+    "x_actions": {
+      "geometry_identity_exception": {
+        "status": "investigation_required",
+        "reason": "The click refocuses the Sheets canvas after Name Box selection, but it may also move semantic selection away from anchor_cell. Keep visible until an independent model read proves or refutes anchor preservation.",
+        "investigation": "google-sheets-grid-focus-may-change-named-anchor-2026-07-11.md"
+      }
+    },
+    "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
