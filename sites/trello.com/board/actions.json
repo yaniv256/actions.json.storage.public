@@ -5646,12 +5646,19 @@
             }
           },
           {
-            "id": "findItemRow",
-            "primitive": "dom.observe.visible",
+            "id": "findTargetCheckbox",
+            "primitive": "locator.element_info",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
+              "locator": {
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='true']",
+                "text_equals": "{% input.item_text %}",
+                "retarget": {
+                  "closest": "[data-testid='check-item-container']",
+                  "selector": "label[data-testid='clickable-checkbox']"
+                }
+              }
             },
-            "retry_until": "{% ($t := input.item_text; $rows := steps.findItemRow.output.matches[$contains(text, $t)]; $count($rows) > 0) %}",
+            "retry_until": "{% steps.findTargetCheckbox.output.candidate_count = 1 and $exists(steps.findTargetCheckbox.output.clickable_center.x) %}",
             "max_attempts": 6,
             "after_each": {
               "primitive": "viewport.scroll",
@@ -5660,44 +5667,14 @@
                 "delta_y": 200
               }
             },
-            "on_error": "continue"
-          },
-          {
-            "id": "uniquenessGate",
-            "primitive": "dom.observe.visible",
-            "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
-            },
-            "on_error": "continue"
-          },
-          {
-            "id": "findCheckbox",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='true']) label[data-testid='clickable-checkbox']"
-              }
-            },
-            "retry_until": "{% $count(steps.findCheckbox.output.candidates) > 0 %}",
-            "max_attempts": 4,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='true']) label[data-testid='clickable-checkbox']"
-                },
-                "state": "visible",
-                "timeout_ms": 1200
-              }
-            },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
             "id": "clickItemCheckbox",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.x) %}",
-              "y": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.y) %}"
+              "x": "{% steps.findTargetCheckbox.output.clickable_center.x %}",
+              "y": "{% steps.findTargetCheckbox.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -5733,7 +5710,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': $count(steps.uniquenessGate.output.matches[$contains(text, $t)]) > 1}) %}"
+        "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': steps.findTargetCheckbox.output.ambiguous}) %}"
       },
       "postcondition": {
         "projection": "trello.card_modal",
