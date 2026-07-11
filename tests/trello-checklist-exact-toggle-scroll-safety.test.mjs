@@ -8,10 +8,12 @@ const map = JSON.parse(
   ),
 );
 
-const action = map.tools.find(
-  (candidate) => candidate.name === "trello.card.checklist_item.uncomplete",
-);
-assert.ok(action, "uncomplete action must exist");
+for (const [actionName, expectedState] of [
+  ["trello.card.checklist_item.complete", "false"],
+  ["trello.card.checklist_item.uncomplete", "true"],
+]) {
+const action = map.tools.find((candidate) => candidate.name === actionName);
+assert.ok(action, `${actionName} action must exist`);
 
 const steps = action.workflow.steps;
 const revealIndex = steps.findIndex((step) => step.id === "findTargetCheckbox");
@@ -26,7 +28,7 @@ assert.ok(
 const reveal = steps[revealIndex];
 assert.equal(reveal.primitive, "locator.element_info");
 assert.equal(reveal.args.locator.text_equals, "{% input.item_text %}");
-assert.match(reveal.args.locator.selector, /aria-checked='true'/);
+assert.match(reveal.args.locator.selector, new RegExp(`aria-checked='${expectedState}'`));
 assert.deepEqual(reveal.args.locator.retarget, {
   closest: "[data-testid='check-item-container']",
   selector: "label[data-testid='clickable-checkbox']",
@@ -42,5 +44,6 @@ for (const step of steps.slice(revealIndex + 1, clickIndex)) {
 const clickArgs = JSON.stringify(steps[clickIndex].args);
 assert.match(clickArgs, /findTargetCheckbox\.output\.clickable_center/);
 assert.doesNotMatch(clickArgs, /bounding_box/);
+}
 
-console.log("trello exact uncomplete scroll-safety contract verified");
+console.log("trello exact checklist toggle scroll-safety contracts verified");

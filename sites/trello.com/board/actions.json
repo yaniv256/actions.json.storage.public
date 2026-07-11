@@ -449,7 +449,7 @@
     },
     {
       "name": "trello.board.list_menu_by_name.open",
-      "description": "Open the actions menu for a named Trello list, even when the list starts horizontally offscreen. This is the preferred setup action for list-level operations. It closes an open card modal if present, hides the actions.json overlay, resets to the board start, scans right for the exact list wrapper text, clicks that list's menu button by geometry, and verifies the list actions popover opened.",
+      "description": "Open the actions menu for a named Trello list, even when the list starts horizontally offscreen. This is the preferred setup action for list-level operations. It closes an open card modal if present, hides the actions.json overlay, resets to the board start, scans right for the exact list heading, retargets through that list wrapper to its real menu button, and verifies the list actions popover opened.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -514,8 +514,12 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='list-wrapper']",
-                "text_contains": "{% input.list_name %}"
+                "selector": "h2[data-testid='list-name']",
+                "text_equals": "{% input.list_name %}",
+                "retarget": {
+                  "closest": "[data-testid='list-wrapper']",
+                  "selector": "button[data-testid='list-edit-menu-button']"
+                }
               }
             },
             "retry_until": "{% $exists(steps.findList.output.clickable_center.x) %}",
@@ -537,8 +541,8 @@
             "id": "clickListMenu",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% steps.findList.output.bounding_box.right - 24 %}",
-              "y": "{% steps.findList.output.bounding_box.top + 16 %}"
+              "x": "{% steps.findList.output.clickable_center.x %}",
+              "y": "{% steps.findList.output.clickable_center.y %}"
             },
             "settle_after": {
               "locator": {
@@ -549,7 +553,7 @@
             }
           }
         ],
-        "output": "{% {'list_name': input.list_name, 'opened': true, 'list': steps.findList.output, 'menu_click': {'x': steps.findList.output.bounding_box.right - 24, 'y': steps.findList.output.bounding_box.top + 16}} %}"
+        "output": "{% {'list_name': input.list_name, 'opened': true, 'menu_button': steps.findList.output} %}"
       },
       "x_actions": {
         "source": {
@@ -631,8 +635,12 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='list-wrapper']",
-                "text_contains": "{% input.list_name %}"
+                "selector": "h2[data-testid='list-name']",
+                "text_equals": "{% input.list_name %}",
+                "retarget": {
+                  "closest": "[data-testid='list-wrapper']",
+                  "selector": "button[data-testid='list-edit-menu-button']"
+                }
               }
             },
             "retry_until": "{% $exists(steps.findList.output.clickable_center.x) %}",
@@ -654,8 +662,8 @@
             "id": "clickListMenu",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% steps.findList.output.bounding_box.right - 24 %}",
-              "y": "{% steps.findList.output.bounding_box.top + 16 %}"
+              "x": "{% steps.findList.output.clickable_center.x %}",
+              "y": "{% steps.findList.output.clickable_center.y %}"
             },
             "settle_after": {
               "locator": {
@@ -1965,7 +1973,7 @@
     },
     {
       "name": "trello.list.archive",
-      "description": "Archive a Trello list by name. Resolves the named list wrapper first, scrolls horizontally until that exact list is visible, clicks that wrapper's own menu button by scoped geometry, clicks 'Archive this list', confirms the second-step 'Archive list' button, and verifies the list is gone. Archived lists can be restored from board menu > Archived items > Lists. Do not claim success unless the postcondition passes.",
+      "description": "Archive a Trello list by name. Resolves the exact list heading, scrolls horizontally until it is visible, retargets through its wrapper to the real menu button, clicks 'Archive this list', confirms the second-step 'Archive list' button, and verifies the list is gone. Archived lists can be restored from board menu > Archived items > Lists. Do not claim success unless the postcondition passes.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -2014,11 +2022,15 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='list-wrapper']",
-                "text_contains": "{% input.list_name %}"
+                "selector": "h2[data-testid='list-name']",
+                "text_equals": "{% input.list_name %}",
+                "retarget": {
+                  "closest": "[data-testid='list-wrapper']",
+                  "selector": "button[data-testid='list-edit-menu-button']"
+                }
               }
             },
-            "retry_until": "{% $exists(steps.findList.output.bounding_box.right) %}",
+            "retry_until": "{% $exists(steps.findList.output.clickable_center.x) %}",
             "max_attempts": 8,
             "after_each": {
               "primitive": "viewport.scroll",
@@ -2037,8 +2049,8 @@
             "id": "openListMenu",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% steps.findList.output.bounding_box.right - 24 + (steps.findList.output.clickable_center.x - steps.findList.output.clickable_center.x) %}",
-              "y": "{% steps.findList.output.bounding_box.top + 16 + (steps.findList.output.clickable_center.y - steps.findList.output.clickable_center.y) %}"
+              "x": "{% steps.findList.output.clickable_center.x %}",
+              "y": "{% steps.findList.output.clickable_center.y %}"
             },
             "settle_after": {
               "locator": {
@@ -2167,8 +2179,12 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='list-name']",
-                "text_contains": "{% input.list_name %}"
+                "selector": "h2[data-testid='list-name']",
+                "text_equals": "{% input.list_name %}",
+                "retarget": {
+                  "closest": "[data-testid='list-wrapper']",
+                  "selector": "button[data-testid='list-add-card-button']"
+                }
               }
             },
             "on_error": "continue",
@@ -2187,25 +2203,15 @@
             }
           },
           {
-            "id": "findAddCardButtons",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[data-testid='list-add-card-button']",
-                "text_contains": "Add a card"
-              }
-            }
-          },
-          {
             "id": "clickMatchingAddCard",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $buttons[0].clickable_center.x) %}",
-              "y": "{% ($h := steps.findListHeading.output.bounding_box; $buttons := steps.findAddCardButtons.output.candidates[bounding_box.left >= $h.left - 24 and bounding_box.left <= $h.right + 24]; $buttons[0].clickable_center.y) %}"
+              "x": "{% steps.findListHeading.output.clickable_center.x %}",
+              "y": "{% steps.findListHeading.output.clickable_center.y %}"
             }
           }
         ],
-        "output": "{% {'opened_list': input.list_name, 'list_heading': steps.findListHeading.output, 'button_count': steps.findAddCardButtons.output.candidate_count} %}"
+        "output": "{% {'opened_list': input.list_name, 'add_card_button': steps.findListHeading.output} %}"
       },
       "x_actions": {
         "source": {
@@ -2668,14 +2674,15 @@
             }
           },
           {
-            "id": "findDayButtons",
+            "id": "findTargetDay",
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "[data-testid='date-range-picker'] button[aria-label], [data-testid='date-picker-form'] button[aria-label]"
+                "selector": "[data-testid='date-range-picker'] button[aria-label], [data-testid='date-picker-form'] button[aria-label]",
+                "text_contains": "{% input.day_button_label %}"
               }
             },
-            "retry_until": "{% $exists(steps.findDayButtons.output.candidates[0].clickable_center.x) %}",
+            "retry_until": "{% steps.findTargetDay.output.candidate_count = 1 and $exists(steps.findTargetDay.output.clickable_center.x) %}",
             "max_attempts": 3,
             "after_each": {
               "primitive": "viewport.scroll",
@@ -2690,8 +2697,8 @@
             "id": "clickDay",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% ($targetDay := $substringBefore(input.day_button_label, ','); $days := steps.findDayButtons.output.candidates[text != '']; $dayOne := $days[text = '1'][0]; $target := $days[text = $targetDay and (bounding_box.top > $dayOne.bounding_box.top or (bounding_box.top = $dayOne.bounding_box.top and bounding_box.left >= $dayOne.bounding_box.left))][0]; $target.clickable_center.x) %}",
-              "y": "{% ($targetDay := $substringBefore(input.day_button_label, ','); $days := steps.findDayButtons.output.candidates[text != '']; $dayOne := $days[text = '1'][0]; $target := $days[text = $targetDay and (bounding_box.top > $dayOne.bounding_box.top or (bounding_box.top = $dayOne.bounding_box.top and bounding_box.left >= $dayOne.bounding_box.left))][0]; $target.clickable_center.y) %}"
+              "x": "{% steps.findTargetDay.output.clickable_center.x %}",
+              "y": "{% steps.findTargetDay.output.clickable_center.y %}"
             }
           },
           {
@@ -4686,18 +4693,6 @@
             }
           },
           {
-            "id": "blurCommit",
-            "primitive": "pointer.click",
-            "args": {
-              "x": "{% steps.findTitleInput.output.clickable_center.x %}",
-              "y": "{% steps.findTitleInput.output.bounding_box.bottom + 120 %}"
-            },
-            "on_error": "continue",
-            "settle_after": {
-              "delay_ms": 400
-            }
-          },
-          {
             "id": "closeCard",
             "primitive": "keyboard.press",
             "args": {
@@ -5515,12 +5510,19 @@
             }
           },
           {
-            "id": "findItemRow",
-            "primitive": "dom.observe.visible",
+            "id": "findTargetCheckbox",
+            "primitive": "locator.element_info",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
+              "locator": {
+                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-checked='false']",
+                "text_equals": "{% input.item_text %}",
+                "retarget": {
+                  "closest": "[data-testid='check-item-container']",
+                  "selector": "label[data-testid='clickable-checkbox']"
+                }
+              }
             },
-            "retry_until": "{% ($t := input.item_text; $rows := steps.findItemRow.output.matches[$contains(text, $t)]; $count($rows) > 0) %}",
+            "retry_until": "{% steps.findTargetCheckbox.output.candidate_count = 1 and $exists(steps.findTargetCheckbox.output.clickable_center.x) %}",
             "max_attempts": 6,
             "after_each": {
               "primitive": "viewport.scroll",
@@ -5529,44 +5531,14 @@
                 "delta_y": 200
               }
             },
-            "on_error": "continue"
-          },
-          {
-            "id": "uniquenessGate",
-            "primitive": "dom.observe.visible",
-            "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox']"
-            },
-            "on_error": "continue"
-          },
-          {
-            "id": "findCheckbox",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false']) label[data-testid='clickable-checkbox']"
-              }
-            },
-            "retry_until": "{% $count(steps.findCheckbox.output.candidates) > 0 %}",
-            "max_attempts": 4,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='check-item-container']:has(input[type='checkbox'][aria-checked='false']) label[data-testid='clickable-checkbox']"
-                },
-                "state": "visible",
-                "timeout_ms": 1200
-              }
-            },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
             "id": "clickItemCheckbox",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.x) %}",
-              "y": "{% ($t := input.item_text; $row := steps.findItemRow.output.matches[$contains(text, $t)][0]; $cy := $row.bounding_box.top; $hit := steps.findCheckbox.output.candidates[bounding_box.top <= $cy + 4 and bounding_box.bottom >= $cy - 4]; $hit[0].clickable_center.y) %}"
+              "x": "{% steps.findTargetCheckbox.output.clickable_center.x %}",
+              "y": "{% steps.findTargetCheckbox.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -5602,7 +5574,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% ($t := input.item_text; {'item': $t, 'complete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': $count(steps.uniquenessGate.output.matches[$contains(text, $t)]) > 1}) %}"
+        "output": "{% ($t := input.item_text; {'item': $t, 'complete': $count(steps.verifyState.output.matches[$contains(text, $t)]) > 0, 'ambiguous': steps.findTargetCheckbox.output.ambiguous}) %}"
       },
       "x_actions": {
         "source": {
