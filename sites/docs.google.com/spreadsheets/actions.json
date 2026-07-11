@@ -86,6 +86,79 @@
       }
     },
     {
+      "name": "sheets.range.paste_tsv_at_anchor",
+      "description": "Select an anchor cell through the Name Box, re-focus the visible grid canvas, paste a TSV block, then verify the first TSV token appears in sheets.read. Use this instead of sheets.cell.set for artifacts and tables: it owns the focus sequence and returns verified:false when the write did not land. Defaults anchor_cell to A1. This action was added after live failure where sheets.cell.set returned ok:true for A1:C2 but sheets.read stayed empty.",
+      "input_schema": {
+        "type": "object",
+        "required": ["sheet_id", "gid", "tsv"],
+        "properties": {
+          "sheet_id": { "type": "string", "description": "The spreadsheet id from the URL segment after /spreadsheets/d/." },
+          "gid": { "type": "string", "description": "The numeric grid id from the URL #gid=<n>; first tab is 0." },
+          "anchor_cell": { "type": "string", "description": "A1-style top-left anchor cell. Defaults to A1." },
+          "tsv": { "type": "string", "description": "The block to paste: TAB (\\t) between columns, NEWLINE (\\n) between rows." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findNameBox",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "input.waffle-name-box" } }
+          },
+          {
+            "id": "clickNameBox",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findNameBox.output.clickable_center.x %}", "y": "{% steps.findNameBox.output.clickable_center.y %}" }
+          },
+          {
+            "id": "typeAnchor",
+            "primitive": "text.insert",
+            "args": { "text": "{% input.anchor_cell ? input.anchor_cell : 'A1' %}", "mode": "replace", "target": { "selector": "input.waffle-name-box" } }
+          },
+          {
+            "id": "selectAnchor",
+            "primitive": "keyboard.press",
+            "args": { "key": "Enter" },
+            "settle_after": { "delay_ms": 900 }
+          },
+          {
+            "id": "findGrid",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "[id='0-grid-container']" } }
+          },
+          {
+            "id": "clickGrid",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findGrid.output.bounding_box.left + 90 %}",
+              "y": "{% steps.findGrid.output.bounding_box.top + 55 %}"
+            },
+            "settle_after": { "delay_ms": 250 }
+          },
+          {
+            "id": "paste",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.tsv %}",
+              "html": "{% ( $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $rows := $split(input.tsv, '\n'); $trs := $join($map($rows, function($r) { ( $cells := $split($r, '\t'); '<tr>' & $join($map($cells, function($c) { '<td>' & $esc($c) & '</td>' })) & '</tr>' ) })); '<table>' & $trs & '</table>' ) %}"
+            },
+            "settle_after": { "delay_ms": 2000 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}"
+            }
+          }
+        ],
+        "output": "{% ( $b := steps.verifyFetch.output.body; $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; $rows := [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })]; $firstToken := $split($split(input.tsv, '\n')[0], '\t')[0]; { 'anchor_cell': input.anchor_cell ? input.anchor_cell : 'A1', 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'verified': $contains($string($rows), $firstToken), 'first_token': $firstToken, 'rows': $rows, 'row_count': $count($rows), 'next_step': $contains($string($rows), $firstToken) ? 'Write verified by sheets.read-compatible htmlview fetch.' : 'Write did NOT verify. Do not claim success; inspect focus/click geometry or use a different grid-focus primitive.' } ) %}"
+      }
+    },
+    {
       "name": "sheets.cell.set",
       "description": "Set a single cell's value. Types the cell reference into the Name Box (top-left), presses Enter to select it, types the value, presses Enter to commit. PRECONDITION: the Sheets tab must be foregrounded (interactive). The Name Box selection repaints asynchronously (a brief spinner) — for a block of data prefer sheets.range.paste_tsv. Verify with sheets.read after a ~1-2s settle.",
       "input_schema": {

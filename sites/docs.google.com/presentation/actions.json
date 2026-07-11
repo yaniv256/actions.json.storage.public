@@ -94,8 +94,146 @@
       }
     },
     {
+      "name": "slides.getting_started.close",
+      "description": "Close the Google Slides 'Getting started' / 'Let’s start creating' modal when it appears on a new deck. This modal blocks deck editing and can make title/text actions report success without a saved slide-state change. Safe no-op if no matching close button is visible.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findClose",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".getting-started-dialog-close, [aria-label='Close']",
+                "text_contains": "Close"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "clickClose",
+            "primitive": "pointer.click",
+            "when": "{% $exists(steps.findClose.output.clickable_center.x) %}",
+            "args": {
+              "x": "{% steps.findClose.output.clickable_center.x %}",
+              "y": "{% steps.findClose.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 500 }
+          }
+        ],
+        "output": "{% { 'closed': $exists(steps.findClose.output.clickable_center.x), 'next_step': $exists(steps.findClose.output.clickable_center.x) ? 'Modal close clicked; retry the Slides write and verify with slides.read.' : 'No visible getting-started close button found.' } %}"
+      }
+    },
+    {
+      "name": "slides.title_slide.set",
+      "description": "Fill the default title-slide placeholders on the current Google Slides deck, then verify through the server-rendered /export/html read path. This owns the missing state transition that slides.textbox.paste does not: it closes the new-deck modal if present, double-clicks the canvas title placeholder (#editor-i0), pastes title text into the editor iframe, double-clicks the subtitle placeholder (#editor-i1), pastes subtitle text, and verifies both strings are present in the exported deck text. Use this for first-slide artifact creation instead of telling the agent to manually double-click a text box.",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id", "title", "subtitle"],
+        "properties": {
+          "deck_id": { "type": "string", "description": "The presentation id from the URL segment after /presentation/d/." },
+          "title": { "type": "string", "description": "Title text to place in the default title placeholder." },
+          "subtitle": { "type": "string", "description": "Subtitle/body text to place in the default subtitle placeholder." }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "findModalClose",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".getting-started-dialog-close, [aria-label='Close']",
+                "text_contains": "Close"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "closeModal",
+            "primitive": "pointer.click",
+            "when": "{% $exists(steps.findModalClose.output.clickable_center.x) %}",
+            "args": {
+              "x": "{% steps.findModalClose.output.clickable_center.x %}",
+              "y": "{% steps.findModalClose.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 500 }
+          },
+          {
+            "id": "findTitleBox",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "#editor-i0" } }
+          },
+          {
+            "id": "clickTitleOnce",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findTitleBox.output.clickable_center.x %}", "y": "{% steps.findTitleBox.output.clickable_center.y %}" },
+            "settle_after": { "delay_ms": 150 }
+          },
+          {
+            "id": "clickTitleTwice",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findTitleBox.output.clickable_center.x %}", "y": "{% steps.findTitleBox.output.clickable_center.y %}" },
+            "settle_after": { "delay_ms": 500 }
+          },
+          {
+            "id": "pasteTitle",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.title %}",
+              "target": { "frame": ".docs-texteventtarget-iframe", "selector": "[contenteditable='true']" }
+            },
+            "settle_after": { "delay_ms": 800 }
+          },
+          {
+            "id": "findSubtitleBox",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "#editor-i1" } }
+          },
+          {
+            "id": "clickSubtitleOnce",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findSubtitleBox.output.clickable_center.x %}", "y": "{% steps.findSubtitleBox.output.clickable_center.y %}" },
+            "settle_after": { "delay_ms": 150 }
+          },
+          {
+            "id": "clickSubtitleTwice",
+            "primitive": "pointer.click",
+            "args": { "x": "{% steps.findSubtitleBox.output.clickable_center.x %}", "y": "{% steps.findSubtitleBox.output.clickable_center.y %}" },
+            "settle_after": { "delay_ms": 500 }
+          },
+          {
+            "id": "pasteSubtitle",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.subtitle %}",
+              "target": { "frame": ".docs-texteventtarget-iframe", "selector": "[contenteditable='true']" }
+            },
+            "settle_after": { "delay_ms": 2000 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          }
+        ],
+        "output": "{% ( $b := steps.verifyFetch.output.body; $plain := $replace($replace($replace($replace($replace($replace($b, '&amp;', '&'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"'), '&#39;', \"'\"), '&#8212;', '—'); { 'title': input.title, 'subtitle': input.subtitle, 'title_paste_accepted': steps.pasteTitle.output.default_prevented, 'subtitle_paste_accepted': steps.pasteSubtitle.output.default_prevented, 'verified': $contains($plain, input.title) and $contains($plain, input.subtitle), 'fetch_status': steps.verifyFetch.output.status, 'next_step': ($contains($plain, input.title) and $contains($plain, input.subtitle)) ? 'Title slide verified in /export/html.' : 'Title slide did NOT verify. Do not claim success; inspect edit-mode focus and placeholder geometry.' } ) %}"
+      }
+    },
+    {
       "name": "slides.title.set",
-      "description": "Set the presentation (deck) title via the toolbar 'Rename' input (a real DOM input, not canvas). Clicks the input, replaces its contents, and commits with Enter. This sets the DECK's name, not a slide's title text box (for a slide title, double-click that box on the canvas and use slides.textbox.paste).",
+      "description": "Set the presentation (deck) title via the toolbar 'Rename' input (a real DOM input, not canvas). If a new-deck 'Getting started' modal is present, call slides.getting_started.close first; otherwise the title control can appear editable while deck state does not save. Clicks the input, replaces its contents, and commits with Enter. This sets the DECK's name, not a slide's title text box (for a slide title, double-click that box on the canvas and use slides.textbox.paste). Verify with slides.read; do not trust this action's return alone.",
       "input_schema": {
         "type": "object",
         "required": ["title"],
