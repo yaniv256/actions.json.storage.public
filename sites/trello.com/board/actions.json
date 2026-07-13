@@ -3917,34 +3917,6 @@
             "on_error": "continue"
           },
           {
-            "id": "scrollCardControlsIntoView",
-            "primitive": "viewport.scroll",
-            "args": {
-              "delta_x": 0,
-              "delta_y": -1200,
-              "scope": {
-                "selector": "main",
-                "text_contains": "Description",
-                "root_strategy": "scope"
-              }
-            },
-            "on_error": "continue"
-          },
-          {
-            "id": "revealLabelControlsInShortViewport",
-            "primitive": "viewport.scroll",
-            "args": {
-              "delta_x": 0,
-              "delta_y": 200,
-              "scope": {
-                "selector": "main",
-                "text_contains": "Description",
-                "root_strategy": "scope"
-              }
-            },
-            "on_error": "continue"
-          },
-          {
             "id": "findExistingCardLabel",
             "primitive": "locator.element_info",
             "args": {
@@ -3956,6 +3928,18 @@
             "on_error": "continue"
           },
           {
+            "id": "findMatchingLabelRowBeforeOpen",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
             "id": "findAddLabelButton",
             "primitive": "locator.element_info",
             "args": {
@@ -3964,7 +3948,7 @@
                 "text_contains": "Add a label"
               }
             },
-            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}",
             "on_error": "continue"
           },
           {
@@ -3976,7 +3960,7 @@
                 "text_contains": "Labels"
               }
             },
-            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) %}",
             "on_error": "continue"
           },
           {
@@ -3988,7 +3972,7 @@
                 "text_contains": "label"
               }
             },
-            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) and $not($exists(steps.findLegacyLabelsButton.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) and $not($exists(steps.findLegacyLabelsButton.output.clickable_center.x)) %}",
             "on_error": "continue"
           },
           {
@@ -3998,14 +3982,43 @@
               "x": "{% $exists(steps.findAddLabelButton.output.clickable_center.x) ? steps.findAddLabelButton.output.clickable_center.x : ($exists(steps.findLegacyLabelsButton.output.clickable_center.x) ? steps.findLegacyLabelsButton.output.clickable_center.x : steps.findIconLabelButton.output.clickable_center.x) %}",
               "y": "{% $exists(steps.findAddLabelButton.output.clickable_center.y) ? steps.findAddLabelButton.output.clickable_center.y : ($exists(steps.findLegacyLabelsButton.output.clickable_center.y) ? steps.findLegacyLabelsButton.output.clickable_center.y : steps.findIconLabelButton.output.clickable_center.y) %}"
             },
-            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}",
             "settle_after": {
               "locator": {
                 "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
                 "text_contains": "{% input.label %}"
               },
               "state": "visible",
-              "timeout_ms": 6000
+              "timeout_ms": 1500
+            }
+          },
+          {
+            "id": "findMatchingLabelRowAfterFirstClick",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "clickLabelsControlAfterNoop",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% $exists(steps.findAddLabelButton.output.clickable_center.x) ? steps.findAddLabelButton.output.clickable_center.x : ($exists(steps.findLegacyLabelsButton.output.clickable_center.x) ? steps.findLegacyLabelsButton.output.clickable_center.x : steps.findIconLabelButton.output.clickable_center.x) %}",
+              "y": "{% $exists(steps.findAddLabelButton.output.clickable_center.y) ? steps.findAddLabelButton.output.clickable_center.y : ($exists(steps.findLegacyLabelsButton.output.clickable_center.y) ? steps.findLegacyLabelsButton.output.clickable_center.y : steps.findIconLabelButton.output.clickable_center.y) %}"
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowAfterFirstClick.output.clickable_center.x)) %}",
+            "settle_after": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              },
+              "state": "visible",
+              "timeout_ms": 3000
             }
           },
           {
