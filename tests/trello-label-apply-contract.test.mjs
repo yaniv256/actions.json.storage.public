@@ -30,6 +30,9 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.findExistingCardLabel.args.locator.selector, "[data-testid='card-back-labels-container'] [data-testid='card-label']");
   assert.equal(byId.findAddLabelButton.args.locator.text_contains, "Add a label");
   assert.equal(byId.findLegacyLabelsButton.args.locator.text_contains, "Labels");
+  assert.equal(byId.findIconLabelButton.args.locator.text_contains, "label");
+  assert.match(byId.findIconLabelButton.when, /findLegacyLabelsButton/);
+  assert.match(byId.clickLabelsControl.args.x, /findIconLabelButton/);
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
   assert.ok(
