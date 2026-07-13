@@ -7633,12 +7633,12 @@
       ],
       "postconditions": {
         "trello.card.by_title.open": {
-          "projection": "trello.board",
+          "projection": "trello.card_modal",
           "verify": {
             "language": "jsonata",
-            "expression": "{% $exists(state.board.lists.cards[title = $$.input.title]) %}"
+            "expression": "{% $split(state.modal.title, '\n')[0] = $$.input.title %}"
           },
-          "failure_message": "The requested Trello card title was not present in the logical board state after the workflow."
+          "failure_message": "The requested Trello card title was not present in the open card state after the workflow."
         },
         "trello.card.due_date.clear": {
           "projection": "trello.board",
