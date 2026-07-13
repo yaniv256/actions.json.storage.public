@@ -6761,36 +6761,41 @@
             }
           },
           {
+            "id": "findActions",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Actions"
+            }
+          },
+          {
             "id": "openActionsMenu",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='card-back-actions-button']"
-              }
+              "x": "{% steps.findActions.output.clickable_center.x %}",
+              "y": "{% steps.findActions.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 300
+              "locator": {
+                "selector": "[data-testid='card-back-archive-button']"
+              },
+              "timeout_ms": 3000
+            }
+          },
+          {
+            "id": "findArchive",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Archive"
             }
           },
           {
             "id": "clickArchive",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='popover'] button, [data-testid='popover'] [role='menuitem'], .js-react-root [role='menuitem']",
-                "text_equals": "Archive"
-              }
-            },
-            "retry_until": "{% $exists(steps.clickArchive.output) %}",
-            "max_attempts": 3,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='popover']"
-                },
-                "timeout_ms": 400
-              }
+              "x": "{% steps.findArchive.output.clickable_center.x %}",
+              "y": "{% steps.findArchive.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -6798,16 +6803,30 @@
           },
           {
             "id": "verifyArchived",
-            "primitive": "locator.element_info",
+            "primitive": "locator.text_content",
             "args": {
               "locator": {
-                "selector": "[data-testid='card-back-archive-banner'], button[title='Send to board'], [data-testid='card-back-send-to-board-button']"
+                "selector": "[data-testid='card-back-archive-banner']",
+                "text_contains": "This card was archived"
+              }
+            },
+            "retry_until": "{% $contains(steps.verifyArchived.output.text, 'This card was archived') %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='card-back-archive-banner']",
+                  "text_contains": "This card was archived"
+                },
+                "state": "visible",
+                "timeout_ms": 500
               }
             },
             "on_error": "continue"
           }
         ],
-        "output": "{% { 'card': input.card_title, 'archived': $exists(steps.verifyArchived.output.clickable_center.x), 'verification_required': 'archived:true means Trello now shows this card as archived (Send to board / archive banner present). If false, the Archive item may not have resolved in the Actions popover \u2014 re-open the card and retry; confirm via a board read that the card left its list.' } %}"
+        "output": "{% { 'card': input.card_title, 'archived': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'verified': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'safe_to_claim': false, 'archive_banner_text': steps.verifyArchived.output.text, 'verification_required': 'verified:true means the exact open card now exposes Trello archived-state text. safe_to_claim remains false until a separate board projection proves that the exact card left its list.' } %}"
       },
       "x_actions": {
         "source": {
