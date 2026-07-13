@@ -4001,7 +4001,8 @@
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
             "settle_after": {
               "locator": {
-                "selector": "[data-testid='labels-popover-labels-screen']"
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
               },
               "state": "visible",
               "timeout_ms": 6000
@@ -4023,8 +4024,8 @@
               "primitive": "locator.wait_for",
               "args": {
                 "locator": {
-                  "selector": "[data-testid='labels-popover-labels-screen']",
-                  "text_contains": "Labels"
+                  "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                  "text_contains": "{% input.label %}"
                 },
                 "state": "visible",
                 "timeout_ms": 1500
