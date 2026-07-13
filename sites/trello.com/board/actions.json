@@ -24,6 +24,7 @@
       "required_primitives": [
         "browser.extract_elements",
         "locator.element_info",
+        "a11y.query",
         "pointer.click",
         "viewport.scroll",
         "text.insert",
@@ -4533,7 +4534,7 @@
     },
     {
       "name": "trello.card.title.set",
-      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board with trello.board.visible_cards.read before retrying. Do not claim success unless output.verified is true. KNOWN LIMITATION (2026-07-08): the current text.insert-based edit does NOT persist on Trello card-back titles because they are React CONTROLLED inputs \u2014 the rename reverts on blur. verified:false is returned honestly. Real fix is a controlled-input-aware primitive (native value setter + dispatched input event); until shipped, treat title rename as UNSUPPORTED and create the card with its final title instead. See investigations/trello-card-title-set-rename-not-persisting.md.",
+      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. CURRENT MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4714,7 +4715,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': ($exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title))), 'warning': 'text.insert on a React-controlled input does NOT persist; see investigations/trello-card-title-set-rename-not-persisting.md'} %}"
+        "output": "{% {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': ($exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title))), 'next_step': 'Only report success if verified is true; independently confirm the exact new title is present and the old title is absent with the independent board projection. After verified:false, re-read state before any retry.'} %}"
       }
     },
     {
@@ -5480,7 +5481,7 @@
     },
     {
       "name": "trello.card.checklist_item.complete",
-      "description": "Mark one checklist item complete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, and verifies the exact item is checked. Live-verified 2026-07-11 on extension 0.1.198 with repeated exact-item mutations in a four-item checklist. Always verify the returned complete field and then read trello.card.checklist.read to prove the exact item is checked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary; use trello.card.checklist_unchecked_items.read first and pass one exact returned item_text.",
+      "description": "Mark one checklist item complete on the open Trello card. For a unique label, pass exact item_text. For duplicate labels, first read the trello.card_modal projection and copy item_text plus its zero-based checklist_index and item_index; the workflow scopes every read, click, retry, and verification to that exact owner-qualified row. Never invent indices. Always independently read checklist state after mutation.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5490,8 +5491,28 @@
           "item_text": {
             "type": "string",
             "description": "Exact checklist item text to mark complete."
+          },
+          "checklist_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional zero-based checklist section index copied from trello.card_modal. Required with item_index for duplicate labels."
+          },
+          "item_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional zero-based item index within checklist_index copied from trello.card_modal."
           }
         },
+        "allOf": [
+          {
+            "if": { "required": ["checklist_index"] },
+            "then": { "required": ["item_index"] }
+          },
+          {
+            "if": { "required": ["item_index"] },
+            "then": { "required": ["checklist_index"] }
+          }
+        ],
         "additionalProperties": false
       },
       "workflow": {
@@ -5516,9 +5537,9 @@
             "id": "resolveExactIdentity",
             "primitive": "locator.element_info",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
-                "text_equals": "{% input.item_text %}",
+          "locator": {
+            "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
+            "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
                   "selector": "label[data-testid='clickable-checkbox']"
@@ -5543,7 +5564,7 @@
             "id": "readStateBefore",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5569,7 +5590,7 @@
             "id": "readStateAfter",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5583,9 +5604,9 @@
             "primitive": "locator.element_info",
             "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'true']) = 0) %}",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
-                "text_equals": "{% input.item_text %}",
+         "locator": {
+            "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
+            "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
                   "selector": "label[data-testid='clickable-checkbox']"
@@ -5613,7 +5634,7 @@
             "id": "verifyDesiredState",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5636,7 +5657,7 @@
     },
     {
       "name": "trello.card.checklist_item.uncomplete",
-      "description": "Mark one checked checklist item incomplete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, and verifies the exact item is unchecked. Live-verified 2026-07-11 on extension 0.1.198: one exact checked item changed to unchecked and trello.card.checklist.read independently proved the checklist moved from 3/4 to 2/4. Always verify the returned incomplete field and then read trello.card.checklist.read to prove the exact item is unchecked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary.",
+      "description": "Mark one checked checklist item incomplete on the open Trello card. For a unique label, pass exact item_text. For duplicate labels, first read the trello.card_modal projection and copy item_text plus its zero-based checklist_index and item_index; the workflow scopes every read, click, retry, and verification to that exact owner-qualified row. Never invent indices. Always independently read checklist state after mutation.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5646,8 +5667,28 @@
           "item_text": {
             "type": "string",
             "description": "Exact checked checklist item text to mark incomplete."
+          },
+          "checklist_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional zero-based checklist section index copied from trello.card_modal. Required with item_index for duplicate labels."
+          },
+          "item_index": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Optional zero-based item index within checklist_index copied from trello.card_modal."
           }
         },
+        "allOf": [
+          {
+            "if": { "required": ["checklist_index"] },
+            "then": { "required": ["item_index"] }
+          },
+          {
+            "if": { "required": ["item_index"] },
+            "then": { "required": ["checklist_index"] }
+          }
+        ],
         "additionalProperties": false
       },
       "workflow": {
@@ -5672,9 +5713,9 @@
             "id": "resolveExactIdentity",
             "primitive": "locator.element_info",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
-                "text_equals": "{% input.item_text %}",
+         "locator": {
+            "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
+            "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
                   "selector": "label[data-testid='clickable-checkbox']"
@@ -5699,7 +5740,7 @@
             "id": "readStateBefore",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5725,7 +5766,7 @@
             "id": "readStateAfter",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5739,9 +5780,9 @@
             "primitive": "locator.element_info",
             "when": "{% ($t := input.item_text; $count(steps.readStateAfter.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 0) %}",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
-                "text_equals": "{% input.item_text %}",
+         "locator": {
+            "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
+            "text_equals": "{% input.item_text %}",
                 "retarget": {
                   "closest": "[data-testid='check-item-container']",
                   "selector": "label[data-testid='clickable-checkbox']"
@@ -5769,7 +5810,7 @@
             "id": "verifyDesiredState",
             "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "selector": "{% $exists(input.checklist_index) ? '[data-testid=checklist-section]:nth-child(' & $string(input.checklist_index + 1) & ' of [data-testid=checklist-section]) [data-testid=check-item-container]:nth-child(' & $string(input.item_index + 1) & ' of [data-testid=check-item-container]) input[type=checkbox][aria-label]' : '[data-testid=checklist-items] input[type=checkbox][aria-label]' %}",
               "attributes": [
                 "aria-label",
                 "aria-checked"
@@ -5782,11 +5823,6 @@
           }
         ],
         "output": "{% ($t := input.item_text; {'item': $t, 'incomplete': $count(steps.verifyDesiredState.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 1, 'already_desired': $count(steps.readStateBefore.output.matches[attributes.`aria-label` = $t and attributes.`aria-checked` = 'false']) = 1, 'ambiguous': steps.resolveExactIdentity.output.ambiguous}) %}"
-      },
-      "postcondition": {
-        "projection": "trello.card_modal",
-        "assert": "{% $not($exists($filter(projection.checklist_items, function($item) { $item.text = input.item_text and $item.aria_checked = true })[0])) %}",
-        "failure_message": "The exact Trello checklist item was still checked after the uncomplete workflow."
       },
       "x_actions": {
         "source": {
@@ -6085,7 +6121,7 @@
     },
     {
       "name": "trello.card.move_to_list_from_open_card",
-      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title for final verification and target_list for the destination list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, types the target list into the Move dialog's List combobox, selects the filtered option, clicks Move, and returns a verification note. After calling, verify with the trello.board projection that card_title appears under target_list before claiming success.",
+      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title for final verification and target_list for the destination list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, types the target list into the Move dialog's List combobox, selects the filtered option, clicks Move, and returns a verification note. The workflow finishes on a /c/ card route, where the route-scoped trello.board projection is unavailable. After calling, close the card, then verify with the trello.board projection that card_title appears only under target_list before claiming success.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -6289,7 +6325,7 @@
             }
           }
         ],
-        "output": "{% {'card_title': input.card_title, 'target_list': input.target_list, 'moved': true, 'verification_required': 'Call trello.board state_read or state_summary and confirm card_title appears under target_list before claiming success.'} %}",
+        "output": "{% {'card_title': input.card_title, 'target_list': input.target_list, 'moved': true, 'verification_required': 'Close the card first, then call the trello.board projection and confirm card_title appears only under target_list before claiming success.'} %}",
         "x_state_machine": {
           "requires_state": {
             "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"
@@ -6531,36 +6567,35 @@
             }
           },
           {
+            "id": "findActions",
+            "primitive": "a11y.query",
+            "args": { "role": "button", "name": "Actions" }
+          },
+          {
             "id": "openActionsMenu",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='card-back-actions-button']"
-              }
+              "x": "{% steps.findActions.output.clickable_center.x %}",
+              "y": "{% steps.findActions.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 300
+              "locator": {
+                "selector": "[data-testid='card-back-archive-button']"
+              },
+              "timeout_ms": 3000
             }
+          },
+          {
+            "id": "findArchive",
+            "primitive": "a11y.query",
+            "args": { "role": "button", "name": "Archive" }
           },
           {
             "id": "clickArchive",
             "primitive": "pointer.click",
             "args": {
-              "locator": {
-                "selector": "[data-testid='popover'] button, [data-testid='popover'] [role='menuitem'], .js-react-root [role='menuitem']",
-                "text_equals": "Archive"
-              }
-            },
-            "retry_until": "{% $exists(steps.clickArchive.output) %}",
-            "max_attempts": 3,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='popover']"
-                },
-                "timeout_ms": 400
-              }
+              "x": "{% steps.findArchive.output.clickable_center.x %}",
+              "y": "{% steps.findArchive.output.clickable_center.y %}"
             },
             "settle_after": {
               "delay_ms": 500
@@ -6568,16 +6603,30 @@
           },
           {
             "id": "verifyArchived",
-            "primitive": "locator.element_info",
+            "primitive": "locator.text_content",
             "args": {
               "locator": {
-                "selector": "[data-testid='card-back-archive-banner'], button[title='Send to board'], [data-testid='card-back-send-to-board-button']"
+                "selector": "[data-testid='card-back-archive-banner']",
+                "text_contains": "This card was archived"
+              }
+            },
+            "retry_until": "{% $contains(steps.verifyArchived.output.text, 'This card was archived') %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='card-back-archive-banner']",
+                  "text_contains": "This card was archived"
+                },
+                "state": "visible",
+                "timeout_ms": 500
               }
             },
             "on_error": "continue"
           }
         ],
-        "output": "{% { 'card': input.card_title, 'archived': $exists(steps.verifyArchived.output.clickable_center.x), 'verification_required': 'archived:true means Trello now shows this card as archived (Send to board / archive banner present). If false, the Archive item may not have resolved in the Actions popover \u2014 re-open the card and retry; confirm via a board read that the card left its list.' } %}"
+        "output": "{% { 'card': input.card_title, 'archived': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'archive_banner_text': steps.verifyArchived.output.text, 'verification_required': 'archived:true means the exact open card now exposes Trello archived-state text. Close the card and confirm the board projection no longer contains it before claiming cleanup.' } %}"
       },
       "x_actions": {
         "source": {
@@ -7271,6 +7320,13 @@
         "source": "dom",
         "extract": [
           {
+            "id": "board_title",
+            "selector": "[data-testid='board-name-display']",
+            "property": "innerText",
+            "trim": true,
+            "required": true
+          },
+          {
             "id": "lists",
             "selector": "[data-testid='list-wrapper']",
             "many": true,
@@ -7330,7 +7386,7 @@
         ],
         "projection": {
           "language": "jsonata",
-          "expression": "{% {'board': {'list_count': $count(records.lists), 'lists': $append([], $map(records.lists, function($list) { {'name': $list.name, 'card_count': $count($list.cards), 'cards': $count($list.cards) > 0 ? $append([], $map($list.cards, function($card) { {'title': $card.title, 'url': $card.url, 'labels': $card.labels, 'due_date': $card.due_date, 'checklist_summary': $card.checklist_summary} })) : []} }))}} %}"
+          "expression": "{% {'board': {'title': records.board_title[0], 'list_count': $count(records.lists), 'lists': $append([], $map(records.lists, function($list) { {'name': $list.name, 'card_count': $count($list.cards), 'cards': $count($list.cards) > 0 ? $append([], $map($list.cards, function($card) { {'title': $card.title, 'url': $card.url, 'labels': $card.labels, 'due_date': $card.due_date, 'checklist_summary': $card.checklist_summary} })) : []} }))}} %}"
         },
         "output_schema": {
           "type": "object",
@@ -7341,9 +7397,13 @@
             "board": {
               "type": "object",
               "required": [
+                "title",
                 "lists"
               ],
               "properties": {
+                "title": {
+                  "type": "string"
+                },
                 "list_count": {
                   "type": "number"
                 },
@@ -7416,6 +7476,30 @@
         }
       ],
       "postconditions": {
+        "trello.board.list.move_to_position": {
+          "projection": "trello.board",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% $count(state.board.lists#$i[$i + 1 = $$.input.target_position and name = $$.input.list_name]) = 1 %}"
+          },
+          "failure_message": "The named Trello list was not at the exact requested board position after the move workflow."
+        },
+        "trello.list.rename": {
+          "projection": "trello.board",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% $exists(state.board.lists[name = $$.input.new_name]) and $count(state.board.lists[name = $$.input.current_name]) = 0 %}"
+          },
+          "failure_message": "The exact new Trello list name was not present or the exact old list name remained after rename."
+        },
+        "trello.board.create": {
+          "projection": "trello.board",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% state.board.title = $$.input.name %}"
+          },
+          "failure_message": "The newly opened Trello board did not expose the exact requested board title."
+        },
         "trello.card.by_title.open": {
           "projection": "trello.board",
           "verify": {
@@ -7521,13 +7605,41 @@
                     "default": null
                   }
                 }
+              },
+              "checklist_sections": {
+                "selector": "[data-testid='checklist-section']",
+                "many": true,
+                "fields": {
+                  "title": {
+                    "selector": "[data-testid='checklist-title']",
+                    "property": "innerText",
+                    "trim": true,
+                    "default": null
+                  },
+                  "items": {
+                    "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+                    "many": true,
+                    "fields": {
+                      "text": {
+                        "attribute": "aria-label",
+                        "trim": true,
+                        "default": null
+                      },
+                      "aria_checked": {
+                        "attribute": "aria-checked",
+                        "trim": true,
+                        "default": null
+                      }
+                    }
+                  }
+                }
               }
             }
           }
         ],
         "projection": {
           "language": "jsonata",
-          "expression": "{% {'modal': {'text': records.modal.text, 'title': records.modal.title ? records.modal.title : records.modal.sticky_title, 'checklist_items': records.modal.checklist_items}} %}"
+          "expression": "{% {'modal': {'text': records.modal.text, 'title': records.modal.title ? records.modal.title : records.modal.sticky_title, 'checklist_items': records.modal.checklist_items, 'checklist_sections': $append([], $map(records.modal.checklist_sections, function($section, $si) { {'title': $section.title, 'checklist_index': $si, 'items': $append([], $map($section.items, function($item, $ii) { {'text': $item.text, 'aria_checked': $item.aria_checked, 'checklist_index': $si, 'item_index': $ii} }))} }))}} %}"
         },
         "output_schema": {
           "type": "object",
@@ -7635,17 +7747,17 @@
           "projection": "trello.card_modal",
           "verify": {
             "language": "jsonata",
-            "expression": "{% $exists(state.modal.checklist_items[$contains(text, $$.input.item_text) and aria_checked = 'true']) %}"
+            "expression": "{% $exists($$.input.checklist_index) ? $count(state.modal.checklist_sections[checklist_index = $$.input.checklist_index].items[item_index = $$.input.item_index and text = $$.input.item_text and aria_checked = 'true']) = 1 : $count(state.modal.checklist_items[text = $$.input.item_text]) = 1 and $count(state.modal.checklist_items[text = $$.input.item_text and aria_checked = 'true']) = 1 %}"
           },
-          "failure_message": "The Trello checklist item matching that text was not checked after the workflow. Verify against the Trello REST API before retrying: a retry on a toggle UNDOES a successful click. If the item is absent, the current card may not own the checklist."
+          "failure_message": "The exact owner-qualified Trello checklist row was not checked after the workflow. Read trello.card_modal before retrying: a retry on a toggle can undo a successful click."
         },
         "trello.card.checklist_item.uncomplete": {
           "projection": "trello.card_modal",
           "verify": {
             "language": "jsonata",
-            "expression": "{% $exists(state.modal.checklist_items[$contains(text, $$.input.item_text) and aria_checked = 'false']) %}"
+            "expression": "{% $exists($$.input.checklist_index) ? $count(state.modal.checklist_sections[checklist_index = $$.input.checklist_index].items[item_index = $$.input.item_index and text = $$.input.item_text and aria_checked = 'false']) = 1 : $count(state.modal.checklist_items[text = $$.input.item_text]) = 1 and $count(state.modal.checklist_items[text = $$.input.item_text and aria_checked = 'false']) = 1 %}"
           },
-          "failure_message": "The Trello checklist item matching that text was not unchecked after the workflow. Read the exact checklist item state before retrying: a retry on a toggle can REDO a successful uncheck. If the item is absent, the current card may not own the checklist."
+          "failure_message": "The exact owner-qualified Trello checklist row was not unchecked after the workflow. Read trello.card_modal before retrying: a retry on a toggle can redo a successful uncheck."
         },
         "trello.card.close": {
           "projection": "trello.card_modal",
