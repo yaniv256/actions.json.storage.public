@@ -1,0 +1,29 @@
+{
+  "accepted_gaps": [
+    {
+      "finding_id": "weak-postcondition:sheets.range.paste_tsv:missing",
+      "rationale": "Sheets grid state is canvas-rendered and durable range state is available through /htmlview/sheet. The workflow now compares the exact rectangular region at anchor_cell before/after paste and requires independent sheets.read; DOM-only state projections cannot fetch that model.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:sheets.range.paste_tsv_at_anchor:missing",
+      "rationale": "The anchored workflow verifies the exact A1-derived rectangle through /htmlview/sheet, but automatic state projections are DOM-only and cannot independently fetch the grid model. Independent sheets.read remains required.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:sheets.cell.set:missing",
+      "rationale": "The workflow verifies the exact A1-derived cell value through /htmlview/sheet before/after state. The external projection engine cannot fetch canvas-backed grid state, so sheets.read is the independent verifier.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "state-machine:sheets.range.paste_tsv:prose-precondition-without-state-assertion",
+      "rationale": "The raw range paste intentionally consumes the user's already-focused canvas cell. Sheets exposes no DOM identity for the selected canvas cell that a pre-mutation locator can prove. The caller must pass the same anchor_cell identity, and the workflow rejects success unless the complete server-rendered rectangle changes at that exact coordinate.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    }
+  ]
+}
+

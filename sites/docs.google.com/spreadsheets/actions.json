@@ -60,65 +60,82 @@
     },
     {
       "name": "sheets.range.paste_tsv",
-      "description": "Paste a TSV block as a real multi-column RANGE starting at the currently selected cell. Google Sheets expands an HTML <table> (which this builds from your tsv) into rows/columns. VALIDATED LIVE 2026-07-05 (screenshot-confirmed: a 3x3 TSV expanded into a genuine A:C range, numbers stayed numeric). PRECONDITION: click the anchor cell on the grid CANVAS first (pointer.click) so the grid is focused — do NOT select the anchor via the Name Box, its focus does not reach the paste and the paste misfires (default_prevented:false). Provide tsv with a TAB (\\t) between columns and a NEWLINE (\\n) between rows. Verify with sheets.read after a ~1-2s settle.",
+      "description": "Paste a TSV block at the currently focused grid anchor. PRECONDITION: click the exact anchor cell on the grid canvas first. Pass that same identity as anchor_cell; the workflow reads htmlview before and after and verifies the complete rectangular region at that coordinate. Independently confirm with sheets.read.",
       "input_schema": {
         "type": "object",
-        "required": ["tsv"],
+        "required": ["sheet_id", "gid", "anchor_cell", "tsv"],
         "properties": {
+          "sheet_id": { "type": "string", "minLength": 1 },
+          "gid": { "type": "string", "minLength": 1 },
+          "anchor_cell": { "type": "string", "pattern": "^[A-Za-z]+[1-9][0-9]*$", "description": "A1 identity of the grid cell already focused by the caller." },
           "tsv": { "type": "string", "description": "The block to paste: TAB (\\t) between columns, NEWLINE (\\n) between rows. Expands into a range from the selected anchor cell." }
         },
         "additionalProperties": false
       },
+      "x_actions": { "effect": "durable_mutation" },
       "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}" }
+          },
           {
             "id": "paste",
             "primitive": "clipboard.paste",
             "args": {
               "text": "{% input.tsv %}",
               "html": "{% ( $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $rows := $split(input.tsv, '\n'); $trs := $join($map($rows, function($r) { ( $cells := $split($r, '\t'); '<tr>' & $join($map($cells, function($c) { '<td>' & $esc($c) & '</td>' })) & '</tr>' ) })); '<table>' & $trs & '</table>' ) %}"
-            }
+            },
+            "settle_after": { "delay_ms": 4000 }
+          },
+          {
+            "id": "staleProbeFetch",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_verify=' & input.anchor_cell %}" },
+            "settle_after": { "delay_ms": 2500 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_confirm=' & input.anchor_cell %}" }
           }
         ],
-        "output": "{% { 'pasted_tsv': input.tsv, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Wait ~1-2s (htmlview regenerates) then sheets.read to verify the range. If accepted is false, the grid was not focused — click the anchor cell on the canvas first, not the Name Box.' } %}"
+        "output": "{% ( $parse := function($b) { ( $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })] ) }; $coord := $uppercase(input.anchor_cell); $letters := $replace($coord, /[0-9]+/, ''); $row := $number($replace($coord, /[A-Z]+/, '')) - 1; $col := $reduce($split($letters, ''), function($a, $c) { $a * 26 + $length($substringBefore('ABCDEFGHIJKLMNOPQRSTUVWXYZ', $c)) + 1 }, 0) - 1; $expected := [$map($split(input.tsv, '\\n'), function($r) { [$split($r, '\\t')] })]; $beforeRows := $parse(steps.fetchBefore.output.body); $afterRows := $parse(steps.verifyFetch.output.body); $region := function($rows) { [$map($expected, function($er, $ri) { [$map($er, function($v, $ci) { ($targetRow := $rows[$row + $ri]; $targetRow[$col + $ci]) })] })] }; $before := $region($beforeRows); $after := $region($afterRows); $verified := steps.paste.output.default_prevented and $string($after) = $string($expected) and $string($before) != $string($expected); { 'anchor_cell': $coord, 'accepted': steps.paste.output.default_prevented, 'expected_region': $expected, 'before_region': $before, 'after_region': $after, 'verified': $verified, 'fetch_status': steps.verifyFetch.output.status, 'next_step': $verified ? 'Range verified at the exact anchor through htmlview; independently confirm with sheets.read.' : 'Range did not verify at the exact anchor. Do not claim success; re-read the sheet and restore grid focus.' } ) %}"
       }
     },
   {
     "name": "sheets.range.paste_tsv_at_anchor",
-      "description": "Select an anchor cell through the Name Box, re-focus the visible grid canvas, paste a TSV block, then verify the first TSV token appears in sheets.read. Use this instead of sheets.cell.set for artifacts and tables: it owns the focus sequence and returns verified:false when the write did not land. Defaults anchor_cell to A1. This action was added after live failure where sheets.cell.set returned ok:true for A1:C2 but sheets.read stayed empty.",
+      "description": "Attempt to select an exact anchor through the Name Box and paste a TSV block, then compare the complete A1-derived rectangle through htmlview. MEASURED BOUNDARY (2026-07-12): clipboard acceptance can occur without a durable write, so do not claim success unless verified is true and an independent sheets.read agrees.",
       "input_schema": {
         "type": "object",
-        "required": ["sheet_id", "gid", "tsv"],
+        "required": ["sheet_id", "gid", "anchor_cell", "tsv"],
         "properties": {
           "sheet_id": { "type": "string", "description": "The spreadsheet id from the URL segment after /spreadsheets/d/." },
           "gid": { "type": "string", "description": "The numeric grid id from the URL #gid=<n>; first tab is 0." },
-          "anchor_cell": { "type": "string", "description": "A1-style top-left anchor cell. Defaults to A1." },
+          "anchor_cell": { "type": "string", "pattern": "^[A-Za-z]+[1-9][0-9]*$", "description": "A1-style top-left anchor cell. Defaults to A1." },
           "tsv": { "type": "string", "description": "The block to paste: TAB (\\t) between columns, NEWLINE (\\n) between rows." }
         },
         "additionalProperties": false
       },
-    "x_actions": {
-      "geometry_identity_exception": {
-        "status": "investigation_required",
-        "reason": "The click refocuses the Sheets canvas after Name Box selection, but it may also move semantic selection away from anchor_cell. Keep visible until an independent model read proves or refutes anchor preservation.",
-        "investigation": "google-sheets-grid-focus-may-change-named-anchor-2026-07-11.md"
-      }
-    },
+    "x_actions": { "effect": "durable_mutation" },
     "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}" }
+          },
           {
             "id": "findNameBox",
             "primitive": "locator.element_info",
             "args": { "locator": { "selector": "input.waffle-name-box" } }
-          },
-          {
-            "id": "clickNameBox",
-            "primitive": "pointer.click",
-            "args": { "x": "{% steps.findNameBox.output.clickable_center.x %}", "y": "{% steps.findNameBox.output.clickable_center.y %}" }
           },
           {
             "id": "typeAnchor",
@@ -128,22 +145,8 @@
           {
             "id": "selectAnchor",
             "primitive": "keyboard.press",
-            "args": { "key": "Enter" },
+            "args": { "key": "Enter", "trusted": true },
             "settle_after": { "delay_ms": 900 }
-          },
-          {
-            "id": "findGrid",
-            "primitive": "locator.element_info",
-            "args": { "locator": { "selector": "[id='0-grid-container']" } }
-          },
-          {
-            "id": "clickGrid",
-            "primitive": "pointer.click",
-            "args": {
-              "x": "{% steps.findGrid.output.bounding_box.left + 90 %}",
-              "y": "{% steps.findGrid.output.bounding_box.top + 55 %}"
-            },
-            "settle_after": { "delay_ms": 250 }
           },
           {
             "id": "paste",
@@ -152,44 +155,54 @@
               "text": "{% input.tsv %}",
               "html": "{% ( $esc := function($s) { $replace($replace($replace($s, '&', '&amp;'), '<', '&lt;'), '>', '&gt;') }; $rows := $split(input.tsv, '\n'); $trs := $join($map($rows, function($r) { ( $cells := $split($r, '\t'); '<tr>' & $join($map($cells, function($c) { '<td>' & $esc($c) & '</td>' })) & '</tr>' ) })); '<table>' & $trs & '</table>' ) %}"
             },
-            "settle_after": { "delay_ms": 2000 }
+            "settle_after": { "delay_ms": 4000 }
+          },
+          {
+            "id": "staleProbeFetch",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_verify=' & input.anchor_cell %}"
+            },
+            "settle_after": { "delay_ms": 2500 }
           },
           {
             "id": "verifyFetch",
             "primitive": "page.fetch",
-            "args": {
-              "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}"
-            }
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_confirm=' & input.anchor_cell %}" }
           }
         ],
-        "output": "{% ( $b := steps.verifyFetch.output.body; $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; $rows := [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })]; $firstToken := $split($split(input.tsv, '\n')[0], '\t')[0]; { 'anchor_cell': input.anchor_cell ? input.anchor_cell : 'A1', 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'verified': $contains($string($rows), $firstToken), 'first_token': $firstToken, 'rows': $rows, 'row_count': $count($rows), 'next_step': $contains($string($rows), $firstToken) ? 'Write verified by sheets.read-compatible htmlview fetch.' : 'Write did NOT verify. Do not claim success; inspect focus/click geometry or use a different grid-focus primitive.' } ) %}"
+        "output": "{% ( $parse := function($b) { ( $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })] ) }; $coord := $uppercase(input.anchor_cell); $letters := $replace($coord, /[0-9]+/, ''); $row := $number($replace($coord, /[A-Z]+/, '')) - 1; $col := $reduce($split($letters, ''), function($a, $c) { $a * 26 + $length($substringBefore('ABCDEFGHIJKLMNOPQRSTUVWXYZ', $c)) + 1 }, 0) - 1; $expected := [$map($split(input.tsv, '\\n'), function($r) { [$split($r, '\\t')] })]; $beforeRows := $parse(steps.fetchBefore.output.body); $afterRows := $parse(steps.verifyFetch.output.body); $region := function($rows) { [$map($expected, function($er, $ri) { [$map($er, function($v, $ci) { ($targetRow := $rows[$row + $ri]; $targetRow[$col + $ci]) })] })] }; $before := $region($beforeRows); $after := $region($afterRows); $verified := steps.paste.output.default_prevented and $string($after) = $string($expected) and $string($before) != $string($expected); { 'anchor_cell': $coord, 'accepted': steps.paste.output.default_prevented, 'expected_region': $expected, 'before_region': $before, 'after_region': $after, 'verified': $verified, 'fetch_status': steps.verifyFetch.output.status, 'next_step': $verified ? 'Range verified at the exact anchor through htmlview; independently confirm with sheets.read.' : 'Range did not verify at the exact anchor. Do not claim success; re-read the sheet and restore grid focus.' } ) %}"
       }
     },
     {
       "name": "sheets.cell.set",
-      "description": "Set a single cell's value. Types the cell reference into the Name Box (top-left), presses Enter to select it, types the value, presses Enter to commit. PRECONDITION: the Sheets tab must be foregrounded (interactive). The Name Box selection repaints asynchronously (a brief spinner) — for a block of data prefer sheets.range.paste_tsv. Verify with sheets.read after a ~1-2s settle.",
+      "description": "Attempt to set one exact cell through the Name Box using trusted Enter events, then read htmlview before and after and require that exact A1 cell to equal the request. MEASURED BOUNDARY (2026-07-12): the current focus sequence can misaddress a write, so do not claim success unless verified is true and an independent sheets.read agrees.",
       "input_schema": {
         "type": "object",
-        "required": ["cell_ref", "value"],
+        "required": ["sheet_id", "gid", "cell_ref", "value"],
         "properties": {
-          "cell_ref": { "type": "string", "description": "A1-style cell reference to write into (e.g. 'B2')." },
+          "sheet_id": { "type": "string", "minLength": 1 },
+          "gid": { "type": "string", "minLength": 1 },
+          "cell_ref": { "type": "string", "pattern": "^[A-Za-z]+[1-9][0-9]*$", "description": "A1-style cell reference to write into (e.g. 'B2')." },
           "value": { "type": "string", "description": "The value to type into the cell." }
         },
         "additionalProperties": false
       },
+      "x_actions": { "effect": "durable_mutation" },
       "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid %}" }
+          },
           {
             "id": "focusNameBox",
             "primitive": "locator.element_info",
             "args": { "locator": { "selector": "input.waffle-name-box" } }
-          },
-          {
-            "id": "clickNameBox",
-            "primitive": "pointer.click",
-            "args": { "x": "{% steps.focusNameBox.output.clickable_center.x %}", "y": "{% steps.focusNameBox.output.clickable_center.y %}" }
           },
           {
             "id": "typeRef",
@@ -199,20 +212,33 @@
           {
             "id": "selectCell",
             "primitive": "keyboard.press",
-            "args": { "key": "Enter" }
+            "args": { "key": "Enter", "trusted": true },
+            "settle_after": { "delay_ms": 900 }
           },
           {
             "id": "typeValue",
-            "primitive": "text.insert",
-            "args": { "text": "{% input.value %}" }
+            "primitive": "text.type",
+            "args": { "text": "{% input.value %}", "trusted": true }
           },
           {
             "id": "commitCell",
             "primitive": "keyboard.press",
-            "args": { "key": "Enter" }
+            "args": { "key": "Enter", "trusted": true },
+            "settle_after": { "delay_ms": 4000 }
+          },
+          {
+            "id": "staleProbeFetch",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_verify=' & input.cell_ref %}" },
+            "settle_after": { "delay_ms": 2500 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/spreadsheets/d/' & input.sheet_id & '/htmlview/sheet?headers=true&gid=' & input.gid & '&_actions_json_confirm=' & input.cell_ref %}" }
           }
         ],
-        "output": "{% { 'cell_set': input.cell_ref, 'value': input.value, 'next_step': 'Verify with sheets.read after a ~1-2s settle. Note: the Name Box selection repaints async; if the value did not land, the cell may not have been selected in time.' } %}"
+        "output": "{% ( $parse := function($b) { ( $table := $substringBefore($substringAfter($b, '<table class=\"waffle\"'), '</table>'); $body := $substringAfter($table, '<tbody>'); $rowFrags := [$filter($split($body, '<tr'), function($v, $i) { $i > 0 })]; [$map($rowFrags, function($rf) { ( $cellFrags := [$filter($split($rf, '<td'), function($v, $i) { $i > 0 })]; [$map($cellFrags, function($cf) { $trim($replace($substringBefore($substringAfter($cf, '>'), '</td>'), /<[^>]*>/, '')) })] ) })] ) }; $coord := $uppercase(input.cell_ref); $letters := $replace($coord, /[0-9]+/, ''); $row := $number($replace($coord, /[A-Z]+/, '')) - 1; $col := $reduce($split($letters, ''), function($a, $c) { $a * 26 + $length($substringBefore('ABCDEFGHIJKLMNOPQRSTUVWXYZ', $c)) + 1 }, 0) - 1; $beforeRows := $parse(steps.fetchBefore.output.body); $afterRows := $parse(steps.verifyFetch.output.body); $beforeRow := $beforeRows[$row]; $afterRow := $afterRows[$row]; $before := $beforeRow[$col]; $after := $afterRow[$col]; $verified := steps.verifyFetch.output.status = 200 and $after = input.value and ($not($exists($before)) or $before != input.value); { 'cell_set': $coord, 'requested_value': input.value, 'before_value': $before, 'after_value': $after, 'verified': $verified, 'fetch_status': steps.verifyFetch.output.status, 'next_step': $verified ? 'Exact cell verified through htmlview; independently confirm with sheets.read.' : 'Exact cell did not verify. Do not claim success or retry blindly; read current grid state.' } ) %}"
       }
     }
   ],
