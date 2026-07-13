@@ -32,6 +32,11 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.findLegacyLabelsButton.args.locator.text_contains, "Labels");
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
+  assert.ok(
+    steps.findIndex((step) => step.id === "clickClosePopover") <
+      steps.findIndex((step) => step.id === "verifyCardLabel"),
+    "popover must close before final card-level label verification so it cannot occlude the label container",
+  );
   assert.equal(byId.verifyCardLabel.args.locator.selector, "[data-testid='card-back-labels-container'] [data-testid='card-label']");
   assert.match(apply.workflow.output, /already_present/);
   assert.match(apply.workflow.output, /verified/);
