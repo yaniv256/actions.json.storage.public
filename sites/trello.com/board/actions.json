@@ -3797,7 +3797,7 @@
     },
     {
       "name": "trello.card.labels_button.info",
-      "description": "Resolve the Labels button in an open Trello card modal. Click it to open label selection and editing controls.",
+      "description": "Resolve Trello's legacy Labels button in an open Trello card modal. Current Trello often renders the label control as Add a label after labels already exist; prefer trello.card.label.apply for mutation because it handles both control names and verifies idempotently.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -3869,7 +3869,7 @@
     },
     {
       "name": "trello.card.label_options.candidates",
-      "description": "Return visible label option candidates after the Trello Labels popover is open. Use this after clicking Labels or Add a label. Choose the candidate whose text, aria-label, or visible label name matches the requested priority/category label, click it with trello.interaction.pointer.click, then verify through trello.card.modal_text.read or a board/list read that the label appears. If multiple labels match, ask the user rather than guessing.",
+      "description": "Return visible label-row candidates after the Trello Labels popover is open. Use this for diagnosis or manual selection only; prefer trello.card.label.apply for normal mutation because it scopes directly to the requested label, skips already-present labels, and verifies through card labels. This candidate read is intentionally scoped to the labels popover so it does not dump unrelated card-dialog buttons.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -3881,13 +3881,203 @@
           "target_url_contains": "trello.com",
           "arguments": {
             "locator": {
-              "selector": "[role='dialog'] button, [role='dialog'] label, [role='dialog'] [role='checkbox'], .window button, .window label, .window [role='checkbox']"
+              "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox'], [data-testid='labels-popover-labels-screen'] [data-testid='card-label'], [data-testid='labels-popover-labels-screen'] input[type='checkbox']"
             }
           }
         },
         "source": {
           "component": "TrelloLabelOptionCandidates",
           "why": "Label mutation needs candidate enumeration inside Trello's card label popover so agents can choose P0/P1/category labels without generic DOM fallback."
+        }
+      }
+    },
+    {
+      "name": "trello.card.label.apply",
+      "description": "Apply a named label to the currently open Trello card through the visible Labels/Add a label popover. Idempotent: if the label already appears on the card, it does not open the popover or click the label row. Otherwise it scrolls the card controls back into view, opens Add a label or legacy Labels, clicks the exact label row in the scoped labels popover, verifies the label appears on the card label container, and closes the popover when possible.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "Exact visible Trello label text to apply, e.g. Priority: High, Priority: Normal, Agent runnable, or Human required."
+          }
+        },
+        "required": [
+          "label"
+        ],
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "scrollCardControlsIntoView",
+            "primitive": "viewport.scroll",
+            "args": {
+              "delta_x": 0,
+              "delta_y": -1200,
+              "scope": {
+                "selector": "main",
+                "text_contains": "Description",
+                "root_strategy": "scope"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findExistingCardLabel",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findAddLabelButton",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, .window button",
+                "text_contains": "Add a label"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "findLegacyLabelsButton",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, .window button",
+                "text_contains": "Labels"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "clickLabelsControl",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% $exists(steps.findAddLabelButton.output.clickable_center.x) ? steps.findAddLabelButton.output.clickable_center.x : steps.findLegacyLabelsButton.output.clickable_center.x %}",
+              "y": "{% $exists(steps.findAddLabelButton.output.clickable_center.y) ? steps.findAddLabelButton.output.clickable_center.y : steps.findLegacyLabelsButton.output.clickable_center.y %}"
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "settle_after": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen']"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            }
+          },
+          {
+            "id": "findMatchingLabelRow",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "retry_until": "{% $exists(steps.findMatchingLabelRow.output.clickable_center.x) %}",
+            "max_attempts": 3,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='labels-popover-labels-screen']",
+                  "text_contains": "Labels"
+                },
+                "state": "visible",
+                "timeout_ms": 1500
+              }
+            }
+          },
+          {
+            "id": "clickMatchingLabelRow",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findMatchingLabelRow.output.clickable_center.x %}",
+              "y": "{% steps.findMatchingLabelRow.output.clickable_center.y %}"
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "settle_after": {
+              "delay_ms": 250
+            }
+          },
+          {
+            "id": "verifyCardLabel",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "retry_until": "{% $exists(steps.verifyCardLabel.output.clickable_center.x) %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                  "text_contains": "{% input.label %}"
+                },
+                "state": "visible",
+                "timeout_ms": 1500
+              }
+            }
+          },
+          {
+            "id": "findClosePopover",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] button, button",
+                "text_contains": "Close popover"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "clickClosePopover",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findClosePopover.output.clickable_center.x %}",
+              "y": "{% steps.findClosePopover.output.clickable_center.y %}"
+            },
+            "when": "{% $exists(steps.findClosePopover.output.clickable_center.x) %}",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'label': input.label, 'already_present': $exists(steps.findExistingCardLabel.output.clickable_center.x), 'clicked': $exists(steps.clickMatchingLabelRow.output.clicked) or $exists(steps.clickMatchingLabelRow.output.value.clicked), 'verified': $exists(steps.verifyCardLabel.output.clickable_center.x), 'verification_required': 'verified:true means the exact label was found in the card label container after the operation.'} %}",
+        "x_state_machine": {
+          "requires_state": {
+            "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
+            "text_contains": "Description"
+          },
+          "postcondition": {
+            "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+            "text_contains": "{% input.label %}"
+          }
+        }
+      },
+      "x_actions": {
+        "source": {
+          "component": "TrelloCardLabelApply",
+          "why": "Live investigation showed the old label flow was slow because agents dumped every card-dialog button/label/checkbox and because the Labels control can be offscreen or rendered as Add a label. This action scopes to the requested row and verifies idempotently."
         }
       }
     },
