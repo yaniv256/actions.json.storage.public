@@ -25,19 +25,33 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   const byId = Object.fromEntries(steps.map((step) => [step.id, step]));
 
   assert.equal(apply.input_schema.required.includes("label"), true);
-  assert.equal(byId.scrollCardControlsIntoView.args.delta_y, -1200);
-  assert.equal(byId.revealLabelControlsInShortViewport.args.delta_y, 200);
+  assert.equal(byId.scrollCardControlsIntoView, undefined);
+  assert.equal(byId.revealLabelControlsInShortViewport, undefined);
+  assert.equal(byId.waitForLabelControlAfterScroll, undefined);
   assert.equal(byId.findExistingCardLabel.args.locator.selector, "[data-testid='card-back-labels-container'] [data-testid='card-label']");
+  assert.equal(
+    byId.findMatchingLabelRowBeforeOpen.args.locator.selector,
+    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+  );
+  assert.equal(byId.findMatchingLabelRowBeforeOpen.on_error, "continue");
   assert.equal(byId.findAddLabelButton.args.locator.text_contains, "Add a label");
   assert.equal(byId.findLegacyLabelsButton.args.locator.text_contains, "Labels");
   assert.equal(byId.findIconLabelButton.args.locator.text_contains, "label");
   assert.match(byId.findIconLabelButton.when, /findLegacyLabelsButton/);
   assert.match(byId.clickLabelsControl.args.x, /findIconLabelButton/);
+  assert.match(byId.clickLabelsControl.when, /findMatchingLabelRowBeforeOpen/);
   assert.equal(
     byId.clickLabelsControl.settle_after.locator.selector,
     "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
   );
   assert.equal(byId.clickLabelsControl.settle_after.locator.text_contains, "{% input.label %}");
+  assert.ok(byId.clickLabelsControl.settle_after.timeout_ms <= 2000);
+  assert.equal(byId.findMatchingLabelRowAfterFirstClick.on_error, "continue");
+  assert.match(byId.clickLabelsControlAfterNoop.when, /findMatchingLabelRowAfterFirstClick/);
+  assert.equal(
+    byId.clickLabelsControlAfterNoop.settle_after.locator.selector,
+    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+  );
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
   assert.equal(
     byId.findMatchingLabelRow.after_each.args.locator.selector,
