@@ -4533,7 +4533,7 @@
     },
     {
       "name": "trello.card.title.set",
-      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board with trello.board.visible_cards.read before retrying. Do not claim success unless output.verified is true. KNOWN LIMITATION (2026-07-08): the current text.insert-based edit does NOT persist on Trello card-back titles because they are React CONTROLLED inputs \u2014 the rename reverts on blur. verified:false is returned honestly. Real fix is a controlled-input-aware primitive (native value setter + dispatched input event); until shipped, treat title rename as UNSUPPORTED and create the card with its final title instead. See investigations/trello-card-title-set-rename-not-persisting.md.",
+      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. CURRENT MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4714,7 +4714,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': ($exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title))), 'warning': 'text.insert on a React-controlled input does NOT persist; see investigations/trello-card-title-set-rename-not-persisting.md'} %}"
+        "output": "{% {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': ($exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title))), 'next_step': 'Only report success if verified is true; independently confirm the exact new title is present and the old title is absent with the independent board projection. After verified:false, re-read state before any retry.'} %}"
       }
     },
     {
