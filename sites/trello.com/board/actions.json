@@ -3980,11 +3980,23 @@
             "on_error": "continue"
           },
           {
+            "id": "findIconLabelButton",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='dialog'] button, .window button",
+                "text_contains": "label"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findAddLabelButton.output.clickable_center.x)) and $not($exists(steps.findLegacyLabelsButton.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
             "id": "clickLabelsControl",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% $exists(steps.findAddLabelButton.output.clickable_center.x) ? steps.findAddLabelButton.output.clickable_center.x : steps.findLegacyLabelsButton.output.clickable_center.x %}",
-              "y": "{% $exists(steps.findAddLabelButton.output.clickable_center.y) ? steps.findAddLabelButton.output.clickable_center.y : steps.findLegacyLabelsButton.output.clickable_center.y %}"
+              "x": "{% $exists(steps.findAddLabelButton.output.clickable_center.x) ? steps.findAddLabelButton.output.clickable_center.x : ($exists(steps.findLegacyLabelsButton.output.clickable_center.x) ? steps.findLegacyLabelsButton.output.clickable_center.x : steps.findIconLabelButton.output.clickable_center.x) %}",
+              "y": "{% $exists(steps.findAddLabelButton.output.clickable_center.y) ? steps.findAddLabelButton.output.clickable_center.y : ($exists(steps.findLegacyLabelsButton.output.clickable_center.y) ? steps.findLegacyLabelsButton.output.clickable_center.y : steps.findIconLabelButton.output.clickable_center.y) %}"
             },
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
             "settle_after": {
