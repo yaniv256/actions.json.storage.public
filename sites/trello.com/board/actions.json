@@ -3931,6 +3931,20 @@
             "on_error": "continue"
           },
           {
+            "id": "revealLabelControlsInShortViewport",
+            "primitive": "viewport.scroll",
+            "args": {
+              "delta_x": 0,
+              "delta_y": 200,
+              "scope": {
+                "selector": "main",
+                "text_contains": "Description",
+                "root_strategy": "scope"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
             "id": "findExistingCardLabel",
             "primitive": "locator.element_info",
             "args": {
