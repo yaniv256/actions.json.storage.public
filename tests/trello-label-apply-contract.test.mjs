@@ -33,7 +33,17 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.findIconLabelButton.args.locator.text_contains, "label");
   assert.match(byId.findIconLabelButton.when, /findLegacyLabelsButton/);
   assert.match(byId.clickLabelsControl.args.x, /findIconLabelButton/);
+  assert.equal(
+    byId.clickLabelsControl.settle_after.locator.selector,
+    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+  );
+  assert.equal(byId.clickLabelsControl.settle_after.locator.text_contains, "{% input.label %}");
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
+  assert.equal(
+    byId.findMatchingLabelRow.after_each.args.locator.selector,
+    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+  );
+  assert.equal(byId.findMatchingLabelRow.after_each.args.locator.text_contains, "{% input.label %}");
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
   assert.ok(
     steps.findIndex((step) => step.id === "clickClosePopover") <
