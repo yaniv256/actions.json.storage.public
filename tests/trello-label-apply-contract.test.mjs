@@ -25,6 +25,8 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   const byId = Object.fromEntries(steps.map((step) => [step.id, step]));
 
   assert.equal(apply.input_schema.required.includes("label"), true);
+  assert.equal(byId.scrollCardControlsIntoView.args.delta_y, -1200);
+  assert.equal(byId.revealLabelControlsInShortViewport.args.delta_y, 200);
   assert.equal(byId.findExistingCardLabel.args.locator.selector, "[data-testid='card-back-labels-container'] [data-testid='card-label']");
   assert.equal(byId.findAddLabelButton.args.locator.text_contains, "Add a label");
   assert.equal(byId.findLegacyLabelsButton.args.locator.text_contains, "Labels");
