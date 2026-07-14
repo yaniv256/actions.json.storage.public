@@ -1,0 +1,52 @@
+{
+  "accepted_gaps": [
+    {
+      "finding_id": "weak-postcondition:slides.slide.create:missing",
+      "rationale": "Slide creation changes the canvas-backed deck model, while state projections are DOM-only and cannot call page.fetch. The workflow therefore reads /export/html before and after the toolbar mutation and requires an exact +1 server-backed slide-count delta; independent slides.read verification remains required until fetch-backed projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.slide.duplicate:missing",
+      "rationale": "Slide duplication changes the canvas-backed deck model, while state projections are DOM-only and cannot call page.fetch. The workflow therefore reads /export/html before and after the menu mutation and requires an exact +1 server-backed slide-count delta; independent slides.read verification remains required until fetch-backed projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.textbox.paste:missing",
+      "rationale": "Slides text is canvas-rendered; durable text state is available only through the same-origin /export/html model. State projections are DOM-only and cannot call page.fetch. The workflow therefore compares exact-text occurrence counts before and after paste and requires independent slides.read verification until fetch-backed projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.current_slide.textbox.set:missing",
+      "rationale": "The current-slide textbox mutation is identity-bound in the rendered Slides SVG and verifies the requested slide through exact pre/post /export/html text-box deltas. External state projections remain DOM-only and cannot fetch the server-backed deck model, so independent slides.read remains required until fetch-backed projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "state-machine:slides.textbox.paste:prose-precondition-without-state-assertion",
+      "rationale": "Live-tested on extension 0.1.205: after exact #editor-i1 double-click, the same-origin .docs-texteventtarget-iframe accepts clipboard.paste but locator.element_info cannot resolve that hidden event-target iframe and a mechanical locator gate falsely blocks the valid edit. Keep the explicit edit-mode precondition and certify the real effect through accepted plus increased /export/html occurrence count until Slides exposes a selectable current-element projection.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.title_slide.set:missing",
+      "rationale": "Title-slide persistence is verified against pre/post /export/html occurrence counts inside the workflow, but the external postcondition engine cannot fetch the canvas-backed deck model. Independent slides.read remains required until fetch-backed projections exist.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.title.set:missing",
+      "rationale": "Deck-title persistence is served by /htmlpresent og:title. The workflow fetches and compares that exact value after commit, while DOM-only state projections cannot independently fetch it. Independent slides.read deck_title verification remains required.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    },
+    {
+      "finding_id": "weak-postcondition:slides.getting_started.close:missing",
+      "rationale": "Closing the getting-started modal is a transient UI transition, not a durable content mutation. The workflow re-resolves the close control and reports success only when it disappears; a durable content projection postcondition would be semantically false.",
+      "accepted_by": "zara",
+      "accepted_at": "2026-07-12"
+    }
+  ]
+}

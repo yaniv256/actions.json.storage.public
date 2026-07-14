@@ -4,10 +4,10 @@
   "surface": "presentation",
   "scope": { "url_matches": "https://docs.google.com/presentation/d/*" },
   "observed_at": "2026-07-05",
-  "prompt": "You operate a Google Slides presentation. READING: Slides renders each slide to a CANVAS/SVG (the 'punch' viewer), so the live DOM is empty — but Google DOES publish a same-origin server-rendered full-text export at /export/html. slides.read fetches that (page.fetch) and returns EVERY slide's structured text: { deck_title, slide_count, slides:[{ slide, title, text:[…runs…], notes }] } — including speaker notes. This is a real projection of the whole deck, not a first-slide peephole. Use it to see all slide content; only fall back to a SCREENSHOT when you need exact visual layout/positioning or non-text elements (images, charts). WRITING text: double-click a text box on the CANVAS to enter edit mode (this creates the same-origin editor iframe), then paste via slides.textbox.paste (frame clipboard.paste into .docs-texteventtarget-iframe — the identical mechanism Slides shares with Docs). Set the deck title via the toolbar 'Rename' input. Never navigate or reload while a text box is in edit mode. VERIFY writes by re-reading with slides.read (the /export/html regenerates server-side and can lag a second or two after an edit — settle briefly).",
+  "prompt": "You operate a Google Slides presentation. READING: Slides renders each slide to a CANVAS/SVG, but Google publishes a same-origin server-rendered full-text export at /export/html. slides.read returns EVERY slide's structured text and notes. slides.current_slide.textboxes.read is the blind-first current-slide map: it returns each rendered text box's object identity, text, and semantic role where detectable. Use it before editing; do not pixel-hunt. SLIDE STRUCTURE: slides.slide.create and slides.slide.duplicate use visible toolbar/menu controls and verify exact +1 server-backed slide-count deltas. WRITING text: prefer slides.current_slide.textbox.set, which resolves role first and exact existing text second, derives fresh DOM geometry internally, replaces the box, and verifies the requested slide through /export/html. slides.textbox.paste remains the lower-level action only when a box is already in edit mode. Set the deck title via the Rename input. Never navigate or reload while a text box is in edit mode. VERIFY every write by independently re-reading with slides.read after the server export settles.",
   "skill": "Call slides.map first. VALIDATION STATUS (2026-07-05): slides.textbox.paste VALIDATED live (screenshot-confirmed) — double-click the target box then frame clipboard.paste writes via the same .docs-texteventtarget-iframe path as the VALIDATED docs.append. slides.read REWRITTEN + VALIDATED — it now fetches /export/html (NOT /htmlpresent, NOT /mobilebasic which 404s for Slides) and parses Google's authentic export markup: each slide is a `<div role=\"group\" class=\"slide\" title=\"Slide N\">`, each text box a `<div class=\"shape\">` with `<p>` runs, and speaker notes a `<div class=\"slide-notes\">`. The parser splits on the slide-group marker, collects every `<p>` inner text per slide (tags stripped, HTML entities decoded, empty/zero-width paragraphs dropped), and returns per-slide { title, text[], notes }. Live-validated against the real deck (single slide) end-to-end; multi-slide + speaker-notes parsing validated against authentic Google export markup via the map engine's own jsonata. So slides.read gives full-deck text — do NOT treat Slides as read-blind anymore. deck_id = URL segment after /presentation/d/. New decks pop a 'Let's start creating' template modal that ignores Escape — close it via its X (DPR-corrected coords) before editing. SCREENSHOT DPR: capture is ~1.25x the viewport (viewport ~1026w); divide screenshot pixel coords by ~1.25 for clicks, or resolve controls by identity.",
   "requires": [],
-  "notes": "Read endpoint: page.fetch https://docs.google.com/presentation/d/<deck_id>/export/html → server-rendered FULL deck HTML. Structure: one `<div role=\"group\" class=\"slide\" title=\"Slide N\">` per slide; inside, `<section class=\"slide-content\">` holds `<div class=\"shape\">` text boxes each with `<p style=...>` runs; speaker notes are a sibling `<div class=\"slide-notes\">` with its own `<p>` runs. Parser: split body on '<div role=\"group\" class=\"slide\"'; per fragment read the title=\"…\" attr, split off '<div class=\"slide-notes\"' for notes, collect each `<p>` inner text via substringAfter('>')/substringBefore('</p>'), strip residual tags, decode entities (&amp; &lt; &gt; &quot; &#39; &#8212;), drop &#8203; zero-width and empty paragraphs. TITLE SOURCE: /export/html has NO og:title and its <title> is Drive's generic 'Untitled - Google Drive' wrapper (NOT the deck name), so slides.read makes a SECOND page.fetch to /htmlpresent purely for its og:title (real deck name), falling back to that page's '<title> - Google Slides'. /htmlpresent otherwise only exposes og:title + first-slide og:description (the old peephole); /mobilebasic 404s for Slides. Write: double-click the target text box on the canvas (enters edit mode + focuses the inner .docs-texteventtarget-iframe contenteditable), then clipboard.paste target {frame:'.docs-texteventtarget-iframe', selector:\"[contenteditable='true']\"}. Rich content: pass an html flavor to clipboard.paste (0.1.155+). Title/subtitle boxes are the default title-slide placeholders; the frame path reaches whichever box is in edit mode. NOTE: Slides ignores synthetic (page-level) keyboard chords for canvas shortcuts (Ctrl+M/Ctrl+D do not add/duplicate slides); create slides via the toolbar/'+' control, not keyboard.press. /export/html regenerates server-side and can lag ~1-2s after an edit — settle before re-reading.",
+  "notes": "Read endpoint: page.fetch https://docs.google.com/presentation/d/<deck_id>/export/html → server-rendered FULL deck HTML. Structure: one `<div role=\"group\" class=\"slide\" title=\"Slide N\">` per slide; inside, `<section class=\"slide-content\">` holds `<div class=\"shape\">` text boxes each with `<p style=...>` runs; speaker notes are a sibling `<div class=\"slide-notes\">` with its own `<p>` runs. Parser: split body on '<div role=\"group\" class=\"slide\"'; per fragment read the title=\"…\" attr, split off '<div class=\"slide-notes\"' for notes, collect each `<p>` inner text via substringAfter('>')/substringBefore('</p>'), strip residual tags, decode entities (&amp; &lt; &gt; &quot; &#39; &#8212;), drop &#8203; zero-width and empty paragraphs. TITLE SOURCE: /export/html has NO og:title and its <title> is Drive's generic 'Untitled - Google Drive' wrapper (NOT the deck name), so slides.read makes a SECOND page.fetch to /htmlpresent purely for its og:title (real deck name), falling back to that page's '<title> - Google Slides'. /htmlpresent otherwise only exposes og:title + first-slide og:description (the old peephole); /mobilebasic 404s for Slides. Write: double-click the target text box on the canvas (enters edit mode + focuses the inner .docs-texteventtarget-iframe contenteditable), then clipboard.paste target {frame:'.docs-texteventtarget-iframe', selector:\"[contenteditable='true']\"}. Rich content: pass an html flavor to clipboard.paste (0.1.155+). Title/subtitle boxes are the default title-slide placeholders; the frame path reaches whichever box is in edit mode. NOTE: Slides ignores synthetic (page-level) keyboard chords for canvas shortcuts (Ctrl+M/Ctrl+D do not add/duplicate slides). slides.slide.create uses the unique toolbar #newSlideButton; slides.slide.duplicate opens #punch-slide-menu and selects the unique menu item containing .docs-icon-editors-ia-control-point-duplicate. Both prove an exact +1 count in /export/html before reporting verified. /export/html regenerates server-side and can lag ~1-2s after an edit — settle before re-reading.",
   "tools": [
     {
       "name": "slides.map",
@@ -19,12 +19,12 @@
           "site": "docs.google.com",
           "surface": "presentation",
           "read": "slides.read { deck_id } — fetches /export/html (page.fetch, same-origin) and returns { deck_title, slide_count, slides:[{ slide, title, text:[…], notes }] } for EVERY slide, including speaker notes. This is a full-deck text projection, not a first-slide peephole. Screenshot only for exact visual layout or non-text elements. deck_id = URL segment after /presentation/d/.",
-          "write_text": "1) double-click the target text box on the CANVAS to enter edit mode. 2) slides.textbox.paste { text } — pastes into the focused text box via clipboard.paste into the same-origin editor iframe (identical to docs.append). Pass html for rich content.",
-          "verify": "VERIFY by re-reading with slides.read after a ~1-2s settle (/export/html regenerates server-side and can lag). Screenshot only when you need visual/layout confirmation. Do not trust the paste return alone.",
+          "write_text": "Call slides.current_slide.textboxes.read, then slides.current_slide.textbox.set { deck_id, slide_number, role, existing_text?, text }. The setter resolves semantic role first and falls back to exact normalized existing text only when no role match exists. It fails closed on missing or ambiguous identity and derives fresh click geometry internally. Use slides.textbox.paste only when the intended box is already in edit mode.",
+          "verify": "The coordinate-free setter compares the requested slide in /export/html before and after replacement. Independently call slides.read after a brief settle and confirm the requested slide's exact text. Screenshot only for visual layout or non-text elements.",
           "recommended_sequence": [
             "slides.read { deck_id } — full deck: every slide's title, text runs, and notes",
-            "double-click a text box on the canvas to edit it",
-            "slides.textbox.paste { text } — paste into it",
+            "slides.current_slide.textboxes.read — inspect the selected slide's role/text identities",
+            "slides.current_slide.textbox.set — replace one exact role/text identity without caller coordinates",
             "slides.read to verify (after ~1-2s settle)"
           ],
           "caveat": "Slides ignores synthetic keyboard chords for canvas shortcuts (Ctrl+M/Ctrl+D won't add/duplicate slides) — use the toolbar '+' control. New decks show a 'Let's start creating' modal that ignores Escape; close its X (DPR-corrected coords). Screenshot is ~1.25x the viewport — scale click coords down, or resolve controls by identity."
@@ -65,15 +65,11 @@
       }
     },
     {
-      "name": "slides.textbox.paste",
-      "description": "Paste text into the Google Slides text box that is CURRENTLY in edit mode. PRECONDITION: double-click the target text box on the canvas first (pointer.double_click its center) so it enters edit mode and its inner editor iframe is focused. This pastes into the same-origin editor iframe's inner contenteditable via clipboard.paste with a frame-target locator (the identical mechanism validated for Google Docs). For rich content, also pass html. VERIFY with slides.read after a ~1-2s settle; use screenshot only for visual/layout confirmation because Slides screenshots are unreliable and token-heavy.",
+      "name": "slides.current_slide.textboxes.read",
+      "description": "Read the text boxes rendered on the currently selected Google Slides slide without screenshots or caller-supplied canvas coordinates. Returns the selected slide number and one row per visible top-level Slides object with its stable object_id, normalized current text, and semantic role when the empty placeholder identifies title, subtitle, or body. Use this before slides.current_slide.textbox.set and copy exact existing_text when no semantic role is available.",
       "input_schema": {
         "type": "object",
-        "required": ["text"],
-        "properties": {
-          "text": { "type": "string", "description": "Plain text to paste into the focused text box." },
-          "html": { "type": "string", "description": "Optional exact text/html flavor for rich content (e.g. formatted runs). Omit for plain text." }
-        },
+        "properties": {},
         "additionalProperties": false
       },
       "workflow": {
@@ -81,16 +77,440 @@
         "expression_language": "jsonata",
         "steps": [
           {
+            "id": "readSelectedSlide",
+            "primitive": "locator.text_content",
+            "args": {
+              "locator": {
+                "selector": ".punch-filmstrip-selected-thumbnail-pagenumber"
+              }
+            }
+          },
+          {
+            "id": "extractTextboxes",
+            "primitive": "browser.extract_elements",
+            "args": {
+              "scope": {
+                "selector": "#workspace #pages > svg:not([style*='display: none'])",
+                "root_strategy": "scope"
+              },
+              "item_selector": "g[id^='editor-']:not([id*='-paragraph-'])",
+              "fields": [
+                {
+                  "name": "object_id",
+                  "selector": ":scope",
+                  "attribute": "id"
+                },
+                {
+                  "name": "text",
+                  "selector": ":scope",
+                  "attribute": "text"
+                }
+              ]
+            }
+          }
+        ],
+        "output": "{% ( $compact := function($s) { $lowercase($replace($s, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, '')) }; $role := function($text) { ( $key := $compact($text); $key = 'clicktoaddtitle' ? 'title' : ($key = 'clicktoaddsubtitle' ? 'subtitle' : ($key = 'clicktoaddtext' ? 'body' : null)) ) }; $items := $append([], steps.extractTextboxes.output.items); { 'slide_number': $number(steps.readSelectedSlide.output.text), 'textboxes': $count($items) > 0 ? $append([], $map($items, function($box) { { 'object_id': $box.object_id, 'role': $role($box.text), 'text': $box.text } })) : [], 'count': $count($items), 'complete': true, 'next_step': 'Choose role when present; otherwise copy one exact text value as existing_text into slides.current_slide.textbox.set. Never supply canvas coordinates.' } ) %}"
+      }
+    },
+    {
+      "name": "slides.current_slide.textbox.set",
+      "description": "Replace exactly one text box on the currently selected Google Slides slide without caller-supplied coordinates. Resolves semantic role (title, subtitle, or body) first; only when no role match exists does it fall back to exact normalized existing_text from slides.current_slide.textboxes.read. Requires exactly one identity-bound current-slide match and the requested selected slide number before mutation. It double-clicks fresh DOM-derived geometry, selects the active box contents with trusted editor input, pastes the replacement through Slides' editor iframe, and verifies an exact text-box delta on the requested slide through /export/html. On any failure or rate limit, call slides.read before deciding whether another mutation is safe.",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id", "slide_number", "text"],
+        "properties": {
+          "deck_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Presentation id from the URL segment after /presentation/d/."
+          },
+          "slide_number": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "The currently selected slide number, copied from slides.current_slide.textboxes.read."
+          },
+          "role": {
+            "type": "string",
+            "enum": ["title", "subtitle", "body"],
+            "description": "Preferred semantic placeholder role. Used before existing_text."
+          },
+          "existing_text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Exact current text copied from slides.current_slide.textboxes.read. Used only when the requested role has no match."
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Complete replacement text for the resolved text box."
+          }
+        },
+        "anyOf": [
+          { "required": ["role"] },
+          { "required": ["existing_text"] }
+        ],
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "effect": "durable_mutation"
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": {
+            "selector": "#workspace #pages > svg:not([style*='display: none'])"
+          },
+          "states": [
+            "selected_slide_precondition",
+            "identity_readiness",
+            "edit_mode_mutation",
+            "server_model_postcondition",
+            "overlay_cleanup"
+          ]
+        },
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "assertCurrentSlideSurface",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "#workspace #pages > svg:not([style*='display: none'])"
+              }
+            }
+          },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "assertSelectedSlide",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": ".punch-filmstrip-selected-thumbnail-pagenumber",
+                "text_equals": "{% $string(input.slide_number) %}"
+              }
+            }
+          },
+          {
+            "id": "extractTextboxes",
+            "primitive": "browser.extract_elements",
+            "args": {
+              "scope": {
+                "selector": "#workspace #pages > svg:not([style*='display: none'])",
+                "root_strategy": "scope"
+              },
+              "item_selector": "g[id^='editor-']:not([id*='-paragraph-'])",
+              "fields": [
+                {
+                  "name": "object_id",
+                  "selector": ":scope",
+                  "attribute": "id"
+                },
+                {
+                  "name": "text",
+                  "selector": ":scope",
+                  "attribute": "text"
+                }
+              ]
+            }
+          },
+          {
+            "id": "findTarget",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% ( $compact := function($s) { $lowercase($replace($s, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, '')) }; $marker := input.role = 'title' ? 'clicktoaddtitle' : (input.role = 'subtitle' ? 'clicktoaddsubtitle' : (input.role = 'body' ? 'clicktoaddtext' : '')); $items := $append([], steps.extractTextboxes.output.items); $roleMatches := $exists(input.role) ? $filter($items, function($box) { $compact($box.text) = $marker }) : []; $textMatches := $exists(input.existing_text) ? $filter($items, function($box) { $compact($box.text) = $compact(input.existing_text) }) : []; $matches := $count($roleMatches) > 0 ? $roleMatches : $textMatches; steps.fetchBefore.output.status = 200 and $count($matches) = 1 ? '#' & $matches[0].object_id : '#__actions_json_invalid_slides_textbox_identity__' ) %}"
+              }
+            }
+          },
+          {
+            "id": "enterEditMode",
+            "primitive": "pointer.double_click",
+            "args": {
+              "x": "{% steps.findTarget.output.clickable_center.x %}",
+              "y": "{% steps.findTarget.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 500
+            }
+          },
+          {
+            "id": "selectContents",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Meta+A",
+              "trusted": true
+            }
+          },
+          {
+            "id": "pasteReplacement",
+            "primitive": "clipboard.paste",
+            "args": {
+              "text": "{% input.text %}",
+              "target": {
+                "frame": ".docs-texteventtarget-iframe",
+                "selector": "[contenteditable='true']"
+              }
+            },
+            "settle_after": {
+              "delay_ms": 2500
+            }
+          },
+          {
+            "id": "fetchAfter",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% ( $compact := function($s) { $lowercase($replace($s, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, '')) }; $decode := function($s) { $replace($replace($replace($replace($replace($replace($replace($s, '&#8203;', ''), '&amp;', '&'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"'), '&#39;', \"'\"), '&#8212;', '—') }; $slideText := function($body, $number) { ( $frags := $append([], $filter($split($body, '<div role=\"group\" class=\"slide\"'), function($v, $i) { $i > 0 })); $fragment := $frags[$number - 1]; $compact($decode($replace($substringBefore($fragment, '<div class=\"slide-notes\"'), /<[^>]*>/, ' '))) ) }; $beforeText := $slideText(steps.fetchBefore.output.body, input.slide_number); $afterText := $slideText(steps.fetchAfter.output.body, input.slide_number); $newKey := $compact(input.text); $oldKey := $exists(input.existing_text) ? $compact(input.existing_text) : ''; $beforeNew := $count($split($beforeText, $newKey)) - 1; $afterNew := $count($split($afterText, $newKey)) - 1; $beforeOld := $oldKey != '' ? $count($split($beforeText, $oldKey)) - 1 : 0; $afterOld := $oldKey != '' ? $count($split($afterText, $oldKey)) - 1 : 0; $marker := input.role = 'title' ? 'clicktoaddtitle' : (input.role = 'subtitle' ? 'clicktoaddsubtitle' : (input.role = 'body' ? 'clicktoaddtext' : '')); $items := $append([], steps.extractTextboxes.output.items); $roleMatches := $exists(input.role) ? $filter($items, function($box) { $compact($box.text) = $marker }) : []; $textMatches := $exists(input.existing_text) ? $filter($items, function($box) { $compact($box.text) = $oldKey }) : []; $matches := $count($roleMatches) > 0 ? $roleMatches : $textMatches; $resolution := $count($roleMatches) > 0 ? 'role' : 'existing_text'; $oldVerified := $resolution = 'existing_text' and $oldKey != $newKey ? $afterOld = $beforeOld - 1 : true; $verified := steps.fetchBefore.output.status = 200 and steps.fetchAfter.output.status = 200 and steps.pasteReplacement.output.default_prevented and $count($matches) = 1 and $afterNew = $beforeNew + 1 and $oldVerified; { 'slide_number': input.slide_number, 'object_id': $count($matches) = 1 ? $matches[0].object_id : null, 'resolution': $resolution, 'before_new_count': $beforeNew, 'after_new_count': $afterNew, 'before_old_count': $beforeOld, 'after_old_count': $afterOld, 'paste_accepted': steps.pasteReplacement.output.default_prevented, 'verified': $verified, 'next_step': $verified ? 'Requested current-slide text box verified through an exact server-backed text-box delta; independently call slides.read and confirm this slide.' : 'Replacement was not proven. Do not retry blindly; call slides.read first because the write may have landed even when export verification failed.' } ) %}"
+      }
+    },
+    {
+      "name": "slides.slide.create",
+      "description": "Create exactly one slide through Google Slides' visible New slide toolbar button, then verify the server-rendered deck slide count increased by exactly one. This is the reliable replacement for synthetic Ctrl+M, which Slides ignores on its canvas surface.",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id"],
+        "properties": {
+          "deck_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Presentation id from the URL segment after /presentation/d/."
+          }
+        },
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "effect": "durable_mutation"
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            },
+            "settle_after": {
+              "delay_ms": 1000
+            }
+          },
+          {
+            "id": "fetchBeforeStable",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "findNewSlide",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "#newSlideButton"
+              }
+            }
+          },
+          {
+            "id": "clickNewSlide",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findNewSlide.output.clickable_center.x %}",
+              "y": "{% steps.findNewSlide.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 2000
+            }
+          },
+          {
+            "id": "fetchAfter",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% ( $marker := '<div role=\"group\" class=\"slide\"'; $before := $count($split(steps.fetchBeforeStable.output.body, $marker)) - 1; $after := $count($split(steps.fetchAfter.output.body, $marker)) - 1; $verified := steps.fetchBeforeStable.output.status = 200 and steps.fetchAfter.output.status = 200 and $after = $before + 1; { 'created': $verified, 'before_count': $before, 'after_count': $after, 'verified': $verified, 'next_step': $verified ? 'New slide verified by an exact +1 server-backed slide-count delta; independently confirm with slides.read.' : 'New slide was not proven. Do not retry until slides.read establishes the current count, because create is non-idempotent.' } ) %}"
+      }
+    },
+    {
+      "name": "slides.slide.duplicate",
+      "description": "Duplicate the currently selected slide through Google Slides' visible Slide menu and its structurally identified Duplicate slide item, then verify the server-rendered deck slide count increased by exactly one. The current filmstrip selection determines which slide is duplicated.",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id"],
+        "properties": {
+          "deck_id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Presentation id from the URL segment after /presentation/d/."
+          }
+        },
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "effect": "durable_mutation"
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            },
+            "settle_after": {
+              "delay_ms": 1000
+            }
+          },
+          {
+            "id": "fetchBeforeStable",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "findSlideMenu",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "#punch-slide-menu"
+              }
+            }
+          },
+          {
+            "id": "openSlideMenu",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findSlideMenu.output.clickable_center.x %}",
+              "y": "{% steps.findSlideMenu.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "locator": {
+                "selector": "[role='menuitem']:has(.docs-icon-editors-ia-control-point-duplicate)"
+              },
+              "state": "visible",
+              "timeout_ms": 3000
+            }
+          },
+          {
+            "id": "findDuplicate",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[role='menuitem']:has(.docs-icon-editors-ia-control-point-duplicate)"
+              }
+            }
+          },
+          {
+            "id": "clickDuplicate",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findDuplicate.output.clickable_center.x %}",
+              "y": "{% steps.findDuplicate.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 2000
+            }
+          },
+          {
+            "id": "fetchAfter",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% ( $marker := '<div role=\"group\" class=\"slide\"'; $before := $count($split(steps.fetchBeforeStable.output.body, $marker)) - 1; $after := $count($split(steps.fetchAfter.output.body, $marker)) - 1; $verified := steps.fetchBeforeStable.output.status = 200 and steps.fetchAfter.output.status = 200 and $after = $before + 1; { 'duplicated': $verified, 'before_count': $before, 'after_count': $after, 'verified': $verified, 'next_step': $verified ? 'Duplicate verified by an exact +1 server-backed slide-count delta; independently confirm the selected slide and new copy with slides.read.' : 'Duplicate was not proven. Do not retry until slides.read establishes the current count, because duplication is non-idempotent.' } ) %}"
+      }
+    },
+    {
+      "name": "slides.textbox.paste",
+      "description": "Paste text into the Google Slides text box that is CURRENTLY in edit mode. PRECONDITION: double-click the target text box on the canvas first so its inner editor iframe is focused. The workflow reads /export/html before and after paste and verifies that the exact text occurrence count increased; independently call slides.read afterward. For rich content, also pass html.",
+      "input_schema": {
+        "type": "object",
+        "required": ["deck_id", "text"],
+        "properties": {
+          "deck_id": { "type": "string", "minLength": 1, "description": "Presentation id from the URL segment after /presentation/d/." },
+          "text": { "type": "string", "minLength": 1, "description": "Plain text to paste into the focused text box." },
+          "html": { "type": "string", "description": "Optional exact text/html flavor for rich content (e.g. formatted runs). Omit for plain text." }
+        },
+        "additionalProperties": false
+      },
+      "x_actions": { "effect": "durable_mutation" },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}" }
+          },
+          {
             "id": "paste",
             "primitive": "clipboard.paste",
             "args": {
               "text": "{% input.text %}",
               "html": "{% input.html %}",
               "target": { "frame": ".docs-texteventtarget-iframe", "selector": "[contenteditable='true']" }
-            }
+            },
+            "settle_after": { "delay_ms": 2000 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": { "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}" }
           }
         ],
-        "output": "{% { 'pasted': input.text, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'next_step': 'Wait ~1-2s, then verify with slides.read { deck_id } and confirm the changed slide text. Use screenshot only for visual/layout confirmation. If accepted is false, the text box was not in edit mode — double-click it on the canvas first.' } %}"
+        "output": "{% ( $before := $count($split(steps.fetchBefore.output.body, input.text)) - 1; $after := $count($split(steps.verifyFetch.output.body, input.text)) - 1; { 'pasted': input.text, 'accepted': steps.paste.output.default_prevented, 'html_provided': steps.paste.output.html_provided, 'before_count': $before, 'after_count': $after, 'verified': steps.verifyFetch.output.status = 200 and $after > $before, 'next_step': ($after > $before) ? 'Paste verified by increased exact-text count in /export/html; independently confirm slide identity with slides.read.' : 'Paste did not verify in server-backed deck state. Do not claim success; restore edit-mode focus and retry only after slides.read.' } ) %}"
       }
     },
     {
@@ -101,10 +521,16 @@
         "properties": {},
         "additionalProperties": false
       },
+      "x_actions": { "effect": "transient_ui_transition" },
       "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
           {
             "id": "findClose",
             "primitive": "locator.element_info",
@@ -124,10 +550,21 @@
               "x": "{% steps.findClose.output.clickable_center.x %}",
               "y": "{% steps.findClose.output.clickable_center.y %}"
             },
-            "settle_after": { "delay_ms": 500 }
+            "settle_after": { "delay_ms": 500 },
+            "on_error": "continue"
+          },
+          {
+            "id": "verifyClosed",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": ".getting-started-dialog-close, [aria-label='Close']",
+              "max_matches": 20
+            },
+            "retry_until": "{% steps.verifyClosed.output.match_count = 0 %}",
+            "max_attempts": 3
           }
         ],
-        "output": "{% { 'closed': $exists(steps.findClose.output.clickable_center.x), 'next_step': $exists(steps.findClose.output.clickable_center.x) ? 'Modal close clicked; retry the Slides write and verify with slides.read.' : 'No visible getting-started close button found.' } %}"
+        "output": "{% ( $wasPresent := $exists(steps.findClose.output.clickable_center.x); $stillPresent := steps.verifyClosed.output.match_count > 0; { 'closed': $wasPresent and $not($stillPresent), 'not_present': $not($wasPresent), 'next_step': ($wasPresent and $not($stillPresent)) ? 'Getting-started modal close verified; continue with the intended Slides write.' : ($not($wasPresent) ? 'No getting-started modal was present.' : 'Modal still appears present; do not continue with a write.') } ) %}"
       }
     },
     {
@@ -143,10 +580,23 @@
         },
         "additionalProperties": false
       },
+      "x_actions": { "effect": "durable_mutation" },
       "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "fetchBefore",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/export/html' %}"
+            }
+          },
           {
             "id": "findModalClose",
             "primitive": "locator.element_info",
@@ -166,7 +616,8 @@
               "x": "{% steps.findModalClose.output.clickable_center.x %}",
               "y": "{% steps.findModalClose.output.clickable_center.y %}"
             },
-            "settle_after": { "delay_ms": 500 }
+            "settle_after": { "delay_ms": 500 },
+            "on_error": "continue"
           },
           {
             "id": "findTitleBox",
@@ -228,24 +679,31 @@
             }
           }
         ],
-        "output": "{% ( $b := steps.verifyFetch.output.body; $plain := $replace($replace($replace($replace($replace($replace($b, '&amp;', '&'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"'), '&#39;', \"'\"), '&#8212;', '—'); { 'title': input.title, 'subtitle': input.subtitle, 'title_paste_accepted': steps.pasteTitle.output.default_prevented, 'subtitle_paste_accepted': steps.pasteSubtitle.output.default_prevented, 'verified': $contains($plain, input.title) and $contains($plain, input.subtitle), 'fetch_status': steps.verifyFetch.output.status, 'next_step': ($contains($plain, input.title) and $contains($plain, input.subtitle)) ? 'Title slide verified in /export/html.' : 'Title slide did NOT verify. Do not claim success; inspect edit-mode focus and placeholder geometry.' } ) %}"
+        "output": "{% ( $decode := function($b) { $replace($replace($replace($replace($replace($replace($b, '&amp;', '&'), '&lt;', '<'), '&gt;', '>'), '&quot;', '\"'), '&#39;', \"'\"), '&#8212;', '—') }; $before := $decode(steps.fetchBefore.output.body); $after := $decode(steps.verifyFetch.output.body); $tb := $count($split($before, input.title)) - 1; $ta := $count($split($after, input.title)) - 1; $sb := $count($split($before, input.subtitle)) - 1; $sa := $count($split($after, input.subtitle)) - 1; $verified := steps.verifyFetch.output.status = 200 and $ta > $tb and $sa > $sb; { 'title': input.title, 'subtitle': input.subtitle, 'title_paste_accepted': steps.pasteTitle.output.default_prevented, 'subtitle_paste_accepted': steps.pasteSubtitle.output.default_prevented, 'title_before_count': $tb, 'title_after_count': $ta, 'subtitle_before_count': $sb, 'subtitle_after_count': $sa, 'verified': $verified, 'fetch_status': steps.verifyFetch.output.status, 'next_step': $verified ? 'Title slide verified by increased exact-text counts in /export/html; independently confirm slide 1 with slides.read.' : 'Title slide did NOT verify as a server-backed state transition. Do not claim success; inspect edit-mode focus and placeholder geometry.' } ) %}"
       }
     },
     {
       "name": "slides.title.set",
-      "description": "Set the presentation (deck) title via the toolbar 'Rename' input (a real DOM input, not canvas). If a new-deck 'Getting started' modal is present, call slides.getting_started.close first; otherwise the title control can appear editable while deck state does not save. Clicks the input, replaces its contents, and commits with Enter. This sets the DECK's name, not a slide's title text box (for a slide title, double-click that box on the canvas and use slides.textbox.paste). Verify with slides.read; do not trust this action's return alone.",
+      "description": "Set the presentation deck title via the toolbar Rename input, commit with Enter, then fetch /htmlpresent and require the persisted og:title to equal the requested title. This sets the deck name, not a slide text box. Independently verify deck_title with slides.read.",
       "input_schema": {
         "type": "object",
-        "required": ["title"],
+        "required": ["deck_id", "title"],
         "properties": {
-          "title": { "type": "string", "description": "New presentation (deck) title." }
+          "deck_id": { "type": "string", "minLength": 1, "description": "Presentation id from the URL segment after /presentation/d/." },
+          "title": { "type": "string", "minLength": 1, "description": "New presentation (deck) title." }
         },
         "additionalProperties": false
       },
+      "x_actions": { "effect": "durable_mutation" },
       "workflow": {
         "version": 1,
         "expression_language": "jsonata",
         "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
           {
             "id": "findTitle",
             "primitive": "locator.element_info",
@@ -264,10 +722,18 @@
           {
             "id": "commitTitle",
             "primitive": "keyboard.press",
-            "args": { "key": "Enter" }
+            "args": { "key": "Enter", "trusted": true },
+            "settle_after": { "delay_ms": 8000 }
+          },
+          {
+            "id": "verifyFetch",
+            "primitive": "page.fetch",
+            "args": {
+              "url": "{% 'https://docs.google.com/presentation/d/' & input.deck_id & '/htmlpresent' %}"
+            }
           }
         ],
-        "output": "{% { 'title_set': input.title, 'next_step': 'Committed with Enter. Verify with slides.read { deck_id } after a ~1-2s settle and confirm deck_title equals the requested title. Screenshot is only for visual/layout confirmation.' } %}"
+        "output": "{% ( $b := steps.verifyFetch.output.body; $persisted := $contains($b, 'og:title\" content=\"') ? $substringBefore($substringAfter($b, 'og:title\" content=\"'), '\"') : $substringBefore($substringBefore($substringAfter($b, '<title>'), '</title>'), ' - Google Slides'); { 'title_set': input.title, 'persisted_title': $persisted, 'verified': steps.verifyFetch.output.status = 200 and $persisted = input.title, 'fetch_status': steps.verifyFetch.output.status, 'next_step': ($persisted = input.title) ? 'Deck title verified in /htmlpresent; independently confirm deck_title with slides.read.' : 'Deck title did not persist. Do not claim success or retry blindly; read current deck_title with slides.read.' } ) %}"
       }
     }
   ],
