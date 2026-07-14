@@ -90,6 +90,18 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   );
   assert.equal(byId.probeCardLabelAfterFirstClick.on_error, "continue");
   assert.ok(
+    byId.probeCardLabelAfterFirstClick.max_attempts >= 2,
+    "the card-level semantic probe must tolerate render lag before authorizing a second mutation",
+  );
+  assert.match(
+    byId.probeCardLabelAfterFirstClick.retry_until,
+    /probeCardLabelAfterFirstClick/,
+  );
+  assert.equal(
+    byId.probeCardLabelAfterFirstClick.after_each.args.locator.selector,
+    "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+  );
+  assert.ok(
     steps.findIndex((step) => step.id === "clickClosePopoverAfterFirstClick") <
       steps.findIndex((step) => step.id === "probeCardLabelAfterFirstClick"),
     "the first popover must close before probing card-level label state",

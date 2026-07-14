@@ -4202,6 +4202,19 @@
               }
             },
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "retry_until": "{% $exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x) %}",
+            "max_attempts": 2,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                  "text_contains": "{% input.label %}"
+                },
+                "state": "visible",
+                "timeout_ms": 750
+              }
+            },
             "on_error": "continue"
           },
           {
