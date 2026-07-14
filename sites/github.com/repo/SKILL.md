@@ -21,6 +21,7 @@ by hand once; now you write it down so no agent ever has to rediscover it.
 
 Write a single JSON object:
 
+{% raw %}
 ```json
 {
   "name": "site.surface.operation",
@@ -95,6 +96,8 @@ study the shape:
 ],
 "output": "{% {'verified': $not($contains(steps.verifyGone.output.text ? steps.verifyGone.output.text : '', input.comment_text)), 'next_step': 'If verified is false the comment is still present; do not report success.'} %}"
 ```
+
+{% endraw %}
 
 Note the two things a runnable action has that a sketch does not: every step
 NAMES a primitive and passes concrete args (with `{% %}` slots to carry
