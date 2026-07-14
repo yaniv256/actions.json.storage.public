@@ -272,6 +272,7 @@
             },
             "retry_until": "{% $exists(steps.findConversation.output.clickable_center.x) %}",
             "max_attempts": 3,
+            "on_error": "continue",
             "after_each": {
               "primitive": "viewport.scroll",
               "args": {
