@@ -16,6 +16,13 @@ assert.ok(action, "missing trello.card.comment.add");
 const output = action.workflow?.output ?? "";
 assert.match(output, /verification_expected_prose/);
 assert.match(output, /verification_ignores_urls/);
+assert.match(output, /verification_segments/);
+assert.match(output, /\$split\(input\.text/);
+assert.match(
+  output,
+  /\$filter\(\$segments/,
+  "smart-link verification must compare each non-URL prose segment independently",
+);
 assert.match(output, /https\?:/);
 assert.match(output, /\[\^\\s\]\+/);
 assert.match(
