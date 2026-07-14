@@ -2366,13 +2366,13 @@
           },
           {
             "id": "verifyComposerTitle",
-            "primitive": "locator.text_content",
+            "primitive": "locator.value",
             "args": {
               "locator": {
                 "selector": "[data-testid='list-card-composer-textarea']"
               }
             },
-            "retry_until": "{% steps.verifyComposerTitle.output.text = input.title %}",
+            "retry_until": "{% steps.verifyComposerTitle.output.value = input.title %}",
             "max_attempts": 4,
             "after_each": {
               "primitive": "locator.wait_for",
