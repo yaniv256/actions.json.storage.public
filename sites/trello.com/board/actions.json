@@ -4047,7 +4047,7 @@
     },
     {
       "name": "trello.card.label.apply",
-      "description": "Apply a named label to the currently open Trello card through the visible Labels/Add a label popover. Idempotent: if the label already appears on the card, it does not open the popover or click the label row. Otherwise it scrolls the card controls back into view, opens Add a label or legacy Labels, clicks the exact label row in the scoped labels popover, closes the popover when possible, and verifies the label appears on the card label container.",
+      "description": "Apply a named label to the currently open Trello card through the visible Labels/Add a label popover. Idempotent: if the label already appears on the card, it does not open the popover or click the label row. Otherwise it opens the current labels surface, clicks the exact scoped row, and verifies semantic checkbox and card-label state. If Trello swallows that first mutation, it may reopen the surface and make one fresh bounded row click before final card-level verification; it never clicks the row more than twice.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4330,7 +4330,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardLabelApply",
-          "why": "Live investigation showed the old label flow was slow because agents dumped every card-dialog button/label/checkbox and because the Labels control can be offscreen or rendered as Add a label. This action scopes to the requested row and verifies idempotently."
+          "why": "Live investigation showed that the Labels control can render as Add a label and that a successful pointer dispatch can still be swallowed by Trello. This action scopes to the requested row, verifies semantic state idempotently, and permits one state-gated mutation retry instead of repeatedly observing a missed first click."
         }
       }
     },
