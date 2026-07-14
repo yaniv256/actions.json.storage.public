@@ -50,7 +50,7 @@ assert.deepEqual(
 assert.deepEqual(
   declaredExceptions,
   [],
-  "Removed geometry exceptions must not remain declared after the identity-safe workflow fix",
+  "Resolved geometry-identity exceptions must be removed from both maps and the audit baseline",
 );
 
-console.log("Public workflow geometry-identity audit passed with no tracked exceptions");
+console.log("Public workflow geometry-identity audit passed with no exceptions");

@@ -7905,8 +7905,66 @@
       "summaries": [
         {
           "name": "agent_context",
-          "max_bytes": 12000,
-          "expression": "{% {'lists': $append([], $map(state.board.lists, function($list) { {'name': $list.name, 'card_count': $list.card_count, 'cards': $count($list.cards) > 0 ? $append([], $map($list.cards, function($card) { {'title': $card.title, 'labels': $card.labels, 'due_date': $card.due_date, 'checklist_summary': $card.checklist_summary} })) : []} }))} %}"
+          "description": "Bounded board orientation: list counts plus small In Progress and Next previews. Use list_page for exhaustive list traversal.",
+          "max_bytes": 8000,
+          "expression": "{% ( $lists := state.board.lists; $visibleLists := $filter($lists, function($list, $index) { $index < 25 }); $compactPreview := function($card) { {'title': $substring($card.title, 0, 180), 'labels': $count($card.labels) > 0 ? $append([], $map($filter($card.labels, function($label, $index) { $index < 3 }), function($label) { $substring($label.text ? $label.text : $label.name, 0, 40) })) : [], 'due_date': $card.due_date ? $substring($card.due_date, 0, 40) : null, 'checklist_summary': $card.checklist_summary ? $substring($card.checklist_summary, 0, 40) : null} }; $activeCards := state.board.lists[name = 'In Progress'][0].cards; $nextCards := state.board.lists[name = 'Next'][0].cards; {'list_count': $count($lists), 'total_card_count': $count($lists) > 0 ? $sum($lists.card_count) : 0, 'lists_returned': $count($visibleLists), 'lists_truncated': $count($lists) > 25, 'lists': $count($visibleLists) > 0 ? $append([], $map($visibleLists, function($list, $index) { {'index': $index, 'name': $substring($list.name, 0, 80), 'card_count': $list.card_count} })) : [], 'in_progress_preview': $count($activeCards) > 0 ? $append([], $map($filter($activeCards, function($card, $index) { $index < 3 }), $compactPreview)) : [], 'next_preview': $count($nextCards) > 0 ? $append([], $map($filter($nextCards, function($card, $index) { $index < 3 }), $compactPreview)) : [], 'read_more': {'list_catalog_summary_name': 'lists_page', 'list_cards_summary_name': 'list_page', 'list_cards_required_arguments': ['list_name'], 'list_cards_optional_arguments': ['list_occurrence', 'offset', 'limit'], 'max_list_limit': 25, 'max_card_limit': 10}} ) %}"
+        },
+        {
+          "name": "lists_page",
+          "description": "Read the board's list catalog in bounded pages so every list remains discoverable.",
+          "max_bytes": 8000,
+          "input_schema": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 25
+              }
+            }
+          },
+          "expression": "{% ( $lists := state.board.lists; $offset := $exists($$.input.offset) ? $$.input.offset : 0; $limit := $exists($$.input.limit) ? $$.input.limit : 25; $page := $filter($lists, function($list, $index) { $index >= $offset and $index < $offset + $limit }); {'offset': $offset, 'limit': $limit, 'total_count': $count($lists), 'returned_count': $count($page), 'has_more': $offset + $limit < $count($lists), 'next_offset': $offset + $limit < $count($lists) ? $offset + $limit : null, 'lists': $count($page) > 0 ? $append([], $map($page, function($list, $index) { {'index': $offset + $index, 'name': $substring($list.name, 0, 120), 'card_count': $list.card_count} })) : []} ) %}"
+        },
+        {
+          "name": "list_page",
+          "description": "Read one named Trello list in bounded pages of at most ten compact cards.",
+          "max_bytes": 16000,
+          "input_schema": {
+            "type": "object",
+            "required": [
+              "list_name"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "list_name": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 120
+              },
+              "offset": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000000
+              },
+              "list_occurrence": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 1000
+              },
+              "limit": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 10
+              }
+            }
+          },
+          "expression": "{% ( $occurrence := $exists($$.input.list_occurrence) ? $$.input.list_occurrence : 0; $matches := state.board.lists[name = $$.input.list_name]; $list := $matches[$occurrence]; $found := $exists($list); $offset := $exists($$.input.offset) ? $$.input.offset : 0; $limit := $exists($$.input.limit) ? $$.input.limit : 10; $cards := $found ? $list.cards : []; $page := $filter($cards, function($card, $index) { $index >= $offset and $index < $offset + $limit }); $compactCard := function($card) { {'title': $substring($card.title, 0, 300), 'url': $card.url ? $substring($card.url, 0, 500) : null, 'labels': $count($card.labels) > 0 ? $append([], $map($filter($card.labels, function($label, $index) { $index < 4 }), function($label) { $substring($label.text ? $label.text : $label.name, 0, 60) })) : [], 'due_date': $card.due_date ? $substring($card.due_date, 0, 60) : null, 'checklist_summary': $card.checklist_summary ? $substring($card.checklist_summary, 0, 60) : null} }; {'found': $found, 'list_name': $found ? $list.name : $$.input.list_name, 'list_occurrence': $occurrence, 'matching_list_count': $count($matches), 'offset': $offset, 'limit': $limit, 'total_count': $count($cards), 'returned_count': $count($page), 'has_more': $offset + $limit < $count($cards), 'next_offset': $offset + $limit < $count($cards) ? $offset + $limit : null, 'cards': $count($page) > 0 ? $append([], $map($page, $compactCard)) : []} ) %}"
         }
       ],
       "postconditions": {
