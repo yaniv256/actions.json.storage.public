@@ -4654,7 +4654,7 @@
     },
     {
       "name": "trello.card.comment.add",
-      "description": "Post a comment on the currently open Trello card: click the comment box, type the text, click Save, and verify the comment appears in the activity feed. Precondition: open the card first with trello.card.by_title.open and pass the same title as card_title. Comments are NOT saved by pressing Enter \u2014 only the Save click commits them; this action handles that. Use comments for running workflow notes ('what's next', meeting outcomes over time) and keep the description for stable profile/status content. Do not claim success unless output.verified is true.",
+      "description": "Post a comment on the currently open Trello card: click the comment box, type the text, click Save, and verify the comment appears in the activity feed. Precondition: open the card first with trello.card.by_title.open and pass the same title as card_title. Comments are NOT saved by pressing Enter \u2014 only the Save click commits them; this action handles that. Use comments for running workflow notes ('what's next', meeting outcomes over time) and keep the description for stable profile/status content. Trello renders pasted URLs as smart cards, so verification compares URL-free prose against posted comment containers rather than requiring the raw URL literal. Do not claim success unless output.verified is true.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4821,7 +4821,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% {'card_title': input.card_title, 'comment': input.text, 'posted_comments_text': steps.verifyPostedComments.output.text ? steps.verifyPostedComments.output.text : '', 'verified': $contains($replace(steps.verifyPostedComments.output.text ? steps.verifyPostedComments.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $replace(input.text, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' ')), 'next_step': 'Only report success if verified is true; this checks posted [data-testid=comment-container] activity comments, not the draft editor.'} %}"
+        "output": "{% {'card_title': input.card_title, 'comment': input.text, 'posted_comments_text': steps.verifyPostedComments.output.text ? steps.verifyPostedComments.output.text : '', 'verification_expected_prose': $trim($replace($replace(input.text, /https?:\\/\\/[^\\s]+/, ''), /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' ')), 'verification_ignores_urls': $contains(input.text, '://'), 'verified': $length($trim($replace($replace(input.text, /https?:\\/\\/[^\\s]+/, ''), /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '))) > 0 and $contains($replace(steps.verifyPostedComments.output.text ? steps.verifyPostedComments.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $trim($replace($replace(input.text, /https?:\\/\\/[^\\s]+/, ''), /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '))), 'next_step': 'Only report success if verified is true; this checks posted [data-testid=comment-container] activity comments, not the draft editor. Trello smart-card rendering may replace raw URL text, so URL tokens are intentionally excluded from the semantic comparison.'} %}"
       }
     },
     {
