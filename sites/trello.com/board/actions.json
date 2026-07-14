@@ -5803,7 +5803,7 @@
     },
     {
       "name": "trello.card.checklist_item.complete",
-      "description": "Mark one checklist item complete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, and verifies the exact item is checked. Live-verified 2026-07-11 on extension 0.1.198 with repeated exact-item mutations in a four-item checklist. Always verify the returned complete field and then read trello.card.checklist.read to prove the exact item is checked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary; use trello.card.checklist_unchecked_items.read first and pass one exact returned item_text.",
+      "description": "Mark one checklist item complete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, waits for Trello's optimistic checkbox state to settle, and verifies the exact item is checked. Live-verified 2026-07-11 on extension 0.1.198 with repeated exact-item mutations in a four-item checklist. Additional live evidence on 2026-07-14 showed that an immediate aria-checked read could report true before Trello reverted the mutation, so retry decisions and success now depend on a second stable-state read. Always verify the returned complete field and then read trello.card.checklist.read to prove the exact item is checked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary; use trello.card.checklist_unchecked_items.read first and pass one exact returned item_text.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5889,6 +5889,22 @@
             "on_error": "stop"
           },
           {
+            "id": "readStateAfterOptimistic",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "settle_after": {
+              "delay_ms": 600
+            },
+            "on_error": "stop"
+          },
+          {
             "id": "readStateAfter",
             "primitive": "dom.observe.attributes",
             "args": {
@@ -5933,6 +5949,22 @@
             "on_error": "stop"
           },
           {
+            "id": "verifyDesiredStateOptimistic",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "settle_after": {
+              "delay_ms": 600
+            },
+            "on_error": "stop"
+          },
+          {
             "id": "verifyDesiredState",
             "primitive": "dom.observe.attributes",
             "args": {
@@ -5959,7 +5991,7 @@
     },
     {
       "name": "trello.card.checklist_item.uncomplete",
-      "description": "Mark one checked checklist item incomplete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, and verifies the exact item is unchecked. Live-verified 2026-07-11 on extension 0.1.198: one exact checked item changed to unchecked and trello.card.checklist.read independently proved the checklist moved from 3/4 to 2/4. Always verify the returned incomplete field and then read trello.card.checklist.read to prove the exact item is unchecked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary.",
+      "description": "Mark one checked checklist item incomplete on the open Trello card by its exact item text. Trello exposes the item name through the aria-label of a visually hidden checkbox input; the workflow resolves that identity, clicks the associated visible checkbox label, waits for Trello's optimistic checkbox state to settle, and verifies the exact item is unchecked. Live-verified 2026-07-11 on extension 0.1.198: one exact checked item changed to unchecked and trello.card.checklist.read independently proved the checklist moved from 3/4 to 2/4. Additional live evidence on 2026-07-14 showed that checklist state can revert after an immediate DOM read, so retry decisions and success now depend on a second stable-state read. Always verify the returned incomplete field and then read trello.card.checklist.read to prove the exact item is unchecked before claiming success. Duplicate labels, paraphrased text, and larger virtualized checklists remain outside the measured boundary.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -6045,6 +6077,22 @@
             "on_error": "stop"
           },
           {
+            "id": "readStateAfterOptimistic",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "settle_after": {
+              "delay_ms": 600
+            },
+            "on_error": "stop"
+          },
+          {
             "id": "readStateAfter",
             "primitive": "dom.observe.attributes",
             "args": {
@@ -6085,6 +6133,22 @@
             },
             "settle_after": {
               "delay_ms": 500
+            },
+            "on_error": "stop"
+          },
+          {
+            "id": "verifyDesiredStateOptimistic",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
+            },
+            "settle_after": {
+              "delay_ms": 600
             },
             "on_error": "stop"
           },
