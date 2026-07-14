@@ -82,19 +82,15 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.readLabelRowsAfterFirstClick.args.text_contains, "{% input.label %}");
   assert.match(byId.findMatchingLabelRowBeforeRetryOpen.when, /aria-checked/);
   assert.match(byId.findMatchingLabelRowBeforeRetryOpen.when, /aria-label/);
-  assert.equal(byId.probeCardLabelAfterFirstClick.on_error, "continue");
-  assert.ok(
-    byId.probeCardLabelAfterFirstClick.max_attempts >= 2,
-    "the card-level semantic probe must tolerate render lag before authorizing a second mutation",
-  );
-  assert.match(
-    byId.probeCardLabelAfterFirstClick.retry_until,
-    /probeCardLabelAfterFirstClick/,
-  );
+  assert.equal(byId.waitForCardLabelAfterFirstClick.primitive, "locator.wait_for");
+  assert.equal(byId.waitForCardLabelAfterFirstClick.args.timeout_ms, 750);
+  assert.equal(byId.waitForCardLabelAfterFirstClick.on_error, "continue");
   assert.equal(
-    byId.probeCardLabelAfterFirstClick.after_each.args.locator.selector,
+    byId.waitForCardLabelAfterFirstClick.args.locator.selector,
     "[data-testid='card-back-labels-container'] [data-testid='card-label']",
   );
+  assert.equal(byId.probeCardLabelAfterFirstClick.on_error, "continue");
+  assert.equal(byId.probeCardLabelAfterFirstClick.retry_until, undefined);
   assert.ok(
     steps.findIndex((step) => step.id === "clickClosePopoverAfterFirstClick") <
       steps.findIndex((step) => step.id === "probeCardLabelAfterFirstClick"),

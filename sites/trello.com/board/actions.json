@@ -4184,6 +4184,20 @@
             "on_error": "continue"
           },
           {
+            "id": "waitForCardLabelAfterFirstClick",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                "text_contains": "{% input.label %}"
+              },
+              "state": "visible",
+              "timeout_ms": 750
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
             "id": "probeCardLabelAfterFirstClick",
             "primitive": "locator.element_info",
             "args": {
@@ -4193,19 +4207,6 @@
               }
             },
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
-            "retry_until": "{% $exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x) %}",
-            "max_attempts": 2,
-            "after_each": {
-              "primitive": "locator.wait_for",
-              "args": {
-                "locator": {
-                  "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
-                  "text_contains": "{% input.label %}"
-                },
-                "state": "visible",
-                "timeout_ms": 750
-              }
-            },
             "on_error": "continue"
           },
           {
