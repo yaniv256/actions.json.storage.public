@@ -47,6 +47,10 @@ assert.deepEqual(
   [],
   "Pointer clicks may not derive mutation identity from bounding boxes without an explicit investigation-required exception",
 );
-assert.deepEqual(declaredExceptions, ["sheets.range.paste_tsv_at_anchor:clickGrid"]);
+assert.deepEqual(
+  declaredExceptions,
+  [],
+  "Removed geometry exceptions must not remain declared after the identity-safe workflow fix",
+);
 
-console.log("Public workflow geometry-identity audit passed with one tracked Sheets investigation");
+console.log("Public workflow geometry-identity audit passed with no tracked exceptions");
