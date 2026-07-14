@@ -6959,9 +6959,19 @@
                 "selector": "[data-testid='lists']"
               }
             }
+          },
+          {
+            "id": "verifyCardGone",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-name']"
+              }
+            },
+            "on_error": "continue"
           }
         ],
-        "output": "{% {'closed': $exists(steps.verifyBoardVisible.output.bounding_box), 'board_visible': $exists(steps.verifyBoardVisible.output.bounding_box)} %}"
+        "output": "{% ( $boardVisible := $exists(steps.verifyBoardVisible.output.bounding_box); $cardGone := $not($exists(steps.verifyCardGone.output.bounding_box)); {'closed': $boardVisible and $cardGone, 'board_visible': $boardVisible, 'card_gone': $cardGone, 'next_step': ($boardVisible and $cardGone) ? 'Card modal closed and board view verified.' : 'Card modal closure was not verified; do not claim success or continue with board-level work.'} ) %}"
       },
       "x_actions": {
         "source": {
