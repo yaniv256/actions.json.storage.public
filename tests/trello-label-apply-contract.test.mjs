@@ -55,11 +55,78 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.clickLabelsControlAfterNoop, undefined);
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
   assert.equal(byId.findMatchingLabelRow.retry_until, undefined);
-  assert.equal(byId.findClosePopover.primitive, "a11y.query");
-  assert.deepEqual(byId.findClosePopover.args, { role: "button", name: "Close popover" });
+  assert.equal(byId.findClosePopover, undefined);
+  assert.equal(byId.findClosePopoverAfterFirstClick.primitive, "a11y.query");
+  assert.deepEqual(byId.findClosePopoverAfterFirstClick.args, {
+    role: "button",
+    name: "Close popover",
+  });
+  assert.equal(byId.findClosePopoverAfterRetry.primitive, "a11y.query");
+  assert.deepEqual(byId.findClosePopoverAfterRetry.args, {
+    role: "button",
+    name: "Close popover",
+  });
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
+  assert.equal(
+    byId.readLabelRowsAfterFirstClick.primitive,
+    "browser.extract_elements",
+  );
+  assert.equal(
+    byId.readLabelRowsAfterFirstClick.args.scope.root_selector,
+    "[data-testid='labels-popover-labels-screen']",
+  );
+  assert.equal(
+    byId.readLabelRowsAfterFirstClick.args.item_selector,
+    "[data-testid='clickable-checkbox']",
+  );
   assert.ok(
-    steps.findIndex((step) => step.id === "clickClosePopover") <
+    byId.readLabelRowsAfterFirstClick.args.fields.some(
+      (field) =>
+        field.name === "input_aria_checked" &&
+        field.selector === "input" &&
+        field.attribute === "aria-checked",
+    ),
+    "the recovery gate must inspect the row checkbox's semantic state",
+  );
+  assert.equal(byId.probeCardLabelAfterFirstClick.on_error, "continue");
+  assert.ok(
+    byId.probeCardLabelAfterFirstClick.max_attempts >= 2,
+    "the card-level semantic probe must tolerate render lag before authorizing a second mutation",
+  );
+  assert.match(
+    byId.probeCardLabelAfterFirstClick.retry_until,
+    /probeCardLabelAfterFirstClick/,
+  );
+  assert.equal(
+    byId.probeCardLabelAfterFirstClick.after_each.args.locator.selector,
+    "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+  );
+  assert.ok(
+    steps.findIndex((step) => step.id === "clickClosePopoverAfterFirstClick") <
+      steps.findIndex((step) => step.id === "probeCardLabelAfterFirstClick"),
+    "the first popover must close before probing card-level label state",
+  );
+  assert.equal(byId.findMatchingLabelRowBeforeRetryOpen.on_error, "continue");
+  assert.match(
+    byId.findMatchingLabelRowBeforeRetryOpen.when,
+    /readLabelRowsAfterFirstClick/,
+  );
+  assert.match(
+    byId.findMatchingLabelRowBeforeRetryOpen.when,
+    /probeCardLabelAfterFirstClick/,
+  );
+  assert.equal(byId.clickMatchingLabelRowRetry.primitive, "pointer.click");
+  assert.match(byId.clickMatchingLabelRowRetry.when, /readLabelRowsAfterFirstClick/);
+  assert.match(byId.clickMatchingLabelRowRetry.when, /probeCardLabelAfterFirstClick/);
+  assert.equal(
+    steps.filter((step) =>
+      ["clickMatchingLabelRow", "clickMatchingLabelRowRetry"].includes(step.id),
+    ).length,
+    2,
+    "label application must remain bounded to two row clicks",
+  );
+  assert.ok(
+    steps.findIndex((step) => step.id === "clickClosePopoverAfterRetry") <
       steps.findIndex((step) => step.id === "verifyCardLabel"),
     "popover must close before final card-level label verification so it cannot occlude the label container",
   );

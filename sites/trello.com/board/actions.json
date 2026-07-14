@@ -4047,7 +4047,7 @@
     },
     {
       "name": "trello.card.label.apply",
-      "description": "Apply a named label to the currently open Trello card through the visible Labels/Add a label popover. Idempotent: if the label already appears on the card, it does not open the popover or click the label row. Otherwise it scrolls the card controls back into view, opens Add a label or legacy Labels, clicks the exact label row in the scoped labels popover, closes the popover when possible, and verifies the label appears on the card label container.",
+      "description": "Apply a named label to the currently open Trello card through the visible Labels/Add a label popover. Idempotent: if the label already appears on the card, it does not open the popover or click the label row. Otherwise it opens the current labels surface, clicks the exact scoped row, and verifies semantic checkbox and card-label state. If Trello swallows that first mutation, it may reopen the surface and make one fresh bounded row click before final card-level verification; it never clicks the row more than twice.",
       "input_schema": {
         "type": "object",
         "properties": {
@@ -4153,19 +4153,155 @@
             }
           },
           {
-            "id": "findClosePopover",
+            "id": "readLabelRowsAfterFirstClick",
+            "primitive": "browser.extract_elements",
+            "args": {
+              "scope": {
+                "root_selector": "[data-testid='labels-popover-labels-screen']"
+              },
+              "item_selector": "[data-testid='clickable-checkbox']",
+              "fields": [
+                {
+                  "name": "text",
+                  "selector": ":scope",
+                  "attribute": "text"
+                },
+                {
+                  "name": "input_aria_checked",
+                  "selector": "input",
+                  "attribute": "aria-checked"
+                }
+              ]
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "findClosePopoverAfterFirstClick",
             "primitive": "a11y.query",
             "args": {"role": "button", "name": "Close popover"},
             "on_error": "continue"
           },
           {
-            "id": "clickClosePopover",
+            "id": "clickClosePopoverAfterFirstClick",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% steps.findClosePopover.output.clickable_center.x %}",
-              "y": "{% steps.findClosePopover.output.clickable_center.y %}"
+              "x": "{% steps.findClosePopoverAfterFirstClick.output.clickable_center.x %}",
+              "y": "{% steps.findClosePopoverAfterFirstClick.output.clickable_center.y %}"
             },
-            "when": "{% $exists(steps.findClosePopover.output.clickable_center.x) %}",
+            "when": "{% $exists(steps.findClosePopoverAfterFirstClick.output.clickable_center.x) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "probeCardLabelAfterFirstClick",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
+            "retry_until": "{% $exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x) %}",
+            "max_attempts": 2,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='card-back-labels-container'] [data-testid='card-label']",
+                  "text_contains": "{% input.label %}"
+                },
+                "state": "visible",
+                "timeout_ms": 750
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "findMatchingLabelRowBeforeRetryOpen",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "findAddLabelControlForRetry",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Add a label"
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "findLabelsControlForRetry",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Labels"
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelControlForRetry.output.clickable_center.x)) %}"
+          },
+          {
+            "id": "clickLabelsControlForRetry",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% $exists(steps.findAddLabelControlForRetry.output.clickable_center.x) ? steps.findAddLabelControlForRetry.output.clickable_center.x : steps.findLabelsControlForRetry.output.clickable_center.x %}",
+              "y": "{% $exists(steps.findAddLabelControlForRetry.output.clickable_center.y) ? steps.findAddLabelControlForRetry.output.clickable_center.y : steps.findLabelsControlForRetry.output.clickable_center.y %}"
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
+            "settle_after": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen']"
+              },
+              "state": "visible",
+              "timeout_ms": 1500
+            }
+          },
+          {
+            "id": "findMatchingLabelRowRetry",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+                "text_contains": "{% input.label %}"
+              }
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "on_error": "stop"
+          },
+          {
+            "id": "clickMatchingLabelRowRetry",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findMatchingLabelRowRetry.output.clickable_center.x %}",
+              "y": "{% steps.findMatchingLabelRowRetry.output.clickable_center.y %}"
+            },
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "settle_after": {
+              "delay_ms": 500
+            }
+          },
+          {
+            "id": "findClosePopoverAfterRetry",
+            "primitive": "a11y.query",
+            "args": {"role": "button", "name": "Close popover"},
+            "on_error": "continue"
+          },
+          {
+            "id": "clickClosePopoverAfterRetry",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findClosePopoverAfterRetry.output.clickable_center.x %}",
+              "y": "{% steps.findClosePopoverAfterRetry.output.clickable_center.y %}"
+            },
+            "when": "{% $exists(steps.findClosePopoverAfterRetry.output.clickable_center.x) %}",
             "on_error": "continue"
           },
           {
@@ -4192,7 +4328,7 @@
             }
           }
         ],
-        "output": "{% {'label': input.label, 'already_present': $exists(steps.findExistingCardLabel.output.clickable_center.x), 'clicked': $exists(steps.clickMatchingLabelRow.output.clicked) or $exists(steps.clickMatchingLabelRow.output.value.clicked), 'verified': $exists(steps.verifyCardLabel.output.clickable_center.x), 'verification_required': 'verified:true means the exact label was found in the card label container after the operation.'} %}",
+        "output": "{% {'label': input.label, 'already_present': $exists(steps.findExistingCardLabel.output.clickable_center.x), 'clicked': $exists(steps.clickMatchingLabelRow.output.clicked) or $exists(steps.clickMatchingLabelRow.output.value.clicked) or $exists(steps.clickMatchingLabelRowRetry.output.clicked) or $exists(steps.clickMatchingLabelRowRetry.output.value.clicked), 'retried': $exists(steps.clickMatchingLabelRowRetry.output.clicked) or $exists(steps.clickMatchingLabelRowRetry.output.value.clicked), 'verified': $exists(steps.verifyCardLabel.output.clickable_center.x), 'verification_required': 'verified:true means the exact label was found in the card label container after the operation.'} %}",
         "x_state_machine": {
           "requires_state": {
             "selector": "[data-testid='card-back-name'], [role='dialog'][aria-label], .window",
@@ -4207,7 +4343,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardLabelApply",
-          "why": "Live investigation showed the old label flow was slow because agents dumped every card-dialog button/label/checkbox and because the Labels control can be offscreen or rendered as Add a label. This action scopes to the requested row and verifies idempotently."
+          "why": "Live investigation showed that the Labels control can render as Add a label and that a successful pointer dispatch can still be swallowed by Trello. This action scopes to the requested row, verifies semantic state idempotently, and permits one state-gated mutation retry instead of repeatedly observing a missed first click."
         }
       }
     },
