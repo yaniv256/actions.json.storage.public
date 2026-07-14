@@ -5676,7 +5676,7 @@
     },
     {
       "name": "trello.card.checklist_item.add",
-      "description": "Add one item to the checklist on the currently open Trello card. PRECONDITION: the item composer is open -- call trello.card.checklist.item_composer.open first. The composer stays open between adds, so call this once per item. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verified against the live DOM 2026-07-09.",
+      "description": "Add one item to the checklist on the currently open Trello card. PRECONDITION: the item composer is open -- call trello.card.checklist.item_composer.open first. The composer stays open between adds, so call this once per item. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verification is card-wide and semantic: it reads checklist checkbox inputs by exact aria-label across mounted multi-section checklists, not visible text containment. Verified against the live DOM 2026-07-09; semantic verifier added 2026-07-14 after multi-section false-negative evidence.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5741,14 +5741,17 @@
           },
           {
             "id": "verifyItem",
-            "primitive": "locator.text_content",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-items']"
-              }
+              "selector": "[data-testid='checklist-items'] input[type='checkbox'][aria-label]",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "max_matches": 200
             },
-            "on_error": "continue",
-            "retry_until": "{% $contains(steps.verifyItem.output.text, input.item_text) %}",
+            "on_error": "stop",
+            "retry_until": "{% ($t := input.item_text; $count(steps.verifyItem.output.matches[attributes.`aria-label` = $t]) >= 1) %}",
             "max_attempts": 5,
             "after_each": {
               "primitive": "locator.wait_for",
@@ -5762,7 +5765,7 @@
             }
           }
         ],
-        "output": "{% {'item': input.item_text, 'verified': $contains(steps.verifyItem.output.text, input.item_text), 'next_step': 'Composer stays open; call again for the next item.'} %}"
+        "output": "{% ($t := input.item_text; $matches := steps.verifyItem.output.matches[attributes.`aria-label` = $t]; {'item': $t, 'verified': $count($matches) >= 1, 'match_count': $count($matches), 'next_step': 'Composer stays open; call again for the next item.'}) %}"
       },
       "x_actions": {
         "source": {
@@ -7939,9 +7942,9 @@
           "projection": "trello.card_modal",
           "verify": {
             "language": "jsonata",
-            "expression": "{% $contains(state.modal.text, $$.input.item_text) %}"
+            "expression": "{% $exists(state.modal.checklist_items[text = $$.input.item_text]) %}"
           },
-          "failure_message": "The card modal did not contain the created checklist item."
+          "failure_message": "The card modal did not expose a checklist item with the exact requested aria-label after adding."
         },
         "trello.card.checklist_item.complete": {
           "projection": "trello.card_modal",
