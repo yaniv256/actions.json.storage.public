@@ -299,6 +299,7 @@
           {
             "id": "animatedDrag",
             "primitive": "pointer.drag",
+            "when": "{% $exists(steps.findCard.output.clickable_center.x) and $exists(steps.findDestList.output.clickable_center.x) %}",
             "args": {
               "from": {
                 "locator": {
@@ -322,7 +323,7 @@
             }
           }
         ],
-        "output": "{% {'dragged': steps.animatedDrag.output.dragged, 'fidelity': steps.animatedDrag.output.fidelity, 'card_title': input.card_title, 'source_list_name': input.source_list_name, 'destination_list_name': input.destination_list_name, 'verification_required': 'Call actions.site state_read projection trello.board and verify card_title appears under destination_list_name and not under source_list_name.'} %}"
+        "output": "{% ( $dragReady := $exists(steps.findCard.output.clickable_center.x) and $exists(steps.findDestList.output.clickable_center.x); {'drag_ready': $dragReady, 'dragged': steps.animatedDrag.output.dragged, 'fidelity': steps.animatedDrag.output.fidelity, 'card_title': input.card_title, 'source_list_name': input.source_list_name, 'destination_list_name': input.destination_list_name, 'verification_required': 'Call actions.site state_read projection trello.board and verify card_title appears under destination_list_name and not under source_list_name.', 'next_step': $dragReady ? 'Drag dispatched; independently verify the card moved.' : 'Card or destination coordinates were not resolved; no drag was dispatched. Re-read the board and retry only after both targets are resolved.'} ) %}"
       },
       "x_actions": {
         "source": {
