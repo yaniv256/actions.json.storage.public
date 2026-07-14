@@ -763,7 +763,7 @@
               "y": "{% steps.findTargetOption.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 300
+              "delay_ms": 500
             }
           },
           {
@@ -7016,12 +7016,22 @@
             }
           },
           {
+            "id": "findArchiveBeforeOpen",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Archive"
+            },
+            "on_error": "continue"
+          },
+          {
             "id": "findActions",
             "primitive": "a11y.query",
             "args": {
               "role": "button",
               "name": "Actions"
-            }
+            },
+            "when": "{% $not($exists(steps.findArchiveBeforeOpen.output.clickable_center.x)) %}"
           },
           {
             "id": "openActionsMenu",
@@ -7035,7 +7045,8 @@
                 "selector": "[data-testid='card-back-archive-button']"
               },
               "timeout_ms": 3000
-            }
+            },
+            "when": "{% $not($exists(steps.findArchiveBeforeOpen.output.clickable_center.x)) %}"
           },
           {
             "id": "findArchive",
@@ -7079,9 +7090,48 @@
               }
             },
             "on_error": "continue"
+          },
+          {
+            "id": "dismissArchiveSurface",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 200
+            }
+          },
+          {
+            "id": "closeCard",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 300
+            }
+          },
+          {
+            "id": "verifyCardClosed",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='card-back-name']"
+            },
+            "retry_until": "{% steps.verifyCardClosed.output.match_count = 0 %}",
+            "max_attempts": 3,
+            "on_error": "continue"
+          },
+          {
+            "id": "verifyBoardVisible",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='lists']"
+              }
+            }
           }
         ],
-        "output": "{% { 'card': input.card_title, 'archived': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'verified': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'safe_to_claim': false, 'archive_banner_text': steps.verifyArchived.output.text, 'verification_required': 'verified:true means the exact open card now exposes Trello archived-state text. safe_to_claim remains false until a separate board projection proves that the exact card left its list.' } %}"
+        "output": "{% { 'card': input.card_title, 'archived': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'verified': $contains(steps.verifyArchived.output.text, 'This card was archived'), 'board_visible': $exists(steps.verifyBoardVisible.output.bounding_box), 'safe_to_claim': false, 'archive_banner_text': steps.verifyArchived.output.text, 'verification_required': 'verified:true means the exact open card exposed Trello archived-state text before the action returned to the board. safe_to_claim remains false until a separate board projection proves that the exact card left its list.' } %}"
       },
       "x_actions": {
         "source": {
