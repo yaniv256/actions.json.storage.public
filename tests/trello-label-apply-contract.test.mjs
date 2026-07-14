@@ -34,30 +34,23 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
     "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
   );
   assert.equal(byId.findMatchingLabelRowBeforeOpen.on_error, "continue");
-  assert.equal(byId.findAddLabelButton.args.locator.text_contains, "Add a label");
-  assert.equal(byId.findLegacyLabelsButton.args.locator.text_contains, "Labels");
-  assert.equal(byId.findIconLabelButton.args.locator.text_contains, "label");
-  assert.match(byId.findIconLabelButton.when, /findLegacyLabelsButton/);
-  assert.match(byId.clickLabelsControl.args.x, /findIconLabelButton/);
+  assert.equal(byId.findLabelsControl.primitive, "a11y.query");
+  assert.equal(byId.findLabelsControl.args.role, "button");
+  assert.equal(byId.findLabelsControl.args.name, "Labels");
+  assert.equal(byId.findAddLabelButton, undefined);
+  assert.equal(byId.findLegacyLabelsButton, undefined);
+  assert.equal(byId.findIconLabelButton, undefined);
+  assert.match(byId.clickLabelsControl.args.x, /findLabelsControl/);
   assert.match(byId.clickLabelsControl.when, /findMatchingLabelRowBeforeOpen/);
   assert.equal(
     byId.clickLabelsControl.settle_after.locator.selector,
-    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
+    "[data-testid='labels-popover-labels-screen']",
   );
-  assert.equal(byId.clickLabelsControl.settle_after.locator.text_contains, "{% input.label %}");
   assert.ok(byId.clickLabelsControl.settle_after.timeout_ms <= 2000);
-  assert.equal(byId.findMatchingLabelRowAfterFirstClick.on_error, "continue");
-  assert.match(byId.clickLabelsControlAfterNoop.when, /findMatchingLabelRowAfterFirstClick/);
-  assert.equal(
-    byId.clickLabelsControlAfterNoop.settle_after.locator.selector,
-    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
-  );
+  assert.equal(byId.findMatchingLabelRowAfterFirstClick, undefined);
+  assert.equal(byId.clickLabelsControlAfterNoop, undefined);
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
-  assert.equal(
-    byId.findMatchingLabelRow.after_each.args.locator.selector,
-    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
-  );
-  assert.equal(byId.findMatchingLabelRow.after_each.args.locator.text_contains, "{% input.label %}");
+  assert.equal(byId.findMatchingLabelRow.retry_until, undefined);
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
   assert.ok(
     steps.findIndex((step) => step.id === "clickClosePopover") <
@@ -67,4 +60,24 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.verifyCardLabel.args.locator.selector, "[data-testid='card-back-labels-container'] [data-testid='card-label']");
   assert.match(apply.workflow.output, /already_present/);
   assert.match(apply.workflow.output, /verified/);
+});
+
+test("trello.board.label.ensure creates only missing exact board labels", () => {
+  const ensure = tool("trello.board.label.ensure");
+  const byId = Object.fromEntries(ensure.workflow.steps.map((step) => [step.id, step]));
+
+  assert.equal(byId.findLabelsControl.primitive, "a11y.query");
+  assert.deepEqual(byId.findLabelsControl.args, { role: "button", name: "Labels" });
+  assert.equal(byId.findOpenLabelsScreen.on_error, "continue");
+  assert.match(byId.findLabelsControl.when, /findOpenLabelsScreen/);
+  assert.match(byId.openLabels.when, /findOpenLabelsScreen/);
+  assert.equal(byId.findExistingLabel.on_error, "continue");
+  assert.equal(byId.findCreateNewLabel.args.name, "Create a new label");
+  assert.match(byId.openCreateLabel.when, /findExistingLabel/);
+  assert.equal(byId.insertLabelTitle.args.target.selector, "#edit-label-title-input");
+  assert.equal(byId.insertLabelTitle.args.text, "{% input.label %}");
+  assert.equal(byId.findCreate.args.name, "Create");
+  assert.equal(byId.createLabel.settle_after.locator.text_contains, "{% input.label %}");
+  assert.equal(byId.verifyLabel.args.locator.text_contains, "{% input.label %}");
+  assert.match(ensure.workflow.output, /verified/);
 });
