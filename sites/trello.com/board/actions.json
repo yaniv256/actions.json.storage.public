@@ -5163,7 +5163,7 @@
             "on_error": "continue"
           }
         ],
-        "output": "{% {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': ($exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title))), 'next_step': 'Only report success if verified is true; independently confirm the exact new title is present and the old title is absent with the independent board projection. After verified:false, re-read state before any retry.'} %}"
+        "output": "{% ( $verified := $exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title)); {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': $verified, 'safe_to_claim': $verified, 'next_step': $verified ? 'Rename appears on the board front; independently confirm exact new-title presence and old-title absence with the independent board projection.' : 'Rename did not verify; do not claim success or retry blindly. Re-read the board before deciding whether another attempt is safe.'} ) %}"
       }
     },
     {
