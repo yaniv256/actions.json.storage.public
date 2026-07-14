@@ -759,7 +759,7 @@
               "y": "{% steps.findTargetOption.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 300
+              "delay_ms": 500
             }
           },
           {
@@ -6837,11 +6837,34 @@
             "on_error": "continue"
           },
           {
+            "id": "dismissArchiveSurface",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 200
+            }
+          },
+          {
             "id": "closeCard",
             "primitive": "keyboard.press",
             "args": {
               "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 300
             }
+          },
+          {
+            "id": "verifyCardClosed",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='card-back-name']"
+            },
+            "retry_until": "{% steps.verifyCardClosed.output.match_count = 0 %}",
+            "max_attempts": 3,
+            "on_error": "continue"
           },
           {
             "id": "verifyBoardVisible",
