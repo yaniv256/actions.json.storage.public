@@ -6782,7 +6782,7 @@
     },
     {
       "name": "trello.card.close",
-      "description": "Close the currently open Trello card modal and return to the plain board view. Call this after finishing operations on a card unless the user explicitly asked to keep the card open. Verifies the modal is gone and the board lists are visible.",
+      "description": "Close the currently open Trello card modal and return to the plain board view. Call this after finishing operations on a card unless the user explicitly asked to keep the card open. Trello can place a nested dismissible surface inside the card, including an open checklist item composer; the workflow sends one Escape, probes whether the board is visible, and sends one conditional second Escape when the first only dismissed that nested surface. Verifies the modal is gone and the board lists are visible.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -6797,6 +6797,30 @@
             "primitive": "keyboard.press",
             "args": {
               "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 100
+            }
+          },
+          {
+            "id": "probeBoardAfterFirstEscape",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='lists']"
+              }
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "pressEscapeAgain",
+            "primitive": "keyboard.press",
+            "when": "{% $not($exists(steps.probeBoardAfterFirstEscape.output.bounding_box)) %}",
+            "args": {
+              "key": "Escape"
+            },
+            "settle_after": {
+              "delay_ms": 100
             }
           },
           {
