@@ -124,7 +124,7 @@ Authoring rules — these are paid-for lessons, not style preferences:
   description; a one-line fix shows one deletion.
 - **JSONata template slots must be whole-string expressions** — partial embedded
   expressions are unsupported. Build concatenations inside the expression:
-  `{% 'More actions on ' & input.list_name %}`.
+  a JSONata concatenation such as `'More actions on ' & input.list_name`.
 - **Record what you learned in `description`:** the gotchas ARE the value.
 
 ## Preserving the draft through this GitHub tab
