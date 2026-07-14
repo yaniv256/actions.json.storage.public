@@ -248,7 +248,7 @@
             "id": "selectContents",
             "primitive": "keyboard.press",
             "args": {
-              "key": "Meta+A",
+              "key": "Control+A",
               "trusted": true
             }
           },
@@ -637,6 +637,11 @@
             "settle_after": { "delay_ms": 500 }
           },
           {
+            "id": "selectTitleContents",
+            "primitive": "keyboard.press",
+            "args": { "key": "Control+A", "trusted": true }
+          },
+          {
             "id": "pasteTitle",
             "primitive": "clipboard.paste",
             "args": {
@@ -661,6 +666,11 @@
             "primitive": "pointer.click",
             "args": { "x": "{% steps.findSubtitleBox.output.clickable_center.x %}", "y": "{% steps.findSubtitleBox.output.clickable_center.y %}" },
             "settle_after": { "delay_ms": 500 }
+          },
+          {
+            "id": "selectSubtitleContents",
+            "primitive": "keyboard.press",
+            "args": { "key": "Control+A", "trusted": true }
           },
           {
             "id": "pasteSubtitle",

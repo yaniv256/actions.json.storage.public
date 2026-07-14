@@ -50,10 +50,23 @@ assert.equal(
   true,
   "textbox replacement must select canvas-editor text with trusted input",
 );
+assert.equal(
+  set.workflow.steps.find((step) => step.id === "selectContents").args.key,
+  "Control+A",
+  "the Windows-hosted Slides editor requires a trusted Control+A selection chord",
+);
 assert.match(set.workflow.output, /before_new_count/);
 assert.match(set.workflow.output, /after_new_count/);
 assert.match(set.workflow.output, /slide_number/);
 assert.match(set.workflow.output, /resolution/);
+
+const titleSlide = tool("slides.title_slide.set");
+for (const id of ["selectTitleContents", "selectSubtitleContents"]) {
+  const step = titleSlide.workflow.steps.find((candidate) => candidate.id === id);
+  assert.equal(step?.primitive, "keyboard.press", `${id} must select the placeholder contents`);
+  assert.equal(step?.args?.key, "Control+A", `${id} must use the Windows selection chord`);
+  assert.equal(step?.args?.trusted, true, `${id} must use trusted editor input`);
+}
 
 assert.ok(
   ledger.accepted_gaps.some(
