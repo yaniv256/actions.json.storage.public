@@ -4154,24 +4154,15 @@
           },
           {
             "id": "readLabelRowsAfterFirstClick",
-            "primitive": "browser.extract_elements",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "scope": {
-                "root_selector": "[data-testid='labels-popover-labels-screen']"
-              },
-              "item_selector": "[data-testid='clickable-checkbox']",
-              "fields": [
-                {
-                  "name": "text",
-                  "selector": ":scope",
-                  "attribute": "text"
-                },
-                {
-                  "name": "input_aria_checked",
-                  "selector": "input",
-                  "attribute": "aria-checked"
-                }
-              ]
+              "selector": "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox'] input",
+              "attributes": [
+                "aria-label",
+                "aria-checked"
+              ],
+              "text_contains": "{% input.label %}",
+              "max_matches": 10
             },
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}",
             "on_error": "continue"
@@ -4226,7 +4217,7 @@
                 "text_contains": "{% input.label %}"
               }
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 %}",
             "on_error": "continue"
           },
           {
@@ -4236,7 +4227,7 @@
               "role": "button",
               "name": "Add a label"
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
             "on_error": "continue"
           },
           {
@@ -4246,7 +4237,7 @@
               "role": "button",
               "name": "Labels"
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelControlForRetry.output.clickable_center.x)) %}"
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelControlForRetry.output.clickable_center.x)) %}"
           },
           {
             "id": "clickLabelsControlForRetry",
@@ -4255,7 +4246,7 @@
               "x": "{% $exists(steps.findAddLabelControlForRetry.output.clickable_center.x) ? steps.findAddLabelControlForRetry.output.clickable_center.x : steps.findLabelsControlForRetry.output.clickable_center.x %}",
               "y": "{% $exists(steps.findAddLabelControlForRetry.output.clickable_center.y) ? steps.findAddLabelControlForRetry.output.clickable_center.y : steps.findLabelsControlForRetry.output.clickable_center.y %}"
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 and $not($exists(steps.findMatchingLabelRowBeforeRetryOpen.output.clickable_center.x)) %}",
             "settle_after": {
               "locator": {
                 "selector": "[data-testid='labels-popover-labels-screen']"
@@ -4273,7 +4264,7 @@
                 "text_contains": "{% input.label %}"
               }
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 %}",
             "on_error": "stop"
           },
           {
@@ -4283,7 +4274,7 @@
               "x": "{% steps.findMatchingLabelRowRetry.output.clickable_center.x %}",
               "y": "{% steps.findMatchingLabelRowRetry.output.clickable_center.y %}"
             },
-            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.items), function($row) { $row.text = input.label and $row.input_aria_checked = 'true' })) = 0 %}",
+            "when": "{% $not($exists(steps.probeCardLabelAfterFirstClick.output.clickable_center.x)) and $count($filter($append([], steps.readLabelRowsAfterFirstClick.output.matches), function($row) { $contains($lowercase($lookup($row.attributes, 'aria-label')), $lowercase(input.label)) and $lookup($row.attributes, 'aria-checked') = 'true' })) = 0 %}",
             "settle_after": {
               "delay_ms": 500
             }

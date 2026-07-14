@@ -69,25 +69,19 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
   assert.equal(
     byId.readLabelRowsAfterFirstClick.primitive,
-    "browser.extract_elements",
+    "dom.observe.attributes",
   );
   assert.equal(
-    byId.readLabelRowsAfterFirstClick.args.scope.root_selector,
-    "[data-testid='labels-popover-labels-screen']",
+    byId.readLabelRowsAfterFirstClick.args.selector,
+    "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox'] input",
   );
-  assert.equal(
-    byId.readLabelRowsAfterFirstClick.args.item_selector,
-    "[data-testid='clickable-checkbox']",
+  assert.deepEqual(
+    byId.readLabelRowsAfterFirstClick.args.attributes,
+    ["aria-label", "aria-checked"],
   );
-  assert.ok(
-    byId.readLabelRowsAfterFirstClick.args.fields.some(
-      (field) =>
-        field.name === "input_aria_checked" &&
-        field.selector === "input" &&
-        field.attribute === "aria-checked",
-    ),
-    "the recovery gate must inspect the row checkbox's semantic state",
-  );
+  assert.equal(byId.readLabelRowsAfterFirstClick.args.text_contains, "{% input.label %}");
+  assert.match(byId.findMatchingLabelRowBeforeRetryOpen.when, /aria-checked/);
+  assert.match(byId.findMatchingLabelRowBeforeRetryOpen.when, /aria-label/);
   assert.equal(byId.probeCardLabelAfterFirstClick.on_error, "continue");
   assert.ok(
     byId.probeCardLabelAfterFirstClick.max_attempts >= 2,
