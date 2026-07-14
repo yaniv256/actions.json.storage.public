@@ -304,6 +304,10 @@ blindly click it when `ambiguous` is true.
 
 - The card composer is `[data-testid='list-card-composer-textarea']`, but it is
   a `contenteditable` element, not a normal textarea.
+- Trello persists canceled card-composer drafts and restores them when the same
+  list composer reopens. For card creation, replace the composer value and
+  verify exact equality before submitting; ordinary clipboard paste appends to
+  the restored draft.
 - The list composer is `[data-testid='list-name-textarea']`. Do not type card
   titles into it.
 - The label title input is `#edit-label-title-input`. Do not use the global
