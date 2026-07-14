@@ -7,6 +7,9 @@
     "surface_id": "linkedin.messaging",
     "observed_url": "https://www.linkedin.com/messaging/"
   },
+  "scope": {
+    "url_matches": "https://www.linkedin.com/messaging*"
+  },
   "observed_at": "2026-07-02T14:05:00-05:00",
   "prompt": {
     "title": "LinkedIn Messaging outreach survey and sync actions",
