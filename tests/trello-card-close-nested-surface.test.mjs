@@ -17,7 +17,7 @@ const steps = action.workflow.steps;
 const byId = Object.fromEntries(steps.map((step) => [step.id, step]));
 const firstEscapeIndex = steps.findIndex((step) => step.id === "pressEscape");
 const probeIndex = steps.findIndex(
-  (step) => step.id === "probeBoardAfterFirstEscape",
+  (step) => step.id === "probeCardAfterFirstEscape",
 );
 const secondEscapeIndex = steps.findIndex(
   (step) => step.id === "pressEscapeAgain",
@@ -34,17 +34,30 @@ assert.ok(
 
 assert.equal(byId.pressEscape.primitive, "keyboard.press");
 assert.equal(byId.pressEscape.args.key, "Escape");
-assert.equal(byId.probeBoardAfterFirstEscape.primitive, "locator.element_info");
+assert.equal(byId.probeCardAfterFirstEscape.primitive, "locator.element_info");
 assert.equal(
-  byId.probeBoardAfterFirstEscape.args.locator.selector,
-  "[data-testid='lists']",
+  byId.probeCardAfterFirstEscape.args.locator.selector,
+  "[data-testid='card-back-name']",
 );
-assert.equal(byId.probeBoardAfterFirstEscape.on_error, "continue");
+assert.equal(byId.probeCardAfterFirstEscape.on_error, "continue");
 assert.equal(byId.pressEscapeAgain.primitive, "keyboard.press");
 assert.equal(byId.pressEscapeAgain.args.key, "Escape");
-assert.match(byId.pressEscapeAgain.when, /probeBoardAfterFirstEscape/);
+assert.match(byId.pressEscapeAgain.when, /probeCardAfterFirstEscape/);
 assert.match(byId.pressEscapeAgain.when, /bounding_box/);
+assert.doesNotMatch(byId.pressEscapeAgain.when, /\$not/);
 assert.equal(byId.verifyBoardVisible.primitive, "locator.element_info");
+assert.equal(
+  byId.verifyBoardVisible.args.locator.selector,
+  "[data-testid='lists']",
+);
+assert.equal(
+  steps.filter(
+    (step) =>
+      step.primitive === "keyboard.press" && step.args?.key === "Escape",
+  ).length,
+  2,
+  "card close must remain bounded to two Escape attempts",
+);
 assert.match(action.description, /nested/i);
 assert.match(action.description, /checklist item composer/i);
 
