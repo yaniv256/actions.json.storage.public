@@ -179,7 +179,7 @@
   "tools": [
     {
       "name": "trello.card.drag_between_lists",
-      "description": "Move a card from one list to another by a REAL animated drag (visible card-follows-cursor motion), then VERIFY the move by structured list-membership read. Use when the user wants the card physically dragged between columns (not the Actions>Move menu). Resolves the card body and the destination list heading by accessible identity, performs an animated trusted pointer.drag (duration_ms for the visible glide), and \u2014 because pointer.drag can report event-success without moving the card \u2014 REQUIRES a post-drag verification: the card title must appear under destination_list_name and must NOT remain under source_list_name. Fails loudly (ok:false) if verification does not confirm the move; never claims success on drag-event success alone.",
+      "description": "Move a card from one list to another by a REAL animated drag (visible card-follows-cursor motion), then VERIFY the move by structured list-membership read. Use when the user wants the card physically dragged between columns (not the Actions>Move menu). Resolves the card and destination list by identity-bearing locators at dispatch time, so the pointer.drag runtime can attest that both points are visible and receive events before emitting a drag. Performs an animated trusted pointer.drag (duration_ms for the visible glide), and \u2014 because pointer.drag can report event-success without moving the card \u2014 REQUIRES a post-drag verification: the card title must appear under destination_list_name and must NOT remain under source_list_name. Fails loudly (ok:false) if verification does not confirm the move; never claims success on drag-event success alone.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -301,12 +301,16 @@
             "primitive": "pointer.drag",
             "args": {
               "from": {
-                "x": "{% steps.findCard.output.clickable_center.x %}",
-                "y": "{% steps.findCard.output.clickable_center.y %}"
+                "locator": {
+                  "selector": "[data-testid='card-name'], a[data-testid='card-name']",
+                  "text_contains": "{% input.card_title %}"
+                }
               },
               "to": {
-                "x": "{% steps.findDestList.output.clickable_center.x %}",
-                "y": "{% steps.findDestList.output.clickable_center.y + 120 %}"
+                "locator": {
+                  "selector": "[data-testid='list-wrapper']",
+                  "text_contains": "{% input.destination_list_name %}"
+                }
               },
               "duration_ms": "{% input.duration_ms ? input.duration_ms : 600 %}",
               "trusted": true,
