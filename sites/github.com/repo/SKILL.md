@@ -100,7 +100,8 @@ study the shape:
 {% endraw %}
 
 Note the two things a runnable action has that a sketch does not: every step
-NAMES a primitive and passes concrete args (with `{% %}` slots to carry
+NAMES a primitive and passes concrete args (with whole-string JSONata template
+slots to carry
 geometry forward from `clickable_center`), and `verified` is COMPUTED from what
 the verify step actually read — here, "the comment text is NOT contained in the
 comments area" — never a hardcoded `true`. A hardcoded `verified: true` is a
@@ -121,7 +122,7 @@ Authoring rules — these are paid-for lessons, not style preferences:
   must come from it. Verify the intended effect AND that nothing else changed —
   presence-only checks pass through catastrophes. For commits, read the diff
   description; a one-line fix shows one deletion.
-- **`{% %}` slots must be whole-string JSONata expressions** — partial embedded
+- **JSONata template slots must be whole-string expressions** — partial embedded
   expressions are unsupported. Build concatenations inside the expression:
   `{% 'More actions on ' & input.list_name %}`.
 - **Record what you learned in `description`:** the gotchas ARE the value.
