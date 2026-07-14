@@ -4067,20 +4067,30 @@
             "on_error": "continue"
           },
           {
+            "id": "findAddLabelControl",
+            "primitive": "a11y.query",
+            "args": {
+              "role": "button",
+              "name": "Add a label"
+            },
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}",
+            "on_error": "continue"
+          },
+          {
             "id": "findLabelsControl",
             "primitive": "a11y.query",
             "args": {
               "role": "button",
               "name": "Labels"
             },
-            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}"
+            "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) and $not($exists(steps.findAddLabelControl.output.clickable_center.x)) %}"
           },
           {
             "id": "clickLabelsControl",
             "primitive": "pointer.click",
             "args": {
-              "x": "{% steps.findLabelsControl.output.clickable_center.x %}",
-              "y": "{% steps.findLabelsControl.output.clickable_center.y %}"
+              "x": "{% $exists(steps.findAddLabelControl.output.clickable_center.x) ? steps.findAddLabelControl.output.clickable_center.x : steps.findLabelsControl.output.clickable_center.x %}",
+              "y": "{% $exists(steps.findAddLabelControl.output.clickable_center.y) ? steps.findAddLabelControl.output.clickable_center.y : steps.findLabelsControl.output.clickable_center.y %}"
             },
             "when": "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) and $not($exists(steps.findMatchingLabelRowBeforeOpen.output.clickable_center.x)) %}",
             "settle_after": {
@@ -4117,13 +4127,8 @@
           },
           {
             "id": "findClosePopover",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[data-testid='labels-popover-labels-screen'] button, button",
-                "text_contains": "Close popover"
-              }
-            },
+            "primitive": "a11y.query",
+            "args": {"role": "button", "name": "Close popover"},
             "on_error": "continue"
           },
           {

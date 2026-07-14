@@ -34,12 +34,16 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
     "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']",
   );
   assert.equal(byId.findMatchingLabelRowBeforeOpen.on_error, "continue");
+  assert.equal(byId.findAddLabelControl.primitive, "a11y.query");
+  assert.equal(byId.findAddLabelControl.args.name, "Add a label");
+  assert.equal(byId.findAddLabelControl.on_error, "continue");
   assert.equal(byId.findLabelsControl.primitive, "a11y.query");
   assert.equal(byId.findLabelsControl.args.role, "button");
   assert.equal(byId.findLabelsControl.args.name, "Labels");
   assert.equal(byId.findAddLabelButton, undefined);
   assert.equal(byId.findLegacyLabelsButton, undefined);
   assert.equal(byId.findIconLabelButton, undefined);
+  assert.match(byId.clickLabelsControl.args.x, /findAddLabelControl/);
   assert.match(byId.clickLabelsControl.args.x, /findLabelsControl/);
   assert.match(byId.clickLabelsControl.when, /findMatchingLabelRowBeforeOpen/);
   assert.equal(
@@ -51,6 +55,8 @@ test("trello.card.label.apply is idempotent and verifies against the card label 
   assert.equal(byId.clickLabelsControlAfterNoop, undefined);
   assert.equal(byId.findMatchingLabelRow.args.locator.selector, "[data-testid='labels-popover-labels-screen'] [data-testid='clickable-checkbox']");
   assert.equal(byId.findMatchingLabelRow.retry_until, undefined);
+  assert.equal(byId.findClosePopover.primitive, "a11y.query");
+  assert.deepEqual(byId.findClosePopover.args, { role: "button", name: "Close popover" });
   assert.equal(byId.clickMatchingLabelRow.when, "{% $not($exists(steps.findExistingCardLabel.output.clickable_center.x)) %}");
   assert.ok(
     steps.findIndex((step) => step.id === "clickClosePopover") <
