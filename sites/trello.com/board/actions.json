@@ -2226,7 +2226,7 @@
     },
     {
       "name": "trello.card.create",
-      "description": "Create a card at the bottom of a named Trello list on the open board. Normalizes any inherited composer state by canceling an open card composer, then resolves the target list's own Add a card opener by accessible name, types into the single open composer, clicks its Add card button, and verifies the exact card title. Verify again by reading the board projection.",
+      "description": "Create a card at the bottom of a named Trello list on the open board. Normalizes any inherited composer state by canceling an open card composer, then resolves the target list's own Add a card opener by accessible name, replaces any Trello-persisted draft with the exact requested title, proves the composer value before submitting, clicks its Add card button, and verifies the exact title in the requested list. Verify again by reading the board projection.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -2248,7 +2248,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardCreate",
-          "why": "2026-07-10 STATE-MACHINE REWRITE. The 2026-07-09 rewrite correctly used the opener's aria-label, but only modeled the closed-composer state. A dispatch timeout could click Add a card and leave a composer open; the next run then failed at findAddCardButton because the opener is replaced by composer controls. The first repair tried CSS :has() to scope inside the target list, but text.insert with that selector wedged the runtime. The workflow now uses a safer state-machine normalization: cancel any inherited card composer, then open the target list by aria label so the composer textarea and submit button are unique."
+          "why": "2026-07-13 PERSISTED-DRAFT FIX. Trello restores canceled card-composer drafts when the same list composer is reopened. clipboard.paste appended the requested title to that restored text, and substring verification accepted the malformed card. The workflow keeps the 2026-07-10 state-machine normalization, then uses text.insert mode replace on the now-unique composer, hard-stops unless the composer text exactly equals input.title, and verifies the exact title in the requested list."
         }
       },
       "workflow": {
@@ -2355,13 +2355,36 @@
           },
           {
             "id": "insertTitle",
-            "primitive": "clipboard.paste",
+            "primitive": "text.insert",
             "args": {
               "text": "{% input.title %}",
+              "mode": "replace",
               "target": {
                 "selector": "[data-testid='list-card-composer-textarea']"
               }
             }
+          },
+          {
+            "id": "verifyComposerTitle",
+            "primitive": "locator.text_content",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-card-composer-textarea']"
+              }
+            },
+            "retry_until": "{% steps.verifyComposerTitle.output.text = input.title %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='list-card-composer-textarea']"
+                },
+                "state": "visible",
+                "timeout_ms": 300
+              }
+            },
+            "on_error": "stop"
           },
           {
             "id": "findSubmitCard",
@@ -2401,7 +2424,7 @@
                 "href",
                 "aria-label"
               ],
-              "text_contains": "{% input.title %}",
+              "text_equals": "{% input.title %}",
               "max_matches": 20
             },
             "retry_until": "{% steps.verifyCardPresent.output.match_count > 0 %}",
@@ -7763,7 +7786,7 @@
           "projection": "trello.board",
           "verify": {
             "language": "jsonata",
-            "expression": "{% $exists(state.board.lists[name = $$.input.list_name].cards[title = $$.input.title]) or $exists(state.board.lists.cards[title = $$.input.title]) %}"
+            "expression": "{% $exists(state.board.lists[name = $$.input.list_name].cards[title = $$.input.title]) %}"
           },
           "failure_message": "The new Trello card was not present in board state."
         },
