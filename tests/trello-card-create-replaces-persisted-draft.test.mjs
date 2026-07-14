@@ -28,12 +28,12 @@ test("trello.card.create replaces a persisted composer draft before submitting",
 });
 
 test("trello.card.create refuses to submit until the composer equals the requested title", () => {
-  assert.equal(steps.verifyComposerTitle.primitive, "locator.text_content");
+  assert.equal(steps.verifyComposerTitle.primitive, "locator.value");
   assert.equal(
     steps.verifyComposerTitle.args.locator.selector,
     "[data-testid='list-card-composer-textarea']",
   );
-  assert.match(steps.verifyComposerTitle.retry_until, /output\.text = input\.title/);
+  assert.match(steps.verifyComposerTitle.retry_until, /output\.value = input\.title/);
   assert.equal(steps.verifyComposerTitle.on_error, "stop");
   assert.ok(
     create.workflow.steps.findIndex((step) => step.id === "verifyComposerTitle") <
