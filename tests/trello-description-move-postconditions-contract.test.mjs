@@ -16,34 +16,15 @@ const descriptionSteps = new Map(
   description.workflow.steps.map((step) => [step.id, step]),
 );
 const replaceDescription = descriptionSteps.get("replaceDescription");
-const pasteNewDescription = descriptionSteps.get("pasteNewDescription");
 
 assert.ok(
   replaceDescription,
-  "description.set must replace editor content in one atomic workflow step",
+  "description.set must replace the whole ProseMirror document through the portable primitive",
 );
-assert.equal(
-  replaceDescription.primitive,
-  "text.insert",
-  "description replacement must use text.insert's atomic replace contract",
-);
+assert.equal(replaceDescription.primitive, "text.insert");
 assert.equal(replaceDescription.args?.mode, "replace");
-assert.match(
-  replaceDescription.when ?? "",
-  /findPlaceholder/,
-  "atomic replacement is the populated-description path",
-);
-assert.ok(
-  pasteNewDescription,
-  "an empty Trello description needs the editor-accepted paste insertion path",
-);
-assert.equal(pasteNewDescription.primitive, "clipboard.paste");
-assert.match(pasteNewDescription.when ?? "", /findPlaceholder/);
-assert.equal(
-  descriptionSteps.has("selectExistingDescription"),
-  false,
-  "description.set must not split select-all from insertion",
-);
+assert.equal(replaceDescription.args?.text, "{% input.text %}");
+assert.equal(replaceDescription.when, undefined);
 assert.equal(
   descriptionSteps.has("insertDesc"),
   false,
@@ -59,6 +40,35 @@ assert.doesNotMatch(
   /input\.(verify_contains|text)/,
   "the Save step must not use caller text as a fatal settle condition; the verifier owns the goal",
 );
+const descriptionStepOrder = description.workflow.steps.map((step) => step.id);
+assert.ok(
+  descriptionStepOrder.indexOf("replaceDescription") <
+      descriptionStepOrder.indexOf("settleDescriptionDraft") &&
+    descriptionStepOrder.indexOf("settleDescriptionDraft") <
+      descriptionStepOrder.indexOf("commitDescription"),
+  "portable replacement must settle Trello's ProseMirror model before the single Save",
+);
+assert.ok(
+  (descriptionSteps.get("settleDescriptionDraft")?.settle_after?.delay_ms ?? 0) >= 4500,
+  "the measured ProseMirror synchronization boundary requires an explicit settle interval",
+);
+for (const staleRecoveryStep of [
+  "pasteNewDescription",
+  "selectExistingDescription",
+  "typeExistingDescription",
+  "waitFirstEditorClosed",
+  "findDraftEdit",
+  "clickDraftEdit",
+  "scrollDraftSaveIntoView",
+  "findDraftSave",
+  "commitDraftDescription",
+]) {
+  assert.equal(
+    descriptionSteps.has(staleRecoveryStep),
+    false,
+    `${staleRecoveryStep} must not preserve the one-revision-behind workaround`,
+  );
+}
 assert.match(
   verifyDescription.args?.locator?.selector ?? "",
   /description-content-area/,

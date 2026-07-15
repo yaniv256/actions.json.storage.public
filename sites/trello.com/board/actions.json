@@ -4488,7 +4488,7 @@
     },
     {
       "name": "trello.card.description.set",
-      "description": "Set the description on a specifically named, currently open Trello card with no agent primitives: verify the open card title, open the description editor, atomically replace its contents, save, and verify a distinctive substring on the saved description surface. Precondition: open the intended card first with trello.card.by_title.open, then pass that exact card title as card_title. For long descriptions, pass verify_contains as a short distinctive URL-free body phrase; the comparison is whitespace-normalized, so sentinels may contain newlines. Do not claim success unless output.verified is true. If verified is false, re-check with trello.card.detail.read and a shorter sentinel before anything else; only re-run this action if the content is genuinely absent, because re-setting overwrites the saved description and its formatting. IMPORTANT: verify_contains must not include raw URLs \u2014 Trello converts pasted URLs into titled smart links, so the raw URL text disappears from the visible description. Verify URLs separately with trello.card.description_links.read (href match). CRM boards: user-stated facts (meeting outcomes, decisions, next actions) must be captured here at the moment they are said \u2014 the card is the system of record, not the conversation. FORMATTING: write multi-line text \u2014 separate sections with blank lines (\\n\\n) and start bullet lines with '- '. Never write the whole description as one long line; that renders as an unreadable wall of text. SENTINEL RULE: verify_contains must not start with '- ' \u2014 bullet prefixes render as list glyphs and the literal dash disappears from visible text, causing a false verified:false. Use a mid-line phrase without leading markup.",
+      "description": "Set the description on a specifically named, currently open Trello card through portable actions.json behavior: verify the open card title, open the editor, replace the whole ProseMirror document with text.insert mode=replace, allow the editor model to settle, save once, and verify a distinctive substring on the saved description surface. Requires an extension runtime whose contenteditable text.insert emits the input synchronization boundary after a handled synthetic paste. Precondition: open the intended card first with trello.card.by_title.open, then pass that exact card title as card_title. For long descriptions, pass verify_contains as a short distinctive URL-free body phrase; the comparison is whitespace-normalized, so sentinels may contain newlines. Do not claim success unless output.verified is true. If verified is false, re-check with trello.card.detail.read and a shorter sentinel before anything else; only re-run this action if the content is genuinely absent, because re-setting overwrites the saved description and its formatting. IMPORTANT: verify_contains must not include raw URLs \u2014 Trello converts pasted URLs into titled smart links, so the raw URL text disappears from the visible description. Verify URLs separately with trello.card.description_links.read (href match). CRM boards: user-stated facts (meeting outcomes, decisions, next actions) must be captured here at the moment they are said \u2014 the card is the system of record, not the conversation. FORMATTING: write multi-line text \u2014 separate sections with blank lines (\\n\\n) and start bullet lines with '- '. Never write the whole description as one long line; that renders as an unreadable wall of text. SENTINEL RULE: verify_contains must not start with '- ' \u2014 bullet prefixes render as list glyphs and the literal dash disappears from visible text, causing a false verified:false. Use a mid-line phrase without leading markup.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4514,7 +4514,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardDescriptionSet",
-          "why": "Lifts description editing from candidate-resolution plus manual click/type/save to a single primitive-free workflow."
+          "why": "Uses one portable replacement path for every editor state. The runtime completes the handled-paste input boundary before the workflow settles, saves once, and verifies the saved surface; no ambiguous placeholder branch or second-save workaround remains."
         }
       },
       "workflow": {
@@ -4650,30 +4650,12 @@
           {
             "id": "replaceDescription",
             "primitive": "text.insert",
-            "when": "{% $not($exists(steps.findPlaceholder.output.clickable_center.x)) %}",
             "args": {
               "text": "{% input.text %}",
               "mode": "replace",
               "target": {
                 "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], [role='dialog'] [contenteditable='true'][data-testid*='description' i], [role='dialog'] [data-testid*='description' i] [contenteditable='true'], [role='dialog'] .ak-editor-content-area [contenteditable='true'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description'], .window [contenteditable='true'][data-testid*='description' i], .window [data-testid*='description' i] [contenteditable='true'], .window .ak-editor-content-area [contenteditable='true']"
               }
-            },
-            "settle_after": {
-              "delay_ms": 2500
-            }
-          },
-          {
-            "id": "pasteNewDescription",
-            "primitive": "clipboard.paste",
-            "when": "{% $exists(steps.findPlaceholder.output.clickable_center.x) %}",
-            "args": {
-              "text": "{% input.text %}",
-              "target": {
-                "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], [role='dialog'] [contenteditable='true'][data-testid*='description' i], [role='dialog'] [data-testid*='description' i] [contenteditable='true'], [role='dialog'] .ak-editor-content-area [contenteditable='true'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description'], .window [contenteditable='true'][data-testid*='description' i], .window [data-testid*='description' i] [contenteditable='true'], .window .ak-editor-content-area [contenteditable='true']"
-              }
-            },
-            "settle_after": {
-              "delay_ms": 2500
             }
           },
           {
@@ -4721,70 +4703,6 @@
               "delay_ms": 500
             },
             "on_error": "stop"
-          },
-          {
-            "id": "verifyAfterFirstSave",
-            "primitive": "locator.text_content",
-            "args": {
-              "locator": {
-                "selector": "[role='dialog'], .window"
-              }
-            },
-            "on_error": "continue"
-          },
-          {
-            "id": "findDraftEdit",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[role='dialog'] [data-testid*='description'] button, .window [data-testid*='description'] button, [role='dialog'] button, .window button",
-                "text_contains": "Edit"
-              }
-            },
-            "when": "{% $not($contains($replace(steps.verifyAfterFirstSave.output.text ? steps.verifyAfterFirstSave.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $replace(input.verify_contains ? input.verify_contains : input.text, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '))) %}",
-            "on_error": "continue"
-          },
-          {
-            "id": "clickDraftEdit",
-            "primitive": "pointer.click",
-            "args": {
-              "x": "{% steps.findDraftEdit.output.clickable_center.x %}",
-              "y": "{% steps.findDraftEdit.output.clickable_center.y %}"
-            },
-            "when": "{% steps.findDraftEdit.output.clickable_center.x != null %}",
-            "on_error": "continue",
-            "settle_after": {
-              "locator": {
-                "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description']"
-              },
-              "state": "visible",
-              "timeout_ms": 5000
-            }
-          },
-          {
-            "id": "findDraftSave",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[role='dialog'] [data-testid='description-save-button'], .window [data-testid='description-save-button']",
-                "text_contains": "Save"
-              }
-            },
-            "when": "{% steps.findDraftEdit.output.clickable_center.x != null %}",
-            "on_error": "continue"
-          },
-          {
-            "id": "commitDraftDescription",
-            "primitive": "pointer.click",
-            "args": {
-              "x": "{% steps.findDraftSave.output.clickable_center.x %}",
-              "y": "{% steps.findDraftSave.output.clickable_center.y %}"
-            },
-            "when": "{% steps.findDraftSave.output.clickable_center.x != null %}",
-            "settle_after": {
-              "delay_ms": 1200
-            },
-            "on_error": "continue"
           },
           {
             "id": "verifyDescriptionText",
