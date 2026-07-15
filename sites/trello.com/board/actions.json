@@ -6924,6 +6924,16 @@
             }
           },
           {
+            "id": "verifyCardClosed",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"
+            },
+            "retry_until": "{% steps.verifyCardClosed.output.match_count = 0 %}",
+            "max_attempts": 4,
+            "on_error": "stop"
+          },
+          {
             "id": "verifyBoardRoute",
             "primitive": "locator.wait_for",
             "args": {
@@ -6935,7 +6945,7 @@
             }
           }
         ],
-        "output": "{% {'card_title': input.card_title, 'source_list': input.source_list, 'target_list': input.target_list, 'moved': $exists(steps.verifyMovedList.output.clickable_center.x), 'committed_list_text': steps.verifyMovedList.output.text, 'returned_to_board': steps.verifyBoardRoute.output.matched, 'verification_required': 'The registered board postcondition confirms card_title under target_list and absent from source_list.'} %}",
+        "output": "{% {'card_title': input.card_title, 'source_list': input.source_list, 'target_list': input.target_list, 'moved': $exists(steps.verifyMovedList.output.clickable_center.x), 'committed_list_text': steps.verifyMovedList.output.text, 'returned_to_board': steps.verifyCardClosed.output.match_count = 0 and steps.verifyBoardRoute.output.matched, 'verification_required': 'The registered board postcondition confirms card_title under target_list and absent from source_list.'} %}",
         "x_state_machine": {
           "requires_state": {
             "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"

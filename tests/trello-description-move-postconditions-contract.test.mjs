@@ -78,6 +78,7 @@ assert.ok(
 const moveSteps = new Map(move.workflow.steps.map((step) => [step.id, step]));
 const verifyMovedList = moveSteps.get("verifyMovedList");
 const closeMovedCard = moveSteps.get("closeMovedCard");
+const verifyCardClosed = moveSteps.get("verifyCardClosed");
 const verifyBoardRoute = moveSteps.get("verifyBoardRoute");
 
 assert.ok(
@@ -106,6 +107,17 @@ assert.equal(
 );
 assert.equal(closeMovedCard?.args?.key, "Escape");
 assert.equal(
+  verifyCardClosed?.primitive,
+  "dom.observe.visible",
+  "move must prove the card surface is gone after Escape",
+);
+assert.match(
+  JSON.stringify(verifyCardClosed?.args ?? {}),
+  /card-back-(title-input|name)/,
+  "route restoration must bind the card-back surface negatively",
+);
+assert.match(verifyCardClosed?.retry_until ?? "", /match_count\s*=\s*0/);
+assert.equal(
   verifyBoardRoute?.primitive,
   "locator.wait_for",
   "move must return to a board surface before its board projection postcondition runs",
@@ -119,6 +131,15 @@ assert.match(
   move.workflow.output,
   /verifyBoardRoute\.output\.matched/,
   "move output must use locator.wait_for's declared matched field",
+);
+assert.match(move.workflow.output, /verifyCardClosed\.output\.match_count\s*=\s*0/);
+
+const stepOrder = move.workflow.steps.map((step) => step.id);
+assert.ok(
+  stepOrder.indexOf("verifyMovedList") < stepOrder.indexOf("closeMovedCard") &&
+    stepOrder.indexOf("closeMovedCard") < stepOrder.indexOf("verifyCardClosed") &&
+    stepOrder.indexOf("verifyCardClosed") < stepOrder.indexOf("verifyBoardRoute"),
+  "move must verify destination, close the card, prove it absent, then prove the board visible",
 );
 
 const boardProjection = map.state_projections.find(
