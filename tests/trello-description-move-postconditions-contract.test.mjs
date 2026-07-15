@@ -61,8 +61,8 @@ assert.doesNotMatch(
 );
 assert.match(
   verifyDescription.args?.locator?.selector ?? "",
-  /description/i,
-  "description verification must bind the description surface",
+  /description-content-area/,
+  "description verification must bind Trello's measured saved-description surface",
 );
 assert.doesNotMatch(
   verifyDescription.args?.locator?.selector ?? "",
