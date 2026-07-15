@@ -1,0 +1,882 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0",
+  "surface": {
+    "origin": "https://actionsjson.com",
+    "name": "X Marketing with actions.json textbook",
+    "surface_id": "actionsjson.book",
+    "url_patterns": [
+      "https://actionsjson.com/book/*"
+    ],
+    "description": "The public textbook, its learner workbook, answer guides, and embedded GPT Realtime tutor."
+  },
+  "scope": {
+    "url_matches": "https://actionsjson.com/book/*"
+  },
+  "prompt": {
+    "title": "X Marketing with actions.json textbook operator",
+    "instructions": "Help the learner understand and navigate the textbook without doing their learning for them. Read book.page before choosing a destination. Ask for the learner's attempt before opening model feedback. Read book.workbook on workbook routes to recover current progress and the selected draft. Use only book.* actions for the textbook. X account operations belong to the separate X map and require their own approval boundary. A successful click is not proof that navigation or a tutor-state change persisted: independently read book.page, book.workbook, or book.tutor after every action.",
+    "context_boundary": "book.page exposes a bounded title, section inventory, and learning links rather than the full article. book.tutor exposes bounded controls and transcript entries. book.workbook exposes only the learner data currently rendered in the authorized browser tab; no learner data is stored in this public map."
+  },
+  "requires": {
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "locator.element_info",
+        "pointer.click",
+        "state.read"
+      ],
+      "optional_primitives": [
+        "browser.extract_elements",
+        "dom.snapshot_text"
+      ]
+    }
+  },
+  "states": [
+    {
+      "name": "book_page_ready",
+      "description": "A textbook page has an H1 and a bounded section inventory."
+    },
+    {
+      "name": "workbook_ready",
+      "description": "The learner workbook is rendered and its current artifact can be read."
+    },
+    {
+      "name": "tutor_disconnected",
+      "description": "The voice tutor is mounted but no Realtime session is active."
+    },
+    {
+      "name": "tutor_connecting",
+      "description": "A Realtime session is starting or waiting for browser microphone permission."
+    },
+    {
+      "name": "tutor_connected",
+      "description": "The Realtime session is active."
+    },
+    {
+      "name": "tutor_paused",
+      "description": "The Realtime session is active but paused."
+    }
+  ],
+  "tools": [
+    {
+      "name": "book.map",
+      "description": "Return the operating contract and fixed chapter registry. Call this first when the learner asks where to go.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "actionsjson.com",
+          "surface": "book",
+          "recommended_sequence": [
+            "book.page state_summary agent_context",
+            "ask what the learner is trying to accomplish and what they have attempted",
+            "book.section.open, book.chapter.open, book.feedback.open, or book.workbook.open",
+            "independently read the applicable state projection"
+          ],
+          "chapters": [
+            { "number": 1, "slug": "01-outcomes-before-content", "title": "Outcomes Before Content" },
+            { "number": 2, "slug": "02-positioning-and-profile", "title": "Positioning and Profile" },
+            { "number": 3, "slug": "03-distribution-and-networks", "title": "Distribution and Networks" },
+            { "number": 4, "slug": "04-ideas-and-editorial-strategy", "title": "Ideas and Editorial Strategy" },
+            { "number": 5, "slug": "05-posts-hooks-and-threads", "title": "Posts, Hooks, and Threads" },
+            { "number": 6, "slug": "06-replies-and-relationships", "title": "Replies and Relationships" },
+            { "number": 7, "slug": "07-visual-video-repurposing", "title": "Visual, Video, and Repurposing" },
+            { "number": 8, "slug": "08-cadence-and-collaborations", "title": "Cadence and Collaborations" },
+            { "number": 9, "slug": "09-owned-audience-and-offers", "title": "Owned Audience and Offers" },
+            { "number": 10, "slug": "10-measurement-and-experiments", "title": "Measurement and Experiments" },
+            { "number": 11, "slug": "11-paid-safety-automation", "title": "Paid, Safety, and Automation" },
+            { "number": 12, "slug": "12-capstone-operating-system", "title": "Capstone Operating System" }
+          ],
+          "attempt_first": "Do not open model feedback until the learner says they have attempted the exercise or explicitly asks to skip the attempt-first sequence.",
+          "mutation_boundary": "This map does not post, reply, follow, like, or otherwise mutate X."
+        }
+      }
+    },
+    {
+      "name": "book.chapter.open",
+      "description": "Open one declared chapter by its exact slug, then verify book.page.source_url contains that chapter slug.",
+      "input_schema": {
+        "type": "object",
+        "required": ["chapter_slug"],
+        "properties": {
+          "chapter_slug": {
+            "type": "string",
+            "enum": [
+              "01-outcomes-before-content",
+              "02-positioning-and-profile",
+              "03-distribution-and-networks",
+              "04-ideas-and-editorial-strategy",
+              "05-posts-hooks-and-threads",
+              "06-replies-and-relationships",
+              "07-visual-video-repurposing",
+              "08-cadence-and-collaborations",
+              "09-owned-audience-and-offers",
+              "10-measurement-and-experiments",
+              "11-paid-safety-automation",
+              "12-capstone-operating-system"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findChapter",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% '[data-testid=\"book-chapter-link-' & input.chapter_slug & '\"]' %}"
+              }
+            }
+          },
+          {
+            "id": "openChapter",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findChapter.output.clickable_center.x %}",
+              "y": "{% steps.findChapter.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 700 }
+          }
+        ],
+        "output": "{% {'requested_chapter': input.chapter_slug, 'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.page and require source_url to contain /chapters/' & input.chapter_slug & '/.'} %}"
+      }
+    },
+    {
+      "name": "book.section.open",
+      "description": "Move to a section on the current textbook page by the exact section id returned by book.page.sections.",
+      "input_schema": {
+        "type": "object",
+        "required": ["section_id"],
+        "properties": {
+          "section_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findSection",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% '[data-testid=\"book-section-link-' & input.section_id & '\"]' %}"
+              }
+            }
+          },
+          {
+            "id": "openSection",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findSection.output.clickable_center.x %}",
+              "y": "{% steps.findSection.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 250 }
+          }
+        ],
+        "output": "{% {'requested_section': input.section_id, 'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.page and require source_url to end in #' & input.section_id & '.'} %}"
+      }
+    },
+    {
+      "name": "book.adjacent.open",
+      "description": "Open the visible previous or next textbook page through the semantic footer navigation.",
+      "input_schema": {
+        "type": "object",
+        "required": ["direction", "current_source_url"],
+        "properties": {
+          "direction": {
+            "type": "string",
+            "enum": ["previous", "next"]
+          },
+          "current_source_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "Exact source_url from the immediately preceding book.page read."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findDestination",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% '[data-testid=\"book-adjacent-' & input.direction & '\"]' %}"
+              }
+            }
+          },
+          {
+            "id": "openDestination",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findDestination.output.clickable_center.x %}",
+              "y": "{% steps.findDestination.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 700 }
+          }
+        ],
+        "output": "{% {'direction': input.direction, 'destination_text': steps.findDestination.output.text, 'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.page and confirm source_url and title changed to the intended adjacent page.'} %}"
+      }
+    },
+    {
+      "name": "book.feedback.open",
+      "description": "Open the current chapter's exercise feedback or knowledge-check answers. Ask for an attempt first unless the learner explicitly declines that sequence.",
+      "input_schema": {
+        "type": "object",
+        "required": ["feedback_kind", "attempt_status"],
+        "properties": {
+          "feedback_kind": {
+            "type": "string",
+            "enum": ["exercise", "knowledge_check", "interactive_practice"]
+          },
+          "attempt_status": {
+            "type": "string",
+            "enum": ["attempted", "explicitly_skipped"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findFeedback",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% '[data-testid=\"book-feedback-link-' & $replace(input.feedback_kind, '_', '-') & '\"]' %}"
+              }
+            }
+          },
+          {
+            "id": "openFeedback",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findFeedback.output.clickable_center.x %}",
+              "y": "{% steps.findFeedback.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 700 }
+          }
+        ],
+        "output": "{% {'feedback_kind': input.feedback_kind, 'attempt_status': input.attempt_status, 'destination_text': steps.findFeedback.output.text, 'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.page and confirm the answer-guide URL and requested feedback fragment.'} %}"
+      }
+    },
+    {
+      "name": "book.glossary.open",
+      "description": "Open the textbook glossary, then use book.page.sections to choose a declared term anchor.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findGlossary",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "[data-testid='book-glossary-link']" } }
+          },
+          {
+            "id": "openGlossary",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findGlossary.output.clickable_center.x %}",
+              "y": "{% steps.findGlossary.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 700 }
+          }
+        ],
+        "output": "{% {'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.page and require source_url to contain /glossary/.'} %}"
+      }
+    },
+    {
+      "name": "book.workbook.open",
+      "description": "Open the learner workbook. The workbook is local to the authorized browser and its state must be read with book.workbook.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findWorkbook",
+            "primitive": "locator.element_info",
+            "args": { "locator": { "selector": "[data-testid='book-workbook-link']" } }
+          },
+          {
+            "id": "openWorkbook",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findWorkbook.output.clickable_center.x %}",
+              "y": "{% steps.findWorkbook.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 700 }
+          }
+        ],
+        "output": "{% {'navigation_requested': true, 'verification_required': true, 'next_step': 'Read book.workbook and require complete=true.'} %}"
+      }
+    },
+    {
+      "name": "book.workbook.artifact.open",
+      "description": "Select one workbook artifact by the stable artifact id returned in book.workbook.artifacts.",
+      "input_schema": {
+        "type": "object",
+        "required": ["artifact_id"],
+        "properties": {
+          "artifact_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          {
+            "id": "findArtifact",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "{% '[data-testid=\"book-workbook-artifact\"][data-artifact-id=\"' & input.artifact_id & '\"]' %}"
+              }
+            }
+          },
+          {
+            "id": "selectArtifact",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findArtifact.output.clickable_center.x %}",
+              "y": "{% steps.findArtifact.output.clickable_center.y %}"
+            },
+            "settle_after": { "delay_ms": 250 }
+          }
+        ],
+        "output": "{% {'requested_artifact_id': input.artifact_id, 'selection_requested': true, 'verification_required': true, 'next_step': 'Read book.workbook and require selected_artifact_id to match the requested artifact id.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.session.start",
+      "description": "Start or retry the embedded voice tutor. Browser microphone permission may still require a human action. Read book.tutor after calling.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-action[aria-label='Start voice session'], .actionsjson-voice-action[aria-label='Retry voice session']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 500 } }
+        ],
+        "output": "{% {'start_requested': true, 'permission_may_be_required': true, 'verification_required': true, 'next_step': 'Read book.tutor. Accept connecting or connected; if control_label is Allow microphone to continue, ask the human to grant permission.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.session.pause",
+      "description": "Pause the active tutor session without ending it.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-action[aria-label='Pause voice session']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 250 } }
+        ],
+        "output": "{% {'pause_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require paused=true and control_label=Resume voice session.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.session.resume",
+      "description": "Resume a paused tutor session.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-action[aria-label='Resume voice session']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 250 } }
+        ],
+        "output": "{% {'resume_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require state=connected, paused=false, and control_label=Pause voice session.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.session.end",
+      "description": "End the tutor session and release its microphone and audio resources.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='End voice session']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 250 } }
+        ],
+        "output": "{% {'end_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require state=disconnected and control_label=Start voice session.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.microphone.mute",
+      "description": "Mute microphone input while keeping the tutor session active.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Mute microphone']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'mute_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require microphone_muted=true.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.microphone.unmute",
+      "description": "Unmute microphone input for the active tutor session.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Unmute microphone']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'unmute_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require microphone_muted=false.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.speaker.mute",
+      "description": "Mute tutor audio output while keeping the session active.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Mute speaker']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'mute_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require speaker_muted=true.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.speaker.unmute",
+      "description": "Restore tutor audio output for the active session.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Unmute speaker']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'unmute_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require speaker_muted=false.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.transcript.open",
+      "description": "Open the live transcript panel for the active tutor session.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Open transcript']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'open_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require transcript_open=true.'} %}"
+      }
+    },
+    {
+      "name": "book.tutor.transcript.close",
+      "description": "Close the live transcript panel without ending the tutor session.",
+      "input_schema": { "type": "object", "properties": {}, "additionalProperties": false },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [
+          { "id": "hideOverlay", "primitive": "overlay.menu.hide", "on_error": "continue" },
+          { "id": "findControl", "primitive": "locator.element_info", "args": { "locator": { "selector": ".actionsjson-voice-control[aria-label='Close transcript']" } } },
+          { "id": "clickControl", "primitive": "pointer.click", "args": { "x": "{% steps.findControl.output.clickable_center.x %}", "y": "{% steps.findControl.output.clickable_center.y %}" }, "settle_after": { "delay_ms": 150 } }
+        ],
+        "output": "{% {'close_requested': true, 'verification_required': true, 'next_step': 'Read book.tutor and require transcript_open=false.'} %}"
+      }
+    }
+  ],
+  "state_projections": [
+    {
+      "name": "book.page",
+      "description": "Bounded textbook-page state: identity, section anchors, learning links, and adjacent navigation. This deliberately omits the full article body.",
+      "scope": { "url_matches": "https://actionsjson.com/book/*" },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "page",
+            "selector": "article",
+            "fields": {
+              "title": { "selector": "h1", "property": "innerText", "trim": true, "default": null }
+            }
+          },
+          {
+            "id": "sections",
+            "selector": "article h2, article h3",
+            "many": true,
+            "fields": {
+              "title": { "property": "innerText", "trim": true, "required": true },
+              "id": { "attribute": "id", "default": null },
+              "level": { "property": "tagName", "trim": true, "required": true }
+            }
+          },
+          {
+            "id": "links",
+            "selector": "article a[href]",
+            "many": true,
+            "fields": {
+              "text": { "property": "innerText", "trim": true, "default": "" },
+              "href": { "attribute": "href", "required": true }
+            }
+          },
+          {
+            "id": "adjacent",
+            "selector": "a.md-footer__link--prev, a.md-footer__link--next",
+            "many": true,
+            "fields": {
+              "text": { "property": "innerText", "trim": true, "required": true },
+              "href": { "attribute": "href", "required": true },
+              "class": { "attribute": "class", "default": "" }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% ($learning := $filter(records.links, function($l){$contains($l.href, '/answer-guides/') or $contains($l.href, '/workbook/') or $contains($l.href, '/glossary/')}); {'source_url': url, 'title': records.page.title, 'complete': $type(records.page.title) = 'string' and records.page.title != '', 'sections': $append([], records.sections), 'learning_links': $append([], $learning), 'adjacent': $append([], records.adjacent)} ) %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": ["source_url", "title", "complete", "sections", "learning_links", "adjacent"],
+          "properties": {
+            "source_url": { "type": "string" },
+            "title": { "type": ["string", "null"] },
+            "complete": { "type": "boolean" },
+            "sections": { "type": "array" },
+            "learning_links": { "type": "array" },
+            "adjacent": { "type": "array" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 8000,
+          "expression": "{% {'source_url': state.source_url, 'title': state.title, 'sections': state.sections, 'learning_links': state.learning_links, 'adjacent': state.adjacent, 'attempt_first': 'Ask for an attempt before opening model feedback.'} %}"
+        }
+      ],
+      "postconditions": {
+        "book.chapter.open": {
+          "projection": "book.page",
+          "verify": { "language": "jsonata", "expression": "{% state.complete and $contains(state.source_url, '/chapters/' & $$.input.chapter_slug & '/') %}" },
+          "failure_message": "The requested chapter did not become the current textbook page."
+        },
+        "book.section.open": {
+          "projection": "book.page",
+          "verify": { "language": "jsonata", "expression": "{% state.complete and $contains(state.source_url, '#' & $$.input.section_id) %}" },
+          "failure_message": "The requested section fragment did not become current."
+        },
+        "book.adjacent.open": {
+          "projection": "book.page",
+          "verify": { "language": "jsonata", "expression": "{% state.complete and state.source_url != $$.input.current_source_url %}" },
+          "failure_message": "The requested adjacent textbook page did not become current."
+        },
+        "book.glossary.open": {
+          "projection": "book.page",
+          "verify": { "language": "jsonata", "expression": "{% state.complete and $contains(state.source_url, '/glossary/') %}" },
+          "failure_message": "The glossary did not become the current textbook page."
+        },
+        "book.feedback.open": {
+          "projection": "book.page",
+          "verify": { "language": "jsonata", "expression": "{% ($fragment := $$.input.feedback_kind = 'exercise' ? '#exercise-feedback' : ($$.input.feedback_kind = 'knowledge_check' ? '#knowledge-check-answers' : '#interactive-practice-feedback'); state.complete and $contains(state.source_url, '/answer-guides/') and $contains(state.source_url, $fragment)) %}" },
+          "failure_message": "The requested answer-guide feedback did not become current."
+        }
+      }
+    },
+    {
+      "name": "book.tutor",
+      "description": "Current voice-tutor state, independent audio controls, and bounded transcript entries.",
+      "scope": { "url_matches": "https://actionsjson.com/book/*" },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "widget",
+            "selector": "[data-actionsjson-widget='voice-launcher']",
+            "fields": {
+              "state": { "attribute": "data-state", "default": "not_mounted" },
+              "paused": { "attribute": "data-paused", "default": "false" },
+              "transcript_open": { "attribute": "data-transcript-open", "default": "false" }
+            }
+          },
+          {
+            "id": "status",
+            "selector": ".actionsjson-voice-status",
+            "fields": {
+              "text": { "property": "innerText", "trim": true, "default": "" }
+            }
+          },
+          {
+            "id": "controls",
+            "selector": "[aria-label='Voice session controls'] button[aria-label]",
+            "many": true,
+            "fields": {
+              "label": { "attribute": "aria-label", "required": true },
+              "pressed": { "attribute": "aria-pressed", "default": "false" },
+              "disabled": { "attribute": "disabled", "default": false }
+            }
+          },
+          {
+            "id": "transcript",
+            "selector": ".actionsjson-voice-transcript-entry",
+            "many": true,
+            "fields": {
+              "role": { "selector": "strong", "property": "innerText", "trim": true, "required": true },
+              "text": { "selector": "span", "property": "innerText", "trim": true, "required": true },
+              "partial": { "attribute": "data-partial", "default": "false" }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% ($controls := $append([], records.controls); $labels := $controls.label; {'source_url': url, 'mounted': records.widget.state != 'not_mounted', 'state': records.widget.state, 'paused': records.widget.paused = 'true', 'status': records.status.text, 'control_label': $count($labels[$contains($, 'voice session') or $contains($, 'microphone to continue')]) > 0 ? $labels[$contains($, 'voice session') or $contains($, 'microphone to continue')][0] : null, 'microphone_muted': $count($labels[$ = 'Unmute microphone']) > 0, 'speaker_muted': $count($labels[$ = 'Unmute speaker']) > 0, 'transcript_open': records.widget.transcript_open = 'true', 'controls': $controls, 'transcript': $append([], records.transcript), 'transcript_count': $count(records.transcript)} ) %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": ["source_url", "mounted", "state", "paused", "status", "microphone_muted", "speaker_muted", "transcript_open", "controls", "transcript", "transcript_count"],
+          "properties": {
+            "source_url": { "type": "string" },
+            "mounted": { "type": "boolean" },
+            "state": { "type": "string" },
+            "paused": { "type": "boolean" },
+            "status": { "type": "string" },
+            "control_label": { "type": ["string", "null"] },
+            "microphone_muted": { "type": "boolean" },
+            "speaker_muted": { "type": "boolean" },
+            "transcript_open": { "type": "boolean" },
+            "controls": { "type": "array" },
+            "transcript": { "type": "array" },
+            "transcript_count": { "type": "number" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 6000,
+          "expression": "{% {'state': state.state, 'paused': state.paused, 'status': state.status, 'control_label': state.control_label, 'microphone_muted': state.microphone_muted, 'speaker_muted': state.speaker_muted, 'transcript_open': state.transcript_open, 'transcript': state.transcript} %}"
+        }
+      ],
+      "postconditions": {
+        "book.tutor.session.start": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.state = 'connecting' or state.state = 'connected' %}" },
+          "failure_message": "The tutor did not enter connecting or connected state."
+        },
+        "book.tutor.session.pause": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.state = 'connected' and state.paused %}" },
+          "failure_message": "The tutor session did not remain connected in paused state."
+        },
+        "book.tutor.session.resume": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.state = 'connected' and $not(state.paused) %}" },
+          "failure_message": "The tutor session did not resume."
+        },
+        "book.tutor.session.end": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.state = 'disconnected' %}" },
+          "failure_message": "The tutor session did not end."
+        },
+        "book.tutor.microphone.mute": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.microphone_muted %}" },
+          "failure_message": "Microphone input remained unmuted."
+        },
+        "book.tutor.microphone.unmute": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% $not(state.microphone_muted) %}" },
+          "failure_message": "Microphone input remained muted."
+        },
+        "book.tutor.speaker.mute": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.speaker_muted %}" },
+          "failure_message": "Speaker output remained unmuted."
+        },
+        "book.tutor.speaker.unmute": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% $not(state.speaker_muted) %}" },
+          "failure_message": "Speaker output remained muted."
+        },
+        "book.tutor.transcript.open": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% state.transcript_open %}" },
+          "failure_message": "The transcript panel did not open."
+        },
+        "book.tutor.transcript.close": {
+          "projection": "book.tutor",
+          "verify": { "language": "jsonata", "expression": "{% $not(state.transcript_open) %}" },
+          "failure_message": "The transcript panel did not close."
+        }
+      }
+    },
+    {
+      "name": "book.workbook",
+      "description": "Rendered learner-workbook progress and selected attempt. This reads only the authorized browser's current workbook page.",
+      "scope": { "url_matches": "https://actionsjson.com/book/workbook/*" },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "summary",
+            "selector": "#learnerWorkbook",
+            "fields": {
+              "project": { "selector": "#projectName", "property": "value", "trim": true, "default": "" },
+              "learner": { "selector": "#learnerName", "property": "value", "trim": true, "default": "" },
+              "progress": { "selector": "#progressText", "property": "innerText", "trim": true, "default": "" },
+              "last_saved": { "selector": "#lastSaved", "property": "innerText", "trim": true, "default": "" },
+              "notice": { "selector": "#notice", "property": "innerText", "trim": true, "default": "" },
+              "selected_artifact": { "selector": "#artifactTitle", "property": "innerText", "trim": true, "default": "" },
+              "selected_artifact_id": { "selector": "#artifactList", "attribute": "data-active-artifact", "default": "" },
+              "status": { "selector": "#artifactStatus", "property": "value", "trim": true, "default": "" },
+              "draft": { "selector": "#draft", "property": "value", "trim": false, "default": "" },
+              "evidence": { "selector": "#evidence", "property": "value", "trim": false, "default": "" },
+              "assumptions": { "selector": "#assumptions", "property": "value", "trim": false, "default": "" },
+              "lesson_href": { "selector": "#chapterLink", "attribute": "href", "default": "" }
+            }
+          },
+          {
+            "id": "artifacts",
+            "selector": "#artifactList button",
+            "many": true,
+            "fields": {
+              "title": { "property": "innerText", "trim": true, "required": true },
+              "id": { "attribute": "data-artifact-id", "required": true },
+              "current": { "attribute": "aria-current", "default": "false" }
+            }
+          },
+          {
+            "id": "revisions",
+            "selector": "#history .revision",
+            "many": true,
+            "fields": {
+              "text": { "property": "innerText", "trim": true, "required": true }
+            }
+          },
+          {
+            "id": "records",
+            "selector": "#recordList .record",
+            "many": true,
+            "fields": {
+              "text": { "property": "innerText", "trim": true, "required": true }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'source_url': url, 'complete': records.summary.selected_artifact_id != '' and $count(records.artifacts) > 0, 'project': records.summary.project, 'learner': records.summary.learner, 'progress': records.summary.progress, 'last_saved': records.summary.last_saved, 'notice': records.summary.notice, 'selected_artifact': records.summary.selected_artifact, 'selected_artifact_id': records.summary.selected_artifact_id, 'status': records.summary.status, 'attempt': {'draft': records.summary.draft, 'evidence': records.summary.evidence, 'assumptions': records.summary.assumptions, 'lesson_href': records.summary.lesson_href}, 'artifacts': $append([], records.artifacts), 'revisions': $append([], records.revisions), 'operating_records': $append([], records.records)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": ["source_url", "complete", "project", "learner", "progress", "selected_artifact", "selected_artifact_id", "status", "attempt", "artifacts", "revisions", "operating_records"],
+          "properties": {
+            "source_url": { "type": "string" },
+            "complete": { "type": "boolean" },
+            "project": { "type": "string" },
+            "learner": { "type": "string" },
+            "progress": { "type": "string" },
+            "last_saved": { "type": "string" },
+            "notice": { "type": "string" },
+            "selected_artifact": { "type": "string" },
+            "selected_artifact_id": { "type": "string" },
+            "status": { "type": "string" },
+            "attempt": { "type": "object" },
+            "artifacts": { "type": "array" },
+            "revisions": { "type": "array" },
+            "operating_records": { "type": "array" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 9000,
+          "expression": "{% {'project': state.project, 'learner': state.learner, 'progress': state.progress, 'last_saved': state.last_saved, 'selected_artifact': state.selected_artifact, 'selected_artifact_id': state.selected_artifact_id, 'status': state.status, 'attempt': state.attempt, 'revisions': state.revisions, 'operating_records': state.operating_records} %}"
+        }
+      ],
+      "postconditions": {
+        "book.workbook.open": {
+          "projection": "book.workbook",
+          "verify": { "language": "jsonata", "expression": "{% state.complete %}" },
+          "failure_message": "The learner workbook did not render."
+        },
+        "book.workbook.artifact.open": {
+          "projection": "book.workbook",
+          "verify": { "language": "jsonata", "expression": "{% state.complete and state.selected_artifact_id = $$.input.artifact_id %}" },
+          "failure_message": "The requested workbook artifact did not become current."
+        }
+      }
+    }
+  ],
+  "deferred_tools": [
+    {
+      "name": "book.workbook.attempt.save",
+      "reason": "Saving mutates browser-local learner work. It requires compare-and-swap protection for the current draft plus independent revision verification before it should be public."
+    },
+    {
+      "name": "book.workbook.record.add",
+      "reason": "Adding an operating record is useful but consequential learner-data mutation. Author and validate it separately with exact-field and duplicate guards."
+    },
+    {
+      "name": "book.tutor.interruption.verify",
+      "reason": "Interruption quality requires a real microphone and audible session. It cannot be proven by a DOM action map alone."
+    }
+  ]
+}
