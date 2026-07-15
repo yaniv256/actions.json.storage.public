@@ -4791,7 +4791,7 @@
             "primitive": "locator.text_content",
             "args": {
               "locator": {
-                "selector": "[role='dialog'] [data-testid='description-button'], .window [data-testid='description-button']"
+                "selector": "[role='dialog'] [data-testid='description-content-area'], .window [data-testid='description-content-area']"
               }
             },
             "retry_until": "{% $contains($replace(steps.verifyDescriptionText.output.text ? steps.verifyDescriptionText.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $replace(input.verify_contains ? input.verify_contains : input.text, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' ')) %}",
@@ -4800,7 +4800,7 @@
               "primitive": "locator.wait_for",
               "args": {
                 "locator": {
-                  "selector": "[role='dialog'] [data-testid='description-button'], .window [data-testid='description-button']"
+                  "selector": "[role='dialog'] [data-testid='description-content-area'], .window [data-testid='description-content-area']"
                 },
                 "state": "visible",
                 "timeout_ms": 1500
