@@ -65,6 +65,19 @@
         "source": "dom",
         "extract": [
           {
+            "id": "section_headings",
+            "selector": "main div.flex.flex-col.gap-4 > div.flex.flex-col.justify-between.gap-2.md\\:flex-row",
+            "many": true,
+            "fields": {
+              "name": {
+                "selector": ":scope > div:first-child",
+                "property": "textContent",
+                "trim": true,
+                "required": true
+              }
+            }
+          },
+          {
             "id": "price_cards",
             "selector": "main div.flex.flex-1.flex-col.gap-1.rounded-lg.border.border-solid.border-default.bg-surface-secondary",
             "many": true,
@@ -86,7 +99,7 @@
         ],
         "projection": {
           "language": "jsonata",
-          "expression": "{% {'source_url': 'https://developers.openai.com/api/docs/models/gpt-realtime-2', 'model': 'gpt-realtime-2', 'unit': 'USD per 1M tokens', 'card_count': $count(records.price_cards), 'complete': $count(records.price_cards) = 8, 'cards': $append([], records.price_cards), 'prices': {'text': {'input': records.price_cards[0].price, 'cached_input': records.price_cards[1].price, 'output': records.price_cards[2].price}, 'audio': {'input': records.price_cards[3].price, 'cached_input': records.price_cards[4].price, 'output': records.price_cards[5].price}, 'image': {'input': records.price_cards[6].price, 'cached_input': records.price_cards[7].price}}} %}"
+          "expression": "{% {'source_url': 'https://developers.openai.com/api/docs/models/gpt-realtime-2', 'model': 'gpt-realtime-2', 'unit': 'USD per 1M tokens', 'card_count': $count(records.price_cards), 'section_headings': $append([], records.section_headings), 'complete': $count(records.section_headings) = 3 and records.section_headings[0].name = 'Text tokens' and records.section_headings[1].name = 'Audio tokens' and records.section_headings[2].name = 'Image tokens' and $count(records.price_cards) = 8 and records.price_cards[0].label = 'Input' and records.price_cards[1].label = 'Cached input' and records.price_cards[2].label = 'Output' and records.price_cards[3].label = 'Input' and records.price_cards[4].label = 'Cached input' and records.price_cards[5].label = 'Output' and records.price_cards[6].label = 'Input' and records.price_cards[7].label = 'Cached input', 'cards': $append([], records.price_cards), 'prices': {'text': {'input': records.price_cards[0].price, 'cached_input': records.price_cards[1].price, 'output': records.price_cards[2].price}, 'audio': {'input': records.price_cards[3].price, 'cached_input': records.price_cards[4].price, 'output': records.price_cards[5].price}, 'image': {'input': records.price_cards[6].price, 'cached_input': records.price_cards[7].price}}} %}"
         },
         "output_schema": {
           "type": "object",
@@ -96,6 +109,7 @@
             "unit",
             "card_count",
             "complete",
+            "section_headings",
             "cards",
             "prices"
           ],
@@ -105,6 +119,7 @@
             "unit": { "type": "string" },
             "card_count": { "type": "number" },
             "complete": { "type": "boolean" },
+            "section_headings": { "type": "array" },
             "cards": { "type": "array" },
             "prices": { "type": "object" }
           }
@@ -114,7 +129,7 @@
         {
           "name": "agent_context",
           "max_bytes": 3000,
-          "expression": "{% {'model': state.model, 'unit': state.unit, 'complete': state.complete, 'card_count': state.card_count, 'prices': state.prices} %}"
+          "expression": "{% {'model': state.model, 'unit': state.unit, 'complete': state.complete, 'card_count': state.card_count, 'section_headings': state.section_headings, 'prices': state.prices} %}"
         }
       ]
     }

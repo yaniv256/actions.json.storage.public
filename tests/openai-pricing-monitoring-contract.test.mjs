@@ -20,6 +20,14 @@ test("OpenAI pricing monitor declares a bounded, complete comparison surface", (
   );
   assert.match(projection.snapshot.projection.expression, /card_count/);
   assert.match(projection.snapshot.projection.expression, /complete/);
+  assert.match(projection.snapshot.projection.expression, /Text tokens/);
+  assert.match(projection.snapshot.projection.expression, /Audio tokens/);
+  assert.match(projection.snapshot.projection.expression, /Image tokens/);
+  assert.ok(
+    projection.snapshot.extract.some(
+      (extractor) => extractor.id === "section_headings",
+    ),
+  );
   assert.equal(map.notes.comparison_fields.length, 8);
   assert.match(map.notes.failure_policy, /do not infer or carry forward/i);
 });
