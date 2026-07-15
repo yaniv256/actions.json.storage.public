@@ -16,6 +16,7 @@ const descriptionSteps = new Map(
   description.workflow.steps.map((step) => [step.id, step]),
 );
 const replaceDescription = descriptionSteps.get("replaceDescription");
+const pasteNewDescription = descriptionSteps.get("pasteNewDescription");
 
 assert.ok(
   replaceDescription,
@@ -27,6 +28,17 @@ assert.equal(
   "description replacement must use text.insert's atomic replace contract",
 );
 assert.equal(replaceDescription.args?.mode, "replace");
+assert.match(
+  replaceDescription.when ?? "",
+  /findPlaceholder/,
+  "atomic replacement is the populated-description path",
+);
+assert.ok(
+  pasteNewDescription,
+  "an empty Trello description needs the editor-accepted paste insertion path",
+);
+assert.equal(pasteNewDescription.primitive, "clipboard.paste");
+assert.match(pasteNewDescription.when ?? "", /findPlaceholder/);
 assert.equal(
   descriptionSteps.has("selectExistingDescription"),
   false,

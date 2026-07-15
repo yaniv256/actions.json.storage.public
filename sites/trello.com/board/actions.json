@@ -4650,9 +4650,24 @@
           {
             "id": "replaceDescription",
             "primitive": "text.insert",
+            "when": "{% $not($exists(steps.findPlaceholder.output.clickable_center.x)) %}",
             "args": {
               "text": "{% input.text %}",
               "mode": "replace",
+              "target": {
+                "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], [role='dialog'] [contenteditable='true'][data-testid*='description' i], [role='dialog'] [data-testid*='description' i] [contenteditable='true'], [role='dialog'] .ak-editor-content-area [contenteditable='true'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description'], .window [contenteditable='true'][data-testid*='description' i], .window [data-testid*='description' i] [contenteditable='true'], .window .ak-editor-content-area [contenteditable='true']"
+              }
+            },
+            "settle_after": {
+              "delay_ms": 2500
+            }
+          },
+          {
+            "id": "pasteNewDescription",
+            "primitive": "clipboard.paste",
+            "when": "{% $exists(steps.findPlaceholder.output.clickable_center.x) %}",
+            "args": {
+              "text": "{% input.text %}",
               "target": {
                 "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], [role='dialog'] [contenteditable='true'][data-testid*='description' i], [role='dialog'] [data-testid*='description' i] [contenteditable='true'], [role='dialog'] .ak-editor-content-area [contenteditable='true'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description'], .window [contenteditable='true'][data-testid*='description' i], .window [data-testid*='description' i] [contenteditable='true'], .window .ak-editor-content-area [contenteditable='true']"
               }
