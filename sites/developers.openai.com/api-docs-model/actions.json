@@ -1,0 +1,122 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": {
+    "site": "developers.openai.com",
+    "surface": "API model documentation",
+    "url_patterns": [
+      "https://developers.openai.com/api/docs/models/gpt-realtime-2*"
+    ],
+    "description": "Read-only monitoring map for the GPT-Realtime-2 model page."
+  },
+  "observed_at": "2026-07-15T04:55:40.618Z",
+  "prompt": {
+    "role": "OpenAI model-page monitor",
+    "mission": "Read the declared model pricing state, preserve a dated observation, and compare only the named fields against the prior observation.",
+    "boundaries": "This map is read-only. It contains no action that changes the page, account, model configuration, billing, or any other remote state."
+  },
+  "notes": {
+    "refresh_cadence": "Run weekly and before publishing pricing-sensitive offers or estimates.",
+    "comparison_fields": [
+      "/state/prices/text/input",
+      "/state/prices/text/cached_input",
+      "/state/prices/text/output",
+      "/state/prices/audio/input",
+      "/state/prices/audio/cached_input",
+      "/state/prices/audio/output",
+      "/state/prices/image/input",
+      "/state/prices/image/cached_input"
+    ],
+    "failure_policy": "If card_count is not 8, complete is false, a price is absent, or the route does not match, record a failed observation and do not infer or carry forward a price.",
+    "mutation_policy": "No mutations are permitted by this map. Any future mutation must be a separate reviewed action with an exact payload preview, explicit approval, and independent postcondition read."
+  },
+  "tools": [
+    {
+      "name": "openai.model.pricing.map",
+      "description": "Return the monitoring contract and the required dated-observation workflow. Call this before reading the pricing projection.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "read_only": true,
+          "projection": "openai.model.pricing",
+          "source_url": "https://developers.openai.com/api/docs/models/gpt-realtime-2",
+          "refresh_cadence": "weekly and before pricing-sensitive publication",
+          "dated_observation_required": true,
+          "comparison_rule": "Compare only the declared JSON Pointer fields. Missing or incomplete current state is a failed observation, not evidence of a price change.",
+          "mutation_boundary": "This map exposes no mutations."
+        }
+      }
+    }
+  ],
+  "state_projections": [
+    {
+      "name": "openai.model.pricing",
+      "description": "Current GPT-Realtime-2 text, audio, and image token prices as eight labeled cards. Returns complete=false unless all eight cards are present.",
+      "scope": {
+        "url_matches": "https://developers.openai.com/api/docs/models/gpt-realtime-2*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "price_cards",
+            "selector": "main div.flex.flex-1.flex-col.gap-1.rounded-lg.border.border-solid.border-default.bg-surface-secondary",
+            "many": true,
+            "fields": {
+              "label": {
+                "selector": ":scope > div:first-child",
+                "property": "textContent",
+                "trim": true,
+                "required": true
+              },
+              "price": {
+                "selector": ":scope > .text-2xl.font-semibold",
+                "property": "textContent",
+                "trim": true,
+                "required": true
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'source_url': 'https://developers.openai.com/api/docs/models/gpt-realtime-2', 'model': 'gpt-realtime-2', 'unit': 'USD per 1M tokens', 'card_count': $count(records.price_cards), 'complete': $count(records.price_cards) = 8, 'cards': $append([], records.price_cards), 'prices': {'text': {'input': records.price_cards[0].price, 'cached_input': records.price_cards[1].price, 'output': records.price_cards[2].price}, 'audio': {'input': records.price_cards[3].price, 'cached_input': records.price_cards[4].price, 'output': records.price_cards[5].price}, 'image': {'input': records.price_cards[6].price, 'cached_input': records.price_cards[7].price}}} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "source_url",
+            "model",
+            "unit",
+            "card_count",
+            "complete",
+            "cards",
+            "prices"
+          ],
+          "properties": {
+            "source_url": { "type": "string" },
+            "model": { "type": "string" },
+            "unit": { "type": "string" },
+            "card_count": { "type": "number" },
+            "complete": { "type": "boolean" },
+            "cards": { "type": "array" },
+            "prices": { "type": "object" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 3000,
+          "expression": "{% {'model': state.model, 'unit': state.unit, 'complete': state.complete, 'card_count': state.card_count, 'prices': state.prices} %}"
+        }
+      ]
+    }
+  ]
+}
