@@ -562,8 +562,7 @@
             "many": true,
             "fields": {
               "title": { "property": "innerText", "trim": true, "required": true },
-              "id": { "attribute": "id", "default": null },
-              "level": { "property": "tagName", "trim": true, "required": true }
+              "id": { "attribute": "id", "default": null }
             }
           },
           {
