@@ -77,6 +77,8 @@ assert.ok(
 );
 const moveSteps = new Map(move.workflow.steps.map((step) => [step.id, step]));
 const verifyMovedList = moveSteps.get("verifyMovedList");
+const closeMovedCard = moveSteps.get("closeMovedCard");
+const verifyBoardRoute = moveSteps.get("verifyBoardRoute");
 
 assert.ok(
   verifyMovedList,
@@ -96,6 +98,27 @@ assert.match(
   move.workflow.output,
   /verifyMovedList/,
   "move output must derive success from the postcondition read",
+);
+assert.equal(
+  closeMovedCard?.primitive,
+  "keyboard.press",
+  "move must close the card after verifying its committed destination",
+);
+assert.equal(closeMovedCard?.args?.key, "Escape");
+assert.equal(
+  verifyBoardRoute?.primitive,
+  "locator.wait_for",
+  "move must return to a board surface before its board projection postcondition runs",
+);
+assert.match(
+  JSON.stringify(verifyBoardRoute?.args?.locator ?? {}),
+  /data-testid.*list-name/,
+  "board-route verification must bind Trello list headings",
+);
+assert.match(
+  move.workflow.output,
+  /verifyBoardRoute\.output\.matched/,
+  "move output must use locator.wait_for's declared matched field",
 );
 
 const boardProjection = map.state_projections.find(

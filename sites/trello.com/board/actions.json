@@ -6681,7 +6681,7 @@
     },
     {
       "name": "trello.card.move_to_list_from_open_card",
-      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title, source_list, and target_list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, filters the Move dialog's List combobox, selects the exact option, clicks Move, and then reads the open card's committed current-list control. output.moved is true only when that control names target_list; event dispatch alone never counts as success. The registered board-model postcondition also requires card_title under target_list and absent from source_list.",
+      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title, source_list, and target_list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, filters the Move dialog's List combobox, selects the exact option, clicks Move, reads the open card's committed current-list control, and closes the card back to the board route. output.moved is true only when that control names target_list; event dispatch alone never counts as success. From the restored board surface, the registered board-model postcondition requires card_title under target_list and absent from source_list.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -6915,9 +6915,27 @@
               }
             },
             "on_error": "continue"
+          },
+          {
+            "id": "closeMovedCard",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Escape"
+            }
+          },
+          {
+            "id": "verifyBoardRoute",
+            "primitive": "locator.wait_for",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='list-name']"
+              },
+              "state": "visible",
+              "timeout_ms": 5000
+            }
           }
         ],
-        "output": "{% {'card_title': input.card_title, 'source_list': input.source_list, 'target_list': input.target_list, 'moved': $exists(steps.verifyMovedList.output.clickable_center.x), 'committed_list_text': steps.verifyMovedList.output.text, 'verification_required': 'The registered board postcondition must confirm card_title under target_list and absent from source_list.'} %}",
+        "output": "{% {'card_title': input.card_title, 'source_list': input.source_list, 'target_list': input.target_list, 'moved': $exists(steps.verifyMovedList.output.clickable_center.x), 'committed_list_text': steps.verifyMovedList.output.text, 'returned_to_board': steps.verifyBoardRoute.output.matched, 'verification_required': 'The registered board postcondition confirms card_title under target_list and absent from source_list.'} %}",
         "x_state_machine": {
           "requires_state": {
             "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"
@@ -6928,6 +6946,7 @@
             "move_dialog",
             "list_combobox_filtered",
             "move_submitted",
+            "board_route_restored",
             "board_projection_verified"
           ]
         }
