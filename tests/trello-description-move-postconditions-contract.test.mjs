@@ -41,6 +41,27 @@ assert.doesNotMatch(
   "the Save step must not use caller text as a fatal settle condition; the verifier owns the goal",
 );
 const descriptionStepOrder = description.workflow.steps.map((step) => step.id);
+const descriptionMutationSteps = description.workflow.steps.filter((step) =>
+  ["text.insert", "text.type", "clipboard.paste"].includes(step.primitive),
+);
+assert.equal(descriptionMutationSteps.length, 1, "description.set must have exactly one text mutation");
+assert.equal(descriptionMutationSteps[0].id, "replaceDescription");
+assert.equal(
+  description.workflow.steps.some((step) => step.args?.trusted === true),
+  false,
+  "public description workflows must not depend on debugger-backed trusted input",
+);
+const descriptionSaveLocators = description.workflow.steps.filter((step) =>
+  JSON.stringify(step.args?.locator ?? {}).includes("description-save-button"),
+);
+assert.equal(descriptionSaveLocators.length, 1, "description.set must resolve exactly one Save control");
+const descriptionSaveClicks = description.workflow.steps.filter((step) =>
+  step.primitive === "pointer.click" &&
+  descriptionSaveLocators.some((locatorStep) =>
+    JSON.stringify(step.args ?? {}).includes(`steps.${locatorStep.id}.output`),
+  ),
+);
+assert.equal(descriptionSaveClicks.length, 1, "description.set must click exactly one resolved Save control");
 assert.ok(
   descriptionStepOrder.indexOf("replaceDescription") <
       descriptionStepOrder.indexOf("settleDescriptionDraft") &&
