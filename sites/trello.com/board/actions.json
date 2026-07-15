@@ -4488,7 +4488,7 @@
     },
     {
       "name": "trello.card.description.set",
-      "description": "Set the description on a specifically named, currently open Trello card with no agent primitives: verify the open card title, open the description editor, type the text, save, and verify a distinctive saved substring. Precondition: open the intended card first with trello.card.by_title.open, then pass that exact card title as card_title. For long descriptions, pass verify_contains as a short distinctive substring such as the source URL plus the first body phrase; the comparison is whitespace-normalized, so sentinels may contain newlines. Do not claim success unless output.verified is true. If verified is false, re-check with trello.card.modal_text.read and a shorter sentinel before anything else; only re-run this action if the content is genuinely absent, because re-setting overwrites the saved description and its formatting. IMPORTANT: verify_contains must not include raw URLs \u2014 Trello converts pasted URLs into titled smart links, so the raw URL text disappears from the visible modal. Use a URL-free body phrase as the sentinel and verify URLs separately with trello.card.description_links.read (href match). CRM boards: user-stated facts (meeting outcomes, decisions, next actions) must be captured here at the moment they are said \u2014 the card is the system of record, not the conversation. FORMATTING: write multi-line text \u2014 separate sections with blank lines (\\n\\n) and start bullet lines with '- '. Never write the whole description as one long line; that renders as an unreadable wall of text. (Paragraph rendering requires extension 0.1.143+; on older runtimes newlines flatten to spaces.) SENTINEL RULE: verify_contains must not start with '- ' \u2014 bullet prefixes render as list glyphs and the literal dash disappears from visible text, causing a false verified:false. Use a mid-line phrase without leading markup.",
+      "description": "Set the description on a specifically named, currently open Trello card with no agent primitives: verify the open card title, open the description editor, atomically replace its contents, save, and verify a distinctive substring on the saved description surface. Precondition: open the intended card first with trello.card.by_title.open, then pass that exact card title as card_title. For long descriptions, pass verify_contains as a short distinctive URL-free body phrase; the comparison is whitespace-normalized, so sentinels may contain newlines. Do not claim success unless output.verified is true. If verified is false, re-check with trello.card.detail.read and a shorter sentinel before anything else; only re-run this action if the content is genuinely absent, because re-setting overwrites the saved description and its formatting. IMPORTANT: verify_contains must not include raw URLs \u2014 Trello converts pasted URLs into titled smart links, so the raw URL text disappears from the visible description. Verify URLs separately with trello.card.description_links.read (href match). CRM boards: user-stated facts (meeting outcomes, decisions, next actions) must be captured here at the moment they are said \u2014 the card is the system of record, not the conversation. FORMATTING: write multi-line text \u2014 separate sections with blank lines (\\n\\n) and start bullet lines with '- '. Never write the whole description as one long line; that renders as an unreadable wall of text. SENTINEL RULE: verify_contains must not start with '- ' \u2014 bullet prefixes render as list glyphs and the literal dash disappears from visible text, causing a false verified:false. Use a mid-line phrase without leading markup.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4648,23 +4648,11 @@
             }
           },
           {
-            "id": "selectExistingDescription",
-            "primitive": "text.select",
-            "args": {
-              "target": {
-                "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description']"
-              },
-              "mode": "all"
-            },
-            "settle_after": {
-              "delay_ms": 150
-            }
-          },
-          {
-            "id": "insertDesc",
-            "primitive": "clipboard.paste",
+            "id": "replaceDescription",
+            "primitive": "text.insert",
             "args": {
               "text": "{% input.text %}",
+              "mode": "replace",
               "target": {
                 "selector": "[role='dialog'] [aria-label='Edit description'][contenteditable='true'], [role='dialog'] [contenteditable='true'][aria-label='Edit description'], [role='dialog'] [contenteditable='true'][data-testid*='description' i], [role='dialog'] [data-testid*='description' i] [contenteditable='true'], [role='dialog'] .ak-editor-content-area [contenteditable='true'], .window [aria-label='Edit description'][contenteditable='true'], .window [contenteditable='true'][aria-label='Edit description'], .window [contenteditable='true'][data-testid*='description' i], .window [data-testid*='description' i] [contenteditable='true'], .window .ak-editor-content-area [contenteditable='true']"
               }
@@ -4715,12 +4703,7 @@
               "y": "{% steps.findSave.output.clickable_center.y %}"
             },
             "settle_after": {
-              "locator": {
-                "selector": "[role='dialog'], .window",
-                "text_contains": "{% input.verify_contains ? input.verify_contains : input.text %}"
-              },
-              "state": "visible",
-              "timeout_ms": 5000
+              "delay_ms": 500
             },
             "on_error": "stop"
           },
@@ -4793,7 +4776,19 @@
             "primitive": "locator.text_content",
             "args": {
               "locator": {
-                "selector": "[role='dialog'], .window"
+                "selector": "[role='dialog'] [data-testid='description-button'], .window [data-testid='description-button']"
+              }
+            },
+            "retry_until": "{% $contains($replace(steps.verifyDescriptionText.output.text ? steps.verifyDescriptionText.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $replace(input.verify_contains ? input.verify_contains : input.text, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' ')) %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[role='dialog'] [data-testid='description-button'], .window [data-testid='description-button']"
+                },
+                "state": "visible",
+                "timeout_ms": 1500
               }
             },
             "on_error": "continue"
@@ -6671,17 +6666,22 @@
     },
     {
       "name": "trello.card.move_to_list_from_open_card",
-      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title for final verification and target_list for the destination list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, types the target list into the Move dialog's List combobox, selects the filtered option, clicks Move, and returns a verification note. After calling, verify with the trello.board projection that card_title appears under target_list before claiming success.",
+      "description": "Move the currently open Trello card to a named board list through the visible card UI. Precondition: the target card is already open on a Trello card route/modal; pass card_title, source_list, and target_list. This uses Actions > Move, dismisses Trello's Jira spotlight if it appears, filters the Move dialog's List combobox, selects the exact option, clicks Move, and then reads the open card's committed current-list control. output.moved is true only when that control names target_list; event dispatch alone never counts as success. The registered board-model postcondition also requires card_title under target_list and absent from source_list.",
       "input_schema": {
         "type": "object",
         "required": [
           "card_title",
+          "source_list",
           "target_list"
         ],
         "properties": {
           "card_title": {
             "type": "string",
             "description": "Exact visible title of the currently open card, used for board projection verification."
+          },
+          "source_list": {
+            "type": "string",
+            "description": "Exact source list name. The board-model postcondition requires the card to be absent here after the move."
           },
           "target_list": {
             "type": "string",
@@ -6872,10 +6872,37 @@
             "args": {
               "x": "{% steps.findMoveSubmit.output.clickable_center.x %}",
               "y": "{% steps.findMoveSubmit.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 1200
             }
+          },
+          {
+            "id": "verifyMovedList",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[aria-label*='currently in' i], [data-testid='card-back-list-button']",
+                "text_contains": "{% input.target_list %}"
+              }
+            },
+            "retry_until": "{% $exists(steps.verifyMovedList.output.clickable_center.x) %}",
+            "max_attempts": 4,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[aria-label*='currently in' i], [data-testid='card-back-list-button']",
+                  "text_contains": "{% input.target_list %}"
+                },
+                "state": "visible",
+                "timeout_ms": 1500
+              }
+            },
+            "on_error": "continue"
           }
         ],
-        "output": "{% {'card_title': input.card_title, 'target_list': input.target_list, 'moved': true, 'verification_required': 'Call trello.board state_read or state_summary and confirm card_title appears under target_list before claiming success.'} %}",
+        "output": "{% {'card_title': input.card_title, 'source_list': input.source_list, 'target_list': input.target_list, 'moved': $exists(steps.verifyMovedList.output.clickable_center.x), 'committed_list_text': steps.verifyMovedList.output.text, 'verification_required': 'The registered board postcondition must confirm card_title under target_list and absent from source_list.'} %}",
         "x_state_machine": {
           "requires_state": {
             "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"
@@ -8194,6 +8221,14 @@
             "expression": "{% $exists(state.board.lists[name = $$.input.list_name].cards[title = $$.input.title]) %}"
           },
           "failure_message": "The new Trello card was not present in board state."
+        },
+        "trello.card.move_to_list_from_open_card": {
+          "projection": "trello.board",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% $exists(state.board.lists[name = $$.input.target_list].cards[title = $$.input.card_title]) and $count(state.board.lists[name = $$.input.source_list].cards[title = $$.input.card_title]) = 0 %}"
+          },
+          "failure_message": "The Trello card was not present in the requested target list or still remained in the source list after the move workflow."
         },
         "trello.card.delete": {
           "projection": "trello.board",
