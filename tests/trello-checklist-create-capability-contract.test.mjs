@@ -18,7 +18,7 @@ assert.doesNotMatch(
 );
 
 for (const phrase of [
-  "extension 0.1.198",
+  "extension 0.1.217",
   "unique title",
   "duplicate checklist titles",
   "not idempotent",
