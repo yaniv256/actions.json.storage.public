@@ -4810,7 +4810,7 @@
     },
     {
       "name": "trello.card.comment.add",
-      "description": "Post a comment on the currently open Trello card: click the comment box, type the text, click Save, and verify the comment appears in the activity feed. Precondition: open the card first with trello.card.by_title.open and pass the same title as card_title. Comments are NOT saved by pressing Enter \u2014 only the Save click commits them; this action handles that. Use comments for running workflow notes ('what's next', meeting outcomes over time) and keep the description for stable profile/status content. Trello renders pasted URLs as smart cards, so verification compares URL-free prose against posted comment containers rather than requiring the raw URL literal. Do not claim success unless output.verified is true.",
+      "description": "Post exactly one comment on the currently open Trello card: open the editor, clear any inherited or persisted draft, replace it with the requested text, click Save, and verify the comment appears in the activity feed. Precondition: open the card first with trello.card.by_title.open and pass the same title as card_title. Comments are NOT saved by pressing Enter \u2014 only the Save click commits them; this action handles that. Use comments for running workflow notes ('what's next', meeting outcomes over time) and keep the description for stable profile/status content. Trello renders pasted URLs as smart cards, so verification compares URL-free prose against posted comment containers rather than requiring the raw URL literal. Do not claim success unless output.verified is true.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -4832,7 +4832,7 @@
       "x_actions": {
         "source": {
           "component": "TrelloCardCommentAdd",
-          "why": "Hosted agent improvised comments with raw clicks and Enter presses; Enter does not submit Trello comments, leaving drafts stranded unsaved. Discovered live: entry point is [data-testid='card-back-new-comment-input-skeleton']; the Save button carries no testid and must be resolved by text within the dialog."
+          "why": "Hosted agent improvised comments with raw clicks and Enter presses; Enter does not submit Trello comments, leaving drafts stranded unsaved. Discovered live: entry point is [data-testid='card-back-new-comment-input-skeleton']; the Save button carries no testid and must be resolved by text within the dialog. On 2026-07-15, a persisted editor draft was committed instead of the exact requested body because clipboard.paste appended to inherited content. The workflow now selects all existing editor content and uses text.insert mode=replace before saving."
         }
       },
       "workflow": {
@@ -4879,10 +4879,21 @@
             }
           },
           {
+            "id": "clearCommentDraft",
+            "primitive": "keyboard.press",
+            "args": {
+              "key": "Control+a"
+            },
+            "settle_after": {
+              "delay_ms": 120
+            }
+          },
+          {
             "id": "insertComment",
-            "primitive": "clipboard.paste",
+            "primitive": "text.insert",
             "args": {
               "text": "{% input.text %}",
+              "mode": "replace",
               "target": {
                 "selector": "[role='dialog'] [contenteditable='true'], .window [contenteditable='true']"
               }
@@ -4972,6 +4983,18 @@
             "args": {
               "locator": {
                 "selector": "[role='dialog'] [data-testid='comment-container'], .window [data-testid='comment-container']"
+              }
+            },
+            "retry_until": "{% $contains($replace(steps.verifyPostedComments.output.text ? steps.verifyPostedComments.output.text : '', /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '), $trim($replace(input.text, /[\\s\\u200B\\u200C\\u200D\\uFEFF\\u00A0]+/, ' '))) %}",
+            "max_attempts": 5,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[role='dialog'] [data-testid='comment-container'], .window [data-testid='comment-container']"
+                },
+                "state": "visible",
+                "timeout_ms": 1000
               }
             },
             "on_error": "continue"
@@ -5832,7 +5855,7 @@
     },
     {
       "name": "trello.card.checklist_item.add",
-      "description": "Add one item to the checklist on the currently open Trello card. PRECONDITION: the item composer is open -- call trello.card.checklist.item_composer.open first. The composer stays open between adds, so call this once per item. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verification is card-wide and semantic: it reads checklist checkbox inputs by exact aria-label across mounted multi-section checklists, not visible text containment. Verified against the live DOM 2026-07-09; semantic verifier added 2026-07-14 after multi-section false-negative evidence.",
+      "description": "Add one item to the checklist on the currently open Trello card. The workflow ensures the item composer is open before typing, so callers do not need to depend on inherited or persisted UI state. The composer stays open between adds. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verification is card-wide and semantic: it reads checklist checkbox inputs by exact aria-label across mounted multi-section checklists, not visible text containment. Verified against the live DOM 2026-07-09; semantic verifier added 2026-07-14 after multi-section false-negative evidence.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5854,6 +5877,55 @@
             "id": "hideOverlay",
             "primitive": "overlay.menu.hide",
             "on_error": "continue"
+          },
+          {
+            "id": "probeComposerAlreadyOpen",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='check-item-name-input']"
+            }
+          },
+          {
+            "id": "findAddItemButton",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='checklist-section'] button",
+                "text_contains": "Add an item"
+              }
+            },
+            "when": "{% steps.probeComposerAlreadyOpen.output.match_count = 0 %}",
+            "on_error": "continue"
+          },
+          {
+            "id": "clickAddItem",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findAddItemButton.output.clickable_center.x %}",
+              "y": "{% steps.findAddItemButton.output.clickable_center.y %}"
+            },
+            "when": "{% steps.probeComposerAlreadyOpen.output.match_count = 0 %}",
+            "on_error": "stop"
+          },
+          {
+            "id": "verifyComposerOpen",
+            "primitive": "dom.observe.visible",
+            "args": {
+              "selector": "[data-testid='check-item-name-input']"
+            },
+            "retry_until": "{% steps.verifyComposerOpen.output.match_count = 1 %}",
+            "max_attempts": 5,
+            "after_each": {
+              "primitive": "locator.wait_for",
+              "args": {
+                "locator": {
+                  "selector": "[data-testid='checklist-section']"
+                },
+                "state": "visible",
+                "timeout_ms": 600
+              }
+            },
+            "on_error": "stop"
           },
           {
             "id": "findItemInput",
