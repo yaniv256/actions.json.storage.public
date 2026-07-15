@@ -1,0 +1,712 @@
+{
+  "protocol": "actions.json",
+  "version": "0.1.0-working",
+  "surface": {
+    "site": "x.com",
+    "surface": "authenticated app and outreach",
+    "url_patterns": [
+      "https://x.com/*"
+    ],
+    "description": "Authenticated X reading, research, drafting, and approval-gated reply publication."
+  },
+  "observed_at": "2026-07-15T05:48:18.037Z",
+  "prompt": {
+    "role": "X outreach operator",
+    "mission": "Research visible conversations, preserve the user's draft, and help prepare relationship-first replies through reusable X actions.",
+    "boundaries": "Read freely. Draft only after reading x.reply.composer and preserving its exact current text. Never publish, follow, unfollow, like, repost, bookmark, or send a direct message without the user's explicit approval for that exact mutation. After publication, independently read x.thread.visible and confirm the expected text and permalink."
+  },
+  "requires": {
+    "signed_in": true,
+    "primitive_dictionary": {
+      "version": 1,
+      "stage": 1,
+      "required_primitives": [
+        "a11y.query",
+        "locator.element_info",
+        "locator.text_content",
+        "overlay.menu.hide",
+        "overlay.menu.show",
+        "pointer.click",
+        "text.insert",
+        "text.select",
+        "keyboard.press"
+      ]
+    }
+  },
+  "notes": {
+    "measured_surface": "Validated in a regular authenticated Chrome tab on extension 0.1.224. The reply editor is [data-testid='tweetTextarea_0'][contenteditable='true'] with role=textbox and accessible name 'Post text'. The inline submit button is [data-testid='tweetButtonInline'] and reads 'Reply'.",
+    "timeline_extraction": "X virtualizes timelines. A visible-state read is a bounded viewport observation, not a complete thread or feed. Accumulate by permalink while scrolling when deeper coverage is required.",
+    "text_extraction_gotcha": "browser.extract_elements uses the pseudo-attribute 'text'. 'textContent' is not the pseudo-attribute and returned empty strings during live authoring on 2026-07-15.",
+    "approval_boundary": "x.reply.draft.replace_if_unchanged never submits. x.reply.publish_approved is the only publication action and requires the exact composer text plus approval='APPROVE PUBLISH'. A caller must receive explicit user approval for that exact text immediately before invoking it."
+  },
+  "tools": [
+    {
+      "name": "x.outreach.map",
+      "description": "Return the operating contract for authenticated X outreach. Call this before researching, drafting, or publishing.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "static_output": {
+          "ok": true,
+          "site": "x.com",
+          "purpose": "Relationship-first X research and outreach through stored actions.",
+          "read": "Use x.timeline.visible on feeds/profiles/search, x.notifications.visible on Notifications, and x.thread.visible on a status page.",
+          "draft": "Read x.reply.composer first. Pass its exact text as expected_existing_text to x.reply.draft.replace_if_unchanged. A mismatch skips the replacement.",
+          "publish": "Only after explicit approval for the exact draft: call x.reply.publish_approved with exact_text and approval='APPROVE PUBLISH', then independently read x.thread.visible and verify the text and permalink.",
+          "never_without_approval": [
+            "publish",
+            "follow",
+            "unfollow",
+            "like",
+            "repost",
+            "bookmark",
+            "direct message"
+          ]
+        }
+      }
+    },
+    {
+      "name": "x.notifications.open",
+      "description": "Open the authenticated Notifications surface through X's visible navigation. Verify by reading x.notifications.visible after navigation settles.",
+      "input_schema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": {
+            "selector": "a[data-testid='AppTabBar_Notifications_Link'][href='/notifications']"
+          },
+          "readiness": "the signed-in primary Notifications link is resolved by its measured test identity immediately before pointer.click",
+          "states": [
+            "readiness",
+            "navigation",
+            "postcondition"
+          ],
+          "postcondition": "x.notifications.visible source_url begins https://x.com/notifications"
+        },
+        "steps": [
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "findNotifications",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "a[data-testid='AppTabBar_Notifications_Link'][href='/notifications']"
+              }
+            }
+          },
+          {
+            "id": "openNotifications",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.findNotifications.output.clickable_center.x %}",
+              "y": "{% steps.findNotifications.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 1500
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'opened': true, 'expected_url': 'https://x.com/notifications', 'next_step': 'Read x.notifications.visible and verify source_url begins https://x.com/notifications.'} %}"
+      }
+    },
+    {
+      "name": "x.search.url",
+      "description": "Build an authenticated X Latest-search URL. Open the returned URL in the claimed regular Chrome tab, then read x.timeline.visible.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "description": "X search query, including operators such as from:, to:, since:, until:, or filter:replies."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [],
+        "output": "{% {'query': input.query, 'url': 'https://x.com/search?q=' & $encodeUrlComponent(input.query) & '&f=live', 'next_step': 'Open this URL in the claimed regular Chrome tab and read x.timeline.visible.'} %}"
+      }
+    },
+    {
+      "name": "x.profile.url",
+      "description": "Build an X profile URL from a handle. This does not navigate or mutate the account.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "X handle with or without the leading @."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [],
+        "output": "{% ($h := $replace(input.handle, '@', ''); {'handle': $h, 'url': 'https://x.com/' & $h, 'next_step': 'Open this URL in the claimed regular Chrome tab and read x.timeline.visible.'}) %}"
+      }
+    },
+    {
+      "name": "x.post.url",
+      "description": "Build an exact X post URL from a handle and numeric post id. This does not navigate or mutate the account.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "handle",
+          "post_id"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "minLength": 1
+          },
+          "post_id": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "steps": [],
+        "output": "{% ($h := $replace(input.handle, '@', ''); {'handle': $h, 'post_id': input.post_id, 'url': 'https://x.com/' & $h & '/status/' & input.post_id, 'next_step': 'Open this URL in the claimed regular Chrome tab and read x.thread.visible.'}) %}"
+      }
+    },
+    {
+      "name": "x.reply.draft.replace_if_unchanged",
+      "description": "Replace or clear the visible reply draft only when its current text exactly matches expected_existing_text. Read x.reply.composer immediately before calling. This action never clicks Reply and never publishes.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "expected_existing_text",
+          "text"
+        ],
+        "properties": {
+          "expected_existing_text": {
+            "type": "string",
+            "description": "Exact text returned by the immediately preceding x.reply.composer read. Use an empty string only when the read proved the composer was empty."
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 25000,
+            "description": "Complete replacement draft. Pass an empty string to clear a draft whose exact current text was just read. This is not published by this action."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "a visible reply composer whose exact text was just read with x.reply.composer",
+          "states": [
+            "readiness",
+            "mutation",
+            "postcondition"
+          ],
+          "postcondition": "x.reply.composer draft_text exactly equals input.text"
+        },
+        "steps": [
+          {
+            "id": "readBefore",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "replaceDraft",
+            "primitive": "text.insert",
+            "when": "{% steps.readBefore.output.text = input.expected_existing_text and input.text != '' %}",
+            "args": {
+              "text": "{% input.text %}",
+              "mode": "replace",
+              "target": {
+                "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "focusForClear",
+            "primitive": "pointer.click",
+            "args": {
+              "x": "{% steps.readBefore.output.clickable_center.x %}",
+              "y": "{% steps.readBefore.output.clickable_center.y %}"
+            }
+          },
+          {
+            "id": "selectForClear",
+            "primitive": "text.select",
+            "when": "{% steps.readBefore.output.text = input.expected_existing_text and input.text = '' %}",
+            "args": {
+              "mode": "all",
+              "target": {
+                "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "clearDraft",
+            "primitive": "keyboard.press",
+            "when": "{% steps.readBefore.output.text = input.expected_existing_text and input.text = '' %}",
+            "args": {
+              "key": "Backspace",
+              "trusted": true
+            }
+          },
+          {
+            "id": "readAfter",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'applied': steps.readBefore.output.text = input.expected_existing_text and steps.readAfter.output.text = input.text, 'expected_existing_text': input.expected_existing_text, 'observed_before': steps.readBefore.output.text, 'observed_after': steps.readAfter.output.text, 'published': false, 'next_step': 'Read x.reply.composer independently. Do not publish without explicit user approval for the exact observed draft.'} %}"
+      }
+    },
+    {
+      "name": "x.reply.publish_approved",
+      "description": "Publish the visible reply only after the user explicitly approved this exact text. Requires approval='APPROVE PUBLISH' and an exact composer-text match. After this action, independently read x.thread.visible and confirm the expected text and permalink before reporting success.",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "exact_text",
+          "approval"
+          ,
+          "expected_author_handle"
+        ],
+        "properties": {
+          "exact_text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 25000,
+            "description": "The exact reply text explicitly approved by the user and currently visible in x.reply.composer."
+          },
+          "approval": {
+            "type": "string",
+            "enum": [
+              "APPROVE PUBLISH"
+            ],
+            "description": "Supply only after the user explicitly approves publishing exact_text."
+          },
+          "expected_author_handle": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Signed-in account handle, with or without @, used to bind the publication postcondition to the expected author."
+          }
+        },
+        "additionalProperties": false
+      },
+      "workflow": {
+        "version": 1,
+        "expression_language": "jsonata",
+        "x_state_machine": {
+          "requires_state": "the user explicitly approved input.exact_text for publication and x.reply.composer exactly matches it",
+          "states": [
+            "readiness",
+            "approval",
+            "mutation",
+            "postcondition"
+          ],
+          "postcondition": "x.thread.visible contains input.exact_text from input.expected_author_handle with a permalink"
+        },
+        "steps": [
+          {
+            "id": "findComposer",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']"
+              }
+            }
+          },
+          {
+            "id": "findReplyButton",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "button[data-testid='tweetButtonInline']"
+              }
+            }
+          },
+          {
+            "id": "hideOverlay",
+            "primitive": "overlay.menu.hide",
+            "on_error": "continue"
+          },
+          {
+            "id": "publish",
+            "primitive": "pointer.click",
+            "when": "{% input.approval = 'APPROVE PUBLISH' and steps.findComposer.output.text = input.exact_text %}",
+            "args": {
+              "x": "{% steps.findReplyButton.output.clickable_center.x %}",
+              "y": "{% steps.findReplyButton.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "delay_ms": 1500
+            }
+          },
+          {
+            "id": "showOverlay",
+            "primitive": "overlay.menu.show",
+            "on_error": "continue"
+          }
+        ],
+        "output": "{% {'submitted': input.approval = 'APPROVE PUBLISH' and steps.findComposer.output.text = input.exact_text and steps.findReplyButton.output.text = 'Reply', 'exact_text': input.exact_text, 'expected_author_handle': $replace(input.expected_author_handle, '@', ''), 'verification_required': true, 'next_step': 'Read x.thread.visible independently. Confirm an article authored by expected_author_handle contains exact_text and capture its permalink. Do not report publication from this action alone.'} %}"
+      }
+    }
+  ],
+  "state_projections": [
+    {
+      "name": "x.timeline.visible",
+      "description": "Visible X posts currently mounted in the virtualized timeline. This is a bounded viewport observation, not a complete feed.",
+      "scope": {
+        "url_matches": "https://x.com/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "articles",
+            "selector": "main article",
+            "many": true,
+            "fields": {
+              "text": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "author_href": {
+                "selector": "[data-testid='User-Name'] a[role='link']",
+                "attribute": "href"
+              },
+              "permalink": {
+                "selector": "a[href*='/status/']",
+                "attribute": "href"
+              },
+              "datetime": {
+                "selector": "time",
+                "attribute": "datetime"
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'source_url': url, 'visible_count': $count(records.articles), 'complete': $count(records.articles) > 0, 'virtualized': true, 'articles': $append([], records.articles)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "source_url",
+            "visible_count",
+            "complete",
+            "virtualized",
+            "articles"
+          ],
+          "properties": {
+            "source_url": { "type": "string" },
+            "visible_count": { "type": "number" },
+            "complete": { "type": "boolean" },
+            "virtualized": { "type": "boolean" },
+            "articles": { "type": "array" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 12000,
+          "expression": "{% {'source_url': state.source_url, 'visible_count': state.visible_count, 'virtualized': true, 'articles': state.articles} %}"
+        }
+      ]
+    },
+    {
+      "name": "x.notifications.visible",
+      "description": "Visible notification articles on the authenticated Notifications surface.",
+      "scope": {
+        "url_matches": "https://x.com/notifications*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "notifications",
+            "selector": "main article",
+            "many": true,
+            "fields": {
+              "text": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "author_href": {
+                "selector": "[data-testid='User-Name'] a[role='link']",
+                "attribute": "href"
+              },
+              "permalink": {
+                "selector": "a[href*='/status/']",
+                "attribute": "href"
+              },
+              "datetime": {
+                "selector": "time",
+                "attribute": "datetime"
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'source_url': url, 'visible_count': $count(records.notifications), 'complete': $count(records.notifications) > 0, 'virtualized': true, 'notifications': $append([], records.notifications)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "source_url",
+            "visible_count",
+            "complete",
+            "virtualized",
+            "notifications"
+          ],
+          "properties": {
+            "source_url": { "type": "string" },
+            "visible_count": { "type": "number" },
+            "complete": { "type": "boolean" },
+            "virtualized": { "type": "boolean" },
+            "notifications": { "type": "array" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 12000,
+          "expression": "{% {'source_url': state.source_url, 'visible_count': state.visible_count, 'virtualized': true, 'notifications': state.notifications} %}"
+        }
+      ],
+      "postconditions": {
+        "x.notifications.open": {
+          "projection": "x.notifications.visible",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% $contains(state.source_url, 'https://x.com/notifications') %}"
+          },
+          "failure_message": "X did not land on the Notifications surface after navigation."
+        }
+      }
+    },
+    {
+      "name": "x.thread.visible",
+      "description": "Visible posts mounted in the current X conversation, including author, text, timestamp, and permalink when present.",
+      "scope": {
+        "url_matches": "https://x.com/*/status/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "posts",
+            "selector": "main article",
+            "many": true,
+            "fields": {
+              "text": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "author_href": {
+                "selector": "[data-testid='User-Name'] a[role='link']",
+                "attribute": "href"
+              },
+              "permalink": {
+                "selector": "a[href*='/status/']",
+                "attribute": "href"
+              },
+              "datetime": {
+                "selector": "time",
+                "attribute": "datetime"
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% {'source_url': url, 'visible_count': $count(records.posts), 'complete': $count(records.posts) > 0, 'posts': $append([], records.posts)} %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "source_url",
+            "visible_count",
+            "complete",
+            "posts"
+          ],
+          "properties": {
+            "source_url": { "type": "string" },
+            "visible_count": { "type": "number" },
+            "complete": { "type": "boolean" },
+            "posts": { "type": "array" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "agent_context",
+          "max_bytes": 12000,
+          "expression": "{% {'source_url': state.source_url, 'visible_count': state.visible_count, 'posts': state.posts} %}"
+        }
+      ],
+      "postconditions": {
+        "x.reply.publish_approved": {
+          "projection": "x.thread.visible",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% ($h := $replace($$.input.expected_author_handle, '@', ''); $exists(state.posts[author_href = '/' & $h and $contains(text, $$.input.exact_text) and $type(permalink) = 'string' and permalink != ''])) %}"
+          },
+          "failure_message": "The expected reply text was not independently found under the expected author with a permalink."
+        }
+      }
+    },
+    {
+      "name": "x.reply.composer",
+      "description": "Current visible X reply draft and submit-control state. Read immediately before every draft replacement and immediately before requesting publication approval.",
+      "scope": {
+        "url_matches": "https://x.com/*/status/*"
+      },
+      "snapshot": {
+        "version": 1,
+        "source": "dom",
+        "extract": [
+          {
+            "id": "composer",
+            "selector": "[data-testid='tweetTextarea_0'][contenteditable='true']",
+            "many": false,
+            "fields": {
+              "text": {
+                "property": "textContent",
+                "trim": false
+              },
+              "aria_label": {
+                "attribute": "aria-label",
+                "required": true
+              },
+              "role": {
+                "attribute": "role",
+                "required": true
+              }
+            }
+          },
+          {
+            "id": "submit",
+            "selector": "button[data-testid='tweetButtonInline']",
+            "many": false,
+            "fields": {
+              "label": {
+                "property": "innerText",
+                "trim": true,
+                "required": true
+              },
+              "disabled": {
+                "attribute": "disabled",
+                "default": false
+              }
+            }
+          }
+        ],
+        "projection": {
+          "language": "jsonata",
+          "expression": "{% ($draft := $type(records.composer.text) = 'string' ? records.composer.text : ''; $composerLabel := $type(records.composer.aria_label) = 'string' ? records.composer.aria_label : ''; $composerRole := $type(records.composer.role) = 'string' ? records.composer.role : ''; $submitLabel := $type(records.submit.label) = 'string' ? records.submit.label : ''; {'source_url': url, 'draft_text': $draft, 'draft_length': $length($draft), 'composer_label': $composerLabel, 'composer_role': $composerRole, 'submit_label': $submitLabel, 'submit_disabled': $type(records.submit.disabled) = 'string', 'complete': $composerLabel = 'Post text' and $composerRole = 'textbox' and $submitLabel = 'Reply'}) %}"
+        },
+        "output_schema": {
+          "type": "object",
+          "required": [
+            "source_url",
+            "draft_text",
+            "draft_length",
+            "composer_label",
+            "composer_role",
+            "submit_label",
+            "submit_disabled",
+            "complete"
+          ],
+          "properties": {
+            "source_url": { "type": "string" },
+            "draft_text": { "type": "string" },
+            "draft_length": { "type": "number" },
+            "composer_label": { "type": "string" },
+            "composer_role": { "type": "string" },
+            "submit_label": { "type": "string" },
+            "submit_disabled": { "type": "boolean" },
+            "complete": { "type": "boolean" }
+          }
+        }
+      },
+      "summaries": [
+        {
+          "name": "approval_context",
+          "max_bytes": 3000,
+          "expression": "{% {'source_url': state.source_url, 'draft_text': state.draft_text, 'draft_length': state.draft_length, 'submit_disabled': state.submit_disabled, 'complete': state.complete, 'warning': 'Publication requires explicit user approval for this exact draft_text.'} %}"
+        }
+      ],
+      "postconditions": {
+        "x.reply.draft.replace_if_unchanged": {
+          "projection": "x.reply.composer",
+          "verify": {
+            "language": "jsonata",
+            "expression": "{% state.complete and state.draft_text = $$.input.text %}"
+          },
+          "failure_message": "The reply composer did not contain the exact requested draft after replacement."
+        }
+      }
+    }
+  ]
+}
