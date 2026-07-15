@@ -14,6 +14,20 @@ const action = map.tools.find(
 
 assert.ok(action, "missing trello.card.checklist_item.add");
 
+const stepIds = action.workflow.steps.map((step) => step.id);
+assert.ok(
+  stepIds.indexOf("probeComposerAlreadyOpen") < stepIds.indexOf("findItemInput"),
+  "add must probe composer readiness before locating the input",
+);
+assert.ok(
+  stepIds.indexOf("clickAddItem") < stepIds.indexOf("findItemInput"),
+  "add must open the composer before locating the input",
+);
+assert.equal(
+  action.workflow.steps.find((step) => step.id === "findAddItemButton").args.locator.text_contains,
+  "Add an item",
+);
+
 const verifyItem = action.workflow.steps.find((step) => step.id === "verifyItem");
 assert.ok(verifyItem, "checklist item add must have a verifyItem step");
 assert.equal(
