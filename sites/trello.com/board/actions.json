@@ -5015,7 +5015,7 @@
     },
     {
       "name": "trello.card.title.set",
-      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. CURRENT MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
+      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with a trusted Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. Exact duplicate current titles are ambiguous and outside the measured boundary; resolve the intended card manually rather than calling this title-only action. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. HISTORICAL MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. CURRENT COMMIT BOUNDARY (2026-07-16, extension 0.1.229): synthetic Enter updated the textarea and Trello's React value but left the persisted card title unchanged; trusted Enter immediately advanced the textarea aria-label and an independent board projection proved the exact new title present and old title absent. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5093,7 +5093,7 @@
             "args": {
               "locator": {
                 "selector": "a[href*='/c/']",
-                "text_contains": "{% input.current_title %}"
+                "text_equals": "{% input.current_title %}"
               }
             },
             "retry_until": "{% $exists(steps.findCardFront.output.clickable_center.x) %}",
@@ -5168,11 +5168,24 @@
             "id": "commitTitle",
             "primitive": "keyboard.press",
             "args": {
-              "key": "Enter"
+              "key": "Enter",
+              "trusted": true
             },
             "settle_after": {
               "delay_ms": 500
             }
+          },
+          {
+            "id": "verifyCommittedTitleInput",
+            "primitive": "locator.element_info",
+            "args": {
+              "locator": {
+                "selector": "textarea[data-testid='card-back-title-input']"
+              }
+            },
+            "retry_until": "{% $lookup(steps.verifyCommittedTitleInput.output.attributes, 'aria-label') = input.new_title %}",
+            "max_attempts": 4,
+            "on_error": "continue"
           },
           {
             "id": "closeCard",
@@ -5189,14 +5202,14 @@
             "primitive": "locator.text_content",
             "args": {
               "locator": {
-                "selector": "a[href*='/c/']",
+                "selector": "[data-testid='card-name']",
                 "text_contains": "{% input.new_title %}"
               }
             },
             "on_error": "continue"
           }
         ],
-        "output": "{% ( $verified := $exists(steps.verifyRename.output.text) and $contains(steps.verifyRename.output.text, input.new_title) and $not($contains(steps.verifyRename.output.text, input.current_title)); {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'front_now': steps.verifyRename.output.text, 'verified': $verified, 'safe_to_claim': $verified, 'next_step': $verified ? 'Rename appears on the board front; independently confirm exact new-title presence and old-title absence with the independent board projection.' : 'Rename did not verify; do not claim success or retry blindly. Re-read the board before deciding whether another attempt is safe.'} ) %}"
+        "output": "{% ( $committedTitle := $lookup(steps.verifyCommittedTitleInput.output.attributes, 'aria-label'); $verified := $committedTitle = input.new_title and $exists(steps.verifyRename.output.text) and $trim(steps.verifyRename.output.text) = input.new_title; {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'committed_title': $committedTitle, 'front_now': steps.verifyRename.output.text, 'verified': $verified, 'safe_to_claim': $verified, 'next_step': $verified ? 'The opened card accepted the exact new title and the exact title appears on the board front; independently confirm exact new-title presence and old-title absence with the independent board projection.' : 'Rename did not verify; do not claim success or retry blindly. Re-read the board before deciding whether another attempt is safe.'} ) %}"
       }
     },
     {
