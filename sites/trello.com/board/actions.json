@@ -5627,7 +5627,7 @@
     },
     {
       "name": "trello.card.checklist.create",
-      "description": "Create a checklist on the currently open Trello card. Scrolls the card modal to the top, clicks the header Checklist button, waits until Trello's controlled title input is initialized, replaces that exact field, and submits with the popover's own Add button. Precondition: open the card first with trello.card.by_title.open. After creating, add items with trello.card.checklist_item.add. The verifier reads the mounted checklist container first and then checks its returned text; it does not filter the locator by the caller's title, because that race caused false workflow_retry_exhausted failures after a successful create (verified on extension 0.1.217). Do not claim success unless output.verified is true. BOUNDARY: Trello permits duplicate checklist titles, and title presence cannot distinguish a newly created duplicate from an existing checklist. The action is not idempotent for a repeated title. Before retrying an ambiguous or timed-out create, read the card and verify the checklist count for that exact title; use a unique title when identity matters.",
+      "description": "Create a checklist on the currently open Trello card. Scrolls the card modal to the top, clicks the header Checklist button, waits until Trello's controlled title input is initialized, replaces that exact field, and submits with the popover's own Add button. Precondition: open the card first with trello.card.by_title.open. After creating, add items with trello.card.checklist_item.add. The verifier reads normalized text across every mounted checklist title, rather than reading only the first generic checklist container; the single-container read caused false workflow_retry_exhausted failures after a successful create on cards with multiple checklists (regression observed 2026-07-16 on extension 0.1.217). Do not claim success unless output.verified is true. BOUNDARY: Trello permits duplicate checklist titles, and title presence cannot distinguish a newly created duplicate from an existing checklist. The action is not idempotent for a repeated title. Before retrying an ambiguous or timed-out create, read the card and verify the checklist count for that exact title; use a unique title when identity matters.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5744,20 +5744,22 @@
           },
           {
             "id": "verifyChecklist",
-            "primitive": "locator.text_content",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "locator": {
-                "selector": "[data-testid='checklist-container']"
-              }
+              "selector": "[data-testid='checklist-title']",
+              "attributes": [
+                "text"
+              ],
+              "max_matches": 200
             },
             "on_error": "continue",
-            "retry_until": "{% $contains(steps.verifyChecklist.output.text, input.title) %}",
+            "retry_until": "{% ($t := input.title; $count(steps.verifyChecklist.output.matches[attributes.text = $t]) >= 1) %}",
             "max_attempts": 5,
             "after_each": {
               "primitive": "locator.wait_for",
               "args": {
                 "locator": {
-                  "selector": "[data-testid='checklist-container']"
+                  "selector": "[data-testid='checklist-section']"
                 },
                 "state": "visible",
                 "timeout_ms": 600
@@ -5765,7 +5767,7 @@
             }
           }
         ],
-        "output": "{% {'title': input.title, 'title_field_ready': steps.awaitTitleFieldReady.output.settable = true and steps.awaitTitleFieldReady.output.value != '', 'checklist_text': steps.verifyChecklist.output.text, 'verified': $contains(steps.verifyChecklist.output.text, input.title), 'next_step': 'Add items with trello.card.checklist_item.add. Only report success if verified is true.'} %}"
+        "output": "{% ($t := input.title; $matches := steps.verifyChecklist.output.matches[attributes.text = $t]; {'title': $t, 'title_field_ready': steps.awaitTitleFieldReady.output.settable = true and steps.awaitTitleFieldReady.output.value != '', 'checklist_titles': steps.verifyChecklist.output.matches.attributes.text, 'match_count': $count($matches), 'verified': $count($matches) >= 1, 'next_step': 'Add items with trello.card.checklist_item.add. Only report success if verified is true.'}) %}"
       },
       "x_actions": {
         "source": {
