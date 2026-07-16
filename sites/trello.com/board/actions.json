@@ -7076,26 +7076,28 @@
             }
           },
           {
-            "id": "verifyBoardVisible",
-            "primitive": "locator.element_info",
+            "id": "verifyCardGone",
+            "primitive": "dom.observe.visible",
             "args": {
-              "locator": {
-                "selector": "[data-testid='lists']"
-              }
-            }
+              "selector": "[data-testid='card-back-title-input'], [data-testid='card-back-name']"
+            },
+            "retry_until": "{% steps.verifyCardGone.output.match_count = 0 %}",
+            "max_attempts": 4,
+            "on_error": "stop"
           },
           {
-            "id": "verifyCardGone",
-            "primitive": "locator.element_info",
+            "id": "verifyBoardRoute",
+            "primitive": "locator.wait_for",
             "args": {
               "locator": {
-                "selector": "[data-testid='card-back-name']"
-              }
-            },
-            "on_error": "continue"
+                "selector": "[data-testid='list-name']"
+              },
+              "state": "visible",
+              "timeout_ms": 5000
+            }
           }
         ],
-        "output": "{% ( $boardVisible := $exists(steps.verifyBoardVisible.output.bounding_box); $cardGone := $not($exists(steps.verifyCardGone.output.bounding_box)); {'closed': $boardVisible and $cardGone, 'board_visible': $boardVisible, 'card_gone': $cardGone, 'next_step': ($boardVisible and $cardGone) ? 'Card modal closed and board view verified.' : 'Card modal closure was not verified; do not claim success or continue with board-level work.'} ) %}"
+        "output": "{% ( $boardVisible := steps.verifyBoardRoute.output.matched; $cardGone := steps.verifyCardGone.output.match_count = 0; {'closed': $boardVisible and $cardGone, 'board_visible': $boardVisible, 'card_gone': $cardGone, 'next_step': ($boardVisible and $cardGone) ? 'Card modal closed and board view verified.' : 'Card modal closure was not verified; do not claim success or continue with board-level work.'} ) %}"
       },
       "x_actions": {
         "source": {
