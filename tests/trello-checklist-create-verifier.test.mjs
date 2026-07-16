@@ -16,6 +16,7 @@ test('checklist.create verifies the exact title across every mounted checklist',
   const settle = verify.after_each.args.locator;
   assert.equal(settle.selector, "[data-testid='checklist-section']");
   assert.equal('text_contains' in settle, false);
+  assert.match(action.workflow.output, /\$titles := \[steps\.verifyChecklist\.output\.matches\.attributes\.text\]/);
   assert.match(action.workflow.output, /'checklist_text': \$join\(/);
   assert.match(action.description, /across every mounted checklist title/);
 });
