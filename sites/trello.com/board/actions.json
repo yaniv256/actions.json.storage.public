@@ -5767,7 +5767,7 @@
             }
           }
         ],
-        "output": "{% ($t := input.title; $matches := steps.verifyChecklist.output.matches[attributes.text = $t]; {'title': $t, 'title_field_ready': steps.awaitTitleFieldReady.output.settable = true and steps.awaitTitleFieldReady.output.value != '', 'checklist_titles': steps.verifyChecklist.output.matches.attributes.text, 'match_count': $count($matches), 'verified': $count($matches) >= 1, 'next_step': 'Add items with trello.card.checklist_item.add. Only report success if verified is true.'}) %}"
+        "output": "{% ($t := input.title; $titles := steps.verifyChecklist.output.matches.attributes.text; $matches := steps.verifyChecklist.output.matches[attributes.text = $t]; {'title': $t, 'title_field_ready': steps.awaitTitleFieldReady.output.settable = true and steps.awaitTitleFieldReady.output.value != '', 'checklist_text': $join($titles, ' '), 'checklist_titles': $titles, 'match_count': $count($matches), 'verified': $count($matches) >= 1, 'next_step': 'Add items with trello.card.checklist_item.add. Only report success if verified is true.'}) %}"
       },
       "x_actions": {
         "source": {
