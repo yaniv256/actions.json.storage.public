@@ -4960,34 +4960,6 @@
             "on_error": "stop"
           },
           {
-            "id": "findSaveAgain",
-            "primitive": "locator.element_info",
-            "args": {
-              "locator": {
-                "selector": "[role='dialog'] [data-testid='card-back-comment-save-button'], .window [data-testid='card-back-comment-save-button']",
-                "text_contains": "Save"
-              }
-            },
-            "on_error": "continue"
-          },
-          {
-            "id": "clickSaveAgain",
-            "primitive": "pointer.click",
-            "args": {
-              "x": "{% steps.findSaveAgain.output.clickable_center.x %}",
-              "y": "{% steps.findSaveAgain.output.clickable_center.y %}"
-            },
-            "when": "{% steps.findSaveAgain.output.clickable_center.x != null %}",
-            "settle_after": {
-              "locator": {
-                "selector": "[role='dialog'] [data-testid='card-back-new-comment-input-skeleton'], .window [data-testid='card-back-new-comment-input-skeleton']"
-              },
-              "state": "visible",
-              "timeout_ms": 8000
-            },
-            "on_error": "continue"
-          },
-          {
             "id": "scrollToPostedActivity",
             "primitive": "viewport.scroll",
             "args": {

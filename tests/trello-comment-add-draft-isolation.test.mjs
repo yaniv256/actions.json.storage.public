@@ -33,6 +33,16 @@ assert.doesNotMatch(
   "comment insertion must not append to a persisted draft",
 );
 
+const saveClicks = steps.filter(
+  (step) => step.primitive === "pointer.click" && /save/i.test(step.id ?? ""),
+);
+assert.equal(
+  saveClicks.length,
+  1,
+  "comment add must issue exactly one commit click; a delayed editor dismissal must not duplicate the comment",
+);
+assert.equal(saveClicks[0].id, "clickSave");
+
 const verify = steps.find((step) => step.id === "verifyPostedComments");
 assert.ok(verify, "comment add must verify posted activity comments");
 assert.equal(verify.primitive, "locator.text_content");
