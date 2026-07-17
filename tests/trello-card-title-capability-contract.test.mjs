@@ -16,6 +16,9 @@ const committedTitleVerifier = rename.workflow.steps.find(
 const targetCardResolver = rename.workflow.steps.find(
   (step) => step.id === "findCardFront",
 );
+const persistedTitleVerifier = rename.workflow.steps.find(
+  (step) => step.id === "verifyRename",
+);
 
 assert.equal(
   targetCardResolver?.args?.locator?.text_equals,
@@ -43,7 +46,7 @@ assert.match(
 
 assert.match(
   rename.description,
-  /extension 0\.1\.229/i,
+  /extension 0\.1\.231/i,
   "card.title.set must bind its capability claim to the measured runtime",
 );
 
@@ -60,26 +63,38 @@ assert.match(
 );
 
 assert.match(
+  persistedTitleVerifier?.args?.text_contains ?? "",
+  /input\.new_title/,
+  "card.title.set must narrow the identity-scoped board-front read to the requested title",
+);
+
+assert.match(
   rename.workflow.output,
-  /\$trim\(steps\.verifyRename\.output\.text\) = input\.new_title/,
-  "card.title.set must prove the board-front title is an exact match",
+  /\$targetCardId[\s\S]*\$trim\(\$match\.attributes\.text\) = input\.new_title/,
+  "card.title.set must bind the exact title to the original stable card ID",
 );
 
 assert.ok(
   committedTitleVerifier,
-  "card.title.set must verify the opened card's committed title field",
+  "card.title.set must preserve a diagnostic read of the opened card's title field",
 );
 
-assert.match(
+assert.equal(
   committedTitleVerifier.retry_until,
-  /\$lookup\(steps\.verifyCommittedTitleInput\.output\.attributes, 'aria-label'\) = input\.new_title/,
-  "card.title.set must bind verification to the opened card's committed title field",
+  undefined,
+  "transient editor state must not block authoritative persisted-title verification",
+);
+
+assert.doesNotMatch(
+  rename.workflow.output,
+  /\$committedTitle = input\.new_title/,
+  "card.title.set output must not treat transient editor state as authoritative",
 );
 
 assert.match(
   rename.workflow.output,
-  /\$committedTitle = input\.new_title/,
-  "card.title.set output must require the exact committed title",
+  /'committed_title': \$committedTitle[\s\S]*'editor_title_observed': \$committedTitle/,
+  "card.title.set must preserve committed_title as a compatibility alias for the diagnostic editor signal",
 );
 
 assert.doesNotMatch(

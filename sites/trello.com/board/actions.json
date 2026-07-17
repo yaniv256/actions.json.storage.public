@@ -5015,7 +5015,7 @@
     },
     {
       "name": "trello.card.title.set",
-      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with a trusted Enter, closes the card, and verifies the new title on the board front. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. Exact duplicate current titles are ambiguous and outside the measured boundary; resolve the intended card manually rather than calling this title-only action. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. HISTORICAL MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. CURRENT COMMIT BOUNDARY (2026-07-16, extension 0.1.229): synthetic Enter updated the textarea and Trello's React value but left the persisted card title unchanged; trusted Enter immediately advanced the textarea aria-label and an independent board projection proved the exact new title present and old title absent. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
+      "description": "Rename a Trello card. Opens the card briefly, replaces the title in the card-back title field, commits with a trusted Enter, closes the card, and verifies the exact new title on the same stable Trello card ID captured before mutation. The open editor's aria-label is a transient editor signal and is diagnostic only; Trello can persist the rename before that attribute settles, so persisted board-front identity is the authoritative in-action verifier. Destination-title duplicates are safe because verification is bound to the original card ID, not merely to any card with the requested title. BOARD CONVENTION: card titles are the person's name ONLY; context such as 'a company/context tag' belongs in the description or a label, never repeated in every title. Pass the card's exact current title as current_title and the desired title as new_title. The workflow scrolls to find the card automatically. Exact duplicate current titles are ambiguous and outside the measured boundary; resolve the intended card manually rather than calling this title-only action. If it fails with target_not_found on findCardFront, the card may ALREADY be renamed \u2014 re-read the board before retrying. HISTORICAL MEASURED BOUNDARY (2026-07-13, extension 0.1.206): six consecutive renames persisted on one disposable card, and an independent board projection proved the exact new title present and old title absent after every call. CURRENT COMMIT BOUNDARY (2026-07-16, extension 0.1.231): synthetic Enter updated the textarea and Trello's React value but left the persisted card title unchanged; trusted Enter persisted the exact new title. A transient editor aria-label retry then produced a false workflow failure even though an independent card lookup proved the exact new title present and the old title absent. Do not claim success unless output.verified is true, then independently confirm the exact new title is present and the old title is absent with the Trello board projection. After verified:false, re-read state before any retry.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5112,6 +5112,22 @@
             "on_error": "continue"
           },
           {
+            "id": "captureCardIdentity",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "[data-testid='list-card'] a[href*='/c/']",
+              "attributes": [
+                "href",
+                "text"
+              ],
+              "text_contains": "{% input.current_title %}",
+              "max_matches": 200
+            },
+            "retry_until": "{% ( $exact := $filter(steps.captureCardIdentity.output.matches, function($match) { $trim($match.attributes.text) = input.current_title }); $count($exact) = 1 ) %}",
+            "max_attempts": 1,
+            "on_error": "stop"
+          },
+          {
             "id": "openCard",
             "primitive": "pointer.click",
             "args": {
@@ -5177,14 +5193,15 @@
           },
           {
             "id": "verifyCommittedTitleInput",
-            "primitive": "locator.element_info",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "locator": {
-                "selector": "textarea[data-testid='card-back-title-input']"
-              }
+              "selector": "textarea[data-testid='card-back-title-input']",
+              "attributes": [
+                "aria-label",
+                "text"
+              ],
+              "max_matches": 1
             },
-            "retry_until": "{% $lookup(steps.verifyCommittedTitleInput.output.attributes, 'aria-label') = input.new_title %}",
-            "max_attempts": 4,
             "on_error": "continue"
           },
           {
@@ -5198,18 +5215,34 @@
             }
           },
           {
-            "id": "verifyRename",
-            "primitive": "locator.text_content",
+            "id": "waitForRenamedCard",
+            "primitive": "locator.wait_for",
             "args": {
               "locator": {
-                "selector": "[data-testid='card-name']",
-                "text_contains": "{% input.new_title %}"
-              }
+                "selector": "{% ( $before := $filter(steps.captureCardIdentity.output.matches, function($match) { $trim($match.attributes.text) = input.current_title }); $targetHref := $before[0].attributes.href; $targetCardId := $substringBefore($substringAfter($targetHref, '/c/') & '/', '/'); \"[data-testid='list-card'] a[href*='/c/\" & $targetCardId & \"']\" ) %}",
+                "text_equals": "{% input.new_title %}"
+              },
+              "state": "visible",
+              "timeout_ms": 6000
+            },
+            "on_error": "continue"
+          },
+          {
+            "id": "verifyRename",
+            "primitive": "dom.observe.attributes",
+            "args": {
+              "selector": "{% ( $before := $filter(steps.captureCardIdentity.output.matches, function($match) { $trim($match.attributes.text) = input.current_title }); $targetHref := $before[0].attributes.href; $targetCardId := $substringBefore($substringAfter($targetHref, '/c/') & '/', '/'); \"[data-testid='list-card'] a[href*='/c/\" & $targetCardId & \"']\" ) %}",
+              "attributes": [
+                "href",
+                "text"
+              ],
+              "text_contains": "{% input.new_title %}",
+              "max_matches": 5
             },
             "on_error": "continue"
           }
         ],
-        "output": "{% ( $committedTitle := $lookup(steps.verifyCommittedTitleInput.output.attributes, 'aria-label'); $verified := $committedTitle = input.new_title and $exists(steps.verifyRename.output.text) and $trim(steps.verifyRename.output.text) = input.new_title; {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'committed_title': $committedTitle, 'front_now': steps.verifyRename.output.text, 'verified': $verified, 'safe_to_claim': $verified, 'next_step': $verified ? 'The opened card accepted the exact new title and the exact title appears on the board front; independently confirm exact new-title presence and old-title absence with the independent board projection.' : 'Rename did not verify; do not claim success or retry blindly. Re-read the board before deciding whether another attempt is safe.'} ) %}"
+        "output": "{% ( $targetBefore := $filter(steps.captureCardIdentity.output.matches, function($match) { $trim($match.attributes.text) = input.current_title }); $targetHref := $targetBefore[0].attributes.href; $targetCardId := $substringBefore($substringAfter($targetHref, '/c/') & '/', '/'); $targetAfter := $filter(steps.verifyRename.output.matches, function($match) { $substringBefore($substringAfter($match.attributes.href, '/c/') & '/', '/') = $targetCardId and $trim($match.attributes.text) = input.new_title }); $editorMatches := steps.verifyCommittedTitleInput.output.matches; $committedTitle := $count($editorMatches) > 0 ? $editorMatches[0].attributes.`aria-label` : null; $verified := $count($targetBefore) = 1 and $count($targetAfter) = 1; {'renamed_to': input.new_title, 'renamed_from': input.current_title, 'target_card_id': $targetCardId, 'committed_title': $committedTitle, 'editor_title_observed': $committedTitle, 'front_now': $count($targetAfter) = 1 ? $targetAfter[0].attributes.text : null, 'verified': $verified, 'safe_to_claim': $verified, 'next_step': $verified ? 'For the independent board projection, call trello.board.visible_cards.read. In its returned card URLs, require the /c/<id> segment to equal target_card_id and require that same card title to equal renamed_to; also confirm renamed_from is absent before reporting success.' : 'The rename did not verify; do not claim success or retry blindly. Call trello.board.visible_cards.read, find the card URL whose /c/<id> segment equals target_card_id, and inspect that same card title. Retry only if that identity-aware reread proves the original card still has renamed_from.'} ) %}"
       }
     },
     {
