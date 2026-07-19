@@ -45,9 +45,11 @@ test("trello.card.create refuses to submit until the composer equals the request
 test("trello.card.create verifies an exact title in the requested list", () => {
   assert.equal(steps.verifyCardPresent.args.text_equals, "{% input.title %}");
   assert.equal(steps.verifyCardPresent.args.text_contains, undefined);
+  assert.equal(steps.verifyCardPresent.on_error, "stop");
   assert.equal(
-    postcondition.verify.expression,
-    "{% $exists(state.board.lists[name = $$.input.list_name].cards[title = $$.input.title]) %}",
+    postcondition,
+    undefined,
+    "exact workflow-local verification must replace the unbounded full-board postcondition",
   );
 });
 
