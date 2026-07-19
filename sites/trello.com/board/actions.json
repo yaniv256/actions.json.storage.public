@@ -2120,7 +2120,11 @@
               "y": "{% steps.findConfirmArchiveList.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 700
+              "locator": {
+                "selector": "[data-testid='due-date-badge-with-date-range-picker']"
+              },
+              "state": "hidden",
+              "timeout_ms": 5000
             }
           },
           {
@@ -2213,6 +2217,13 @@
             "args": {
               "x": "{% steps.findListHeading.output.clickable_center.x %}",
               "y": "{% steps.findListHeading.output.clickable_center.y %}"
+            },
+            "settle_after": {
+              "locator": {
+                "selector": "[data-testid='list-card-composer-textarea']"
+              },
+              "state": "visible",
+              "timeout_ms": 5000
             }
           }
         ],
@@ -2440,7 +2451,7 @@
                 "timeout_ms": 600
               }
             },
-            "on_error": "continue"
+            "on_error": "stop"
           }
         ],
         "output": "{% {'created_in_list': input.list_name, 'title': input.title, 'created': steps.verifyCardPresent.output.match_count > 0} %}"
@@ -2992,7 +3003,11 @@
               "y": "{% steps.findRemove.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 700
+              "locator": {
+                "selector": "[data-testid='due-date-badge-with-date-range-picker']"
+              },
+              "state": "hidden",
+              "timeout_ms": 5000
             }
           },
           {
@@ -3265,7 +3280,11 @@
               "y": "{% steps.findRemove.output.clickable_center.y %}"
             },
             "settle_after": {
-              "delay_ms": 700
+              "locator": {
+                "selector": "[data-testid='due-date-badge-with-date-range-picker']"
+              },
+              "state": "hidden",
+              "timeout_ms": 5000
             }
           },
           {
@@ -6951,7 +6970,7 @@
                 "timeout_ms": 1500
               }
             },
-            "on_error": "continue"
+            "on_error": "stop"
           },
           {
             "id": "closeMovedCard",
@@ -8278,62 +8297,6 @@
             "expression": "{% $split(state.modal.title, '\n')[0] = $$.input.title %}"
           },
           "failure_message": "The requested Trello card title was not present in the open card state after the workflow."
-        },
-        "trello.card.due_date.clear": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $count(state.board.lists.cards[title = $$.input.card_title and due_date != null]) = 0 %}"
-          },
-          "failure_message": "The target Trello card still has a due date after the clear-date workflow."
-        },
-        "trello.board.list.create": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $exists(state.board.lists[name = $$.input.name]) %}"
-          },
-          "failure_message": "The new Trello list was not present in board state."
-        },
-        "trello.card.create": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $exists(state.board.lists[name = $$.input.list_name].cards[title = $$.input.title]) %}"
-          },
-          "failure_message": "The new Trello card was not present in board state."
-        },
-        "trello.card.move_to_list_from_open_card": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $exists(state.board.lists[name = $$.input.target_list].cards[title = $$.input.card_title]) and $count(state.board.lists[name = $$.input.source_list].cards[title = $$.input.card_title]) = 0 %}"
-          },
-          "failure_message": "The Trello card was not present in the requested target list or still remained in the source list after the move workflow."
-        },
-        "trello.card.delete": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $count(state.board.lists.cards[title = $$.input.title]) = 0 %}"
-          },
-          "failure_message": "The deleted Trello card title is still present in board state."
-        },
-        "trello.list.archive": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $count(state.board.lists[name = $$.input.list_name]) = 0 %}"
-          },
-          "failure_message": "The archived Trello list is still present in board state."
-        },
-        "trello.board.add_card.open_composer": {
-          "projection": "trello.board",
-          "verify": {
-            "language": "jsonata",
-            "expression": "{% $exists(state.board.lists[name = $$.input.list_name]) %}"
-          },
-          "failure_message": "The target list was not present after opening the add-card composer."
         }
       }
     },

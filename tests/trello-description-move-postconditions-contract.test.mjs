@@ -85,6 +85,11 @@ assert.ok(
   verifyMovedList,
   "move_to_list_from_open_card must read the card's committed destination list",
 );
+assert.equal(
+  verifyMovedList.on_error,
+  "stop",
+  "destination-list verification must fail the workflow instead of deferring to a full-board postcondition",
+);
 assert.match(
   JSON.stringify(verifyMovedList.args?.locator ?? {}),
   /target_list/,
@@ -120,7 +125,7 @@ assert.match(verifyCardClosed?.retry_until ?? "", /match_count\s*=\s*0/);
 assert.equal(
   verifyBoardRoute?.primitive,
   "locator.wait_for",
-  "move must return to a board surface before its board projection postcondition runs",
+  "move must return to a board surface before reporting local verification success",
 );
 assert.match(
   JSON.stringify(verifyBoardRoute?.args?.locator ?? {}),
@@ -148,9 +153,10 @@ const boardProjection = map.state_projections.find(
 assert.ok(boardProjection, "missing trello.board projection");
 const movePostcondition =
   boardProjection.postconditions?.["trello.card.move_to_list_from_open_card"];
-assert.ok(movePostcondition, "move must register a board-model postcondition");
-assert.match(movePostcondition.verify.expression, /target_list/);
-assert.match(movePostcondition.verify.expression, /source_list/);
-assert.match(movePostcondition.verify.expression, /card_title/);
+assert.equal(
+  movePostcondition,
+  undefined,
+  "move must not reproject the full growing board after its exact card-local verifier passes",
+);
 
-console.log("trello description and move postcondition contract passed");
+console.log("trello description and bounded move verification contract passed");
