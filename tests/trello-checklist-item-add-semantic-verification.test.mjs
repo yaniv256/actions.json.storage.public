@@ -14,6 +14,24 @@ const action = map.tools.find(
 
 assert.ok(action, "missing trello.card.checklist_item.add");
 
+const composerAction = map.tools.find(
+  (candidate) => candidate.name === "trello.card.checklist.item_composer.open",
+);
+assert.ok(composerAction, "missing trello.card.checklist.item_composer.open");
+
+for (const candidate of [composerAction, action]) {
+  for (const stepId of ["probeComposerAlreadyOpen", "verifyComposerOpen"]) {
+    const step = candidate.workflow.steps.find((entry) => entry.id === stepId);
+    assert.ok(step, `${candidate.name} must contain ${stepId}`);
+    assert.equal(
+      step.primitive,
+      "dom.observe.attributes",
+      `${candidate.name}.${stepId} must detect mounted offscreen composers`,
+    );
+    assert.deepEqual(step.args.attributes, ["data-testid"]);
+  }
+}
+
 const stepIds = action.workflow.steps.map((step) => step.id);
 assert.ok(
   stepIds.indexOf("probeComposerAlreadyOpen") < stepIds.indexOf("findItemInput"),

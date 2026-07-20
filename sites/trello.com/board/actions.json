@@ -5832,7 +5832,7 @@
     },
     {
       "name": "trello.card.checklist.item_composer.open",
-      "description": "Open the item composer of the checklist on the currently open Trello card, revealing check-item-name-input. Precondition: the card back is open and a checklist exists. Trello's 'Add an item' button carries NO data-testid, so it is bound semantically: a button inside [data-testid='checklist-section'] whose text contains 'Add an item'. locator.element_info scrolls it into view automatically. Call this before trello.card.checklist_item.add; the composer then stays open across successive adds.",
+      "description": "Open the item composer of the checklist on the currently open Trello card, revealing check-item-name-input. Precondition: the card back is open and a checklist exists. Trello's 'Add an item' button carries NO data-testid, so it is bound semantically: a button inside [data-testid='checklist-section'] whose text contains 'Add an item'. locator.element_info scrolls it into view automatically. Composer readiness is detected from mounted DOM identity, not viewport visibility, because Trello can mount the textarea below the card modal's scroll boundary. Call this before trello.card.checklist_item.add; the composer then stays open across successive adds.",
       "input_schema": {
         "type": "object",
         "properties": {},
@@ -5860,9 +5860,12 @@
           },
           {
             "id": "probeComposerAlreadyOpen",
-            "primitive": "dom.observe.visible",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='check-item-name-input']"
+              "selector": "[data-testid='check-item-name-input']",
+              "attributes": [
+                "data-testid"
+              ]
             }
           },
           {
@@ -5889,9 +5892,12 @@
           },
           {
             "id": "verifyComposerOpen",
-            "primitive": "dom.observe.visible",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='check-item-name-input']"
+              "selector": "[data-testid='check-item-name-input']",
+              "attributes": [
+                "data-testid"
+              ]
             },
             "retry_until": "{% steps.verifyComposerOpen.output.match_count = 1 %}",
             "max_attempts": 5,
@@ -5913,13 +5919,13 @@
       "x_actions": {
         "source": {
           "component": "TrelloChecklistItemComposerOpen",
-          "why": "2026-07-09: trello.card.checklist_item.add began at check-item-name-input, an input that does NOT exist until 'Add an item' is clicked, so the action was unreachable from any legal state (#168). checklist_add_form.open targets card-back-checklist-button, which CREATES a new checklist -- a different control. The 'Add an item' button has no data-testid (enumerated via chrome.debugger inside [data-testid=checklist-section]); bind it semantically. Proven live on card TcE3br7d: click -> check-item-name-input appears (match_count 1)."
+          "why": "2026-07-09: trello.card.checklist_item.add began at check-item-name-input, an input that does NOT exist until 'Add an item' is clicked, so the action was unreachable from any legal state (#168). checklist_add_form.open targets card-back-checklist-button, which CREATES a new checklist -- a different control. The 'Add an item' button has no data-testid (enumerated via chrome.debugger inside [data-testid=checklist-section]); bind it semantically. Proven live on card TcE3br7d. 2026-07-20 regression: Trello mounted check-item-name-input below the modal viewport; dom.observe.visible returned zero even though locator enumeration found exactly one textarea after auto-scroll. Readiness now uses dom.observe.attributes so mounted offscreen composers count."
         }
       }
     },
     {
       "name": "trello.card.checklist_item.add",
-      "description": "Add one item to the checklist on the currently open Trello card. The workflow ensures the item composer is open before typing, so callers do not need to depend on inherited or persisted UI state. The composer stays open between adds. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verification is card-wide and semantic: it reads checklist checkbox inputs by exact aria-label across mounted multi-section checklists, not visible text containment. Verified against the live DOM 2026-07-09; semantic verifier added 2026-07-14 after multi-section false-negative evidence.",
+      "description": "Add one item to the checklist on the currently open Trello card. The workflow ensures the item composer is open before typing, so callers do not need to depend on inherited or persisted UI state. The composer stays open between adds. Composer readiness is detected from mounted DOM identity rather than viewport visibility, so an offscreen textarea inside a scrolled card modal is still valid. Types into check-item-name-input and submits with check-item-add-button, re-resolving that button on every call because adding an item re-renders the list and moves its geometry. Verification is card-wide and semantic: it reads checklist checkbox inputs by exact aria-label across mounted multi-section checklists, not visible text containment. Verified against the live DOM 2026-07-09; semantic verifier added 2026-07-14 after multi-section false-negative evidence; offscreen composer regression fixed 2026-07-20.",
       "input_schema": {
         "type": "object",
         "required": [
@@ -5944,9 +5950,12 @@
           },
           {
             "id": "probeComposerAlreadyOpen",
-            "primitive": "dom.observe.visible",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='check-item-name-input']"
+              "selector": "[data-testid='check-item-name-input']",
+              "attributes": [
+                "data-testid"
+              ]
             }
           },
           {
@@ -5973,9 +5982,12 @@
           },
           {
             "id": "verifyComposerOpen",
-            "primitive": "dom.observe.visible",
+            "primitive": "dom.observe.attributes",
             "args": {
-              "selector": "[data-testid='check-item-name-input']"
+              "selector": "[data-testid='check-item-name-input']",
+              "attributes": [
+                "data-testid"
+              ]
             },
             "retry_until": "{% steps.verifyComposerOpen.output.match_count = 1 %}",
             "max_attempts": 5,
