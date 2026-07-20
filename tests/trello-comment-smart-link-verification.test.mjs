@@ -38,6 +38,7 @@ assert.match(
   "terminal retry must split bare-domain smart links as well as scheme URLs",
 );
 assert.match(retry, /\[-\*\+\]/, "canonicalizer must ignore rendered list markers");
+assert.match(retry, /\\\*\\\*\(\[\^\*/, "canonicalizer must normalize strong Markdown emphasis");
 assert.match(retry, /\$replace\(.*'',/s, "canonicalizer must remove whitespace");
 assert.doesNotMatch(
   retry,
@@ -75,7 +76,13 @@ assert.match(
 const whitespace = /[\s\u200B\u200C\u200D\uFEFF\u00A0]+/g;
 const links = /https?:\/\/[^\s]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:\/[^\s]*)?/g;
 const canonical = (value) =>
-  value.replace(/^\s*[-*+]\s+/gm, "").replace(whitespace, "");
+  value
+    .replace(/^\s*[-*+]\s+/gm, "")
+    .replace(whitespace, "")
+    .replace(/\*\*([^*\r\n]+)\*\*/g, "$1")
+    .replace(/__([^_\r\n]+)__/g, "$1")
+    .replace(/\*([^*\r\n]+)\*/g, "$1")
+    .replace(/_([^_\r\n]+)_/g, "$1");
 const verifies = (input, posted) => {
   const prose = input
     .split(links)
@@ -101,6 +108,15 @@ assert.equal(
   verifies(submitted, rendered),
   true,
   "verification must survive smart-link URL replacement, joined paragraphs, and rendered bullets",
+);
+
+assert.equal(
+  verifies(
+    "Whole-book evaluation is now **In Progress**. First completed asset is ready.",
+    "Whole-book evaluation is now In Progress. First completed asset is ready.",
+  ),
+  true,
+  "verification must survive rendered Markdown emphasis delimiters",
 );
 assert.equal(
   verifies(submitted.replace("compatible", "incompatible"), rendered),
