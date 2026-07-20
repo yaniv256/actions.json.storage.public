@@ -32,6 +32,11 @@ assert.ok(verify, "missing posted-comment retry gate");
 const retry = verify.retry_until ?? "";
 assert.match(retry, /\$canonical := function/);
 assert.match(retry, /\$segments :=/);
+assert.match(
+  retry,
+  /A-Za-z0-9-/,
+  "terminal retry must split bare-domain smart links as well as scheme URLs",
+);
 assert.match(retry, /\[-\*\+\]/, "canonicalizer must ignore rendered list markers");
 assert.match(retry, /\$replace\(.*'',/s, "canonicalizer must remove whitespace");
 assert.doesNotMatch(
@@ -50,6 +55,11 @@ assert.match(
   "reaching output must mean the terminal retry identity already passed",
 );
 assert.match(output, /https\?:/);
+assert.match(
+  output,
+  /A-Za-z0-9-/,
+  "reported verification identity must split bare-domain smart links",
+);
 assert.match(output, /\[\^\\s\]\+/);
 assert.match(
   output,
@@ -63,7 +73,7 @@ assert.match(
 );
 
 const whitespace = /[\s\u200B\u200C\u200D\uFEFF\u00A0]+/g;
-const links = /https?:\/\/[^\s]+/g;
+const links = /https?:\/\/[^\s]+|(?:[A-Za-z0-9-]+\.)+[A-Za-z]{2,}(?:\/[^\s]*)?/g;
 const canonical = (value) =>
   value.replace(/^\s*[-*+]\s+/gm, "").replace(whitespace, "");
 const verifies = (input, posted) => {
@@ -101,6 +111,15 @@ assert.equal(
   verifies("https://github.com/example/report/pull/22", rendered),
   false,
   "URL-only comments have no safe prose identity and must fail closed",
+);
+
+assert.equal(
+  verifies(
+    "Bare-domain verifier live proof: hey-code.ai remained semantically verified after Trello smart-link rendering.",
+    "Bare-domain verifier live proof: Babel3 — Build something amazing from somewhere beautiful. remained semantically verified after Trello smart-link rendering.",
+  ),
+  true,
+  "verification must survive bare-domain smart-link title replacement",
 );
 
 console.log("Trello comment verification is smart-link aware.");
