@@ -7664,6 +7664,69 @@
       }
     },
     {
+      "name": "trello.card.attachment.upload_remote",
+      "description": "Stream one explicitly named coding-agent-local file through the MCP bridge and attach it to an exact Trello input[type=file]. Use a freshly resolved concrete file-input selector from the open card. The transfer is bounded to 25 MiB, origin-bound to trello.com, SHA-256 verified, retry-safe by transfer_id, and consumes the selected bytes once.",
+      "input_schema": {
+        "type": "object",
+        "required": ["local_path", "file_input", "transfer_id"],
+        "properties": {
+          "local_path": { "type": "string", "description": "Path to the one coding-agent-local file." },
+          "file_input": {
+            "type": "object",
+            "required": ["selector"],
+            "properties": { "selector": { "type": "string", "description": "Fresh concrete selector resolving exactly one input[type=file] on the open Trello card." } },
+            "additionalProperties": false
+          },
+          "transfer_id": { "type": "string", "description": "Stable retry-safe idempotency key for this attachment attempt." }
+        },
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "file.upload",
+        "binding": {
+          "target_url_contains": "trello.com",
+          "arguments": {
+            "local_path": "{% input.local_path %}",
+            "origin": "https://trello.com",
+            "file_input": "{% input.file_input %}",
+            "transfer_id": "{% input.transfer_id %}"
+          }
+        },
+        "source": {
+          "component": "TrelloRemoteAttachmentUpload",
+          "why": "Lets Trello attachment workflows consume agent-local bytes without filesystem exposure to the page or direct credential sharing."
+        }
+      }
+    },
+    {
+      "name": "trello.card.attachment.download_remote",
+      "description": "Capture one explicitly authorized same-origin Trello attachment URL through the browser and stream it into the MCP bridge private payload directory. Returns a verified local path, filename, MIME type, byte size, and SHA-256; browser bytes are cleared after acknowledgement.",
+      "input_schema": {
+        "type": "object",
+        "required": ["url", "transfer_id"],
+        "properties": {
+          "url": { "type": "string", "description": "Exact https://trello.com attachment URL to capture." },
+          "transfer_id": { "type": "string", "description": "Stable retry-safe idempotency key for this download attempt." }
+        },
+        "additionalProperties": false
+      },
+      "x_actions": {
+        "handler": "file.download",
+        "binding": {
+          "target_url_contains": "trello.com",
+          "arguments": {
+            "url": "{% input.url %}",
+            "origin": "https://trello.com",
+            "transfer_id": "{% input.transfer_id %}"
+          }
+        },
+        "source": {
+          "component": "TrelloRemoteAttachmentDownload",
+          "why": "Lets the coding agent receive browser-authorized Trello attachment bytes through the bounded bridge instead of direct page credentials."
+        }
+      }
+    },
+    {
       "name": "trello.board.create",
       "description": "Create a NEW Trello board end to end with no agent primitives: open the top-nav Create menu, choose Create board, type the board name into the dialog's title field, and click the dialog's Create button. The new board opens (URL changes to /b/<id>/<slug>). Only the board title is required; Workspace and Visibility default. Verify by reading page.info (URL contains /b/) and the board title. Use this before adding lists or cards to a brand-new board.\n\n\u26a0\ufe0f READINESS (2026-07-09): clickCreate's settle_after and findCreateBoardItem both bound a bare `button` + text_contains 'Create board'. MEASURED: the header trigger itself carries aria-label=\"Create board or Workspace\", and resolveLocatorCandidates's haystack includes aria-label \u2014 so both resolved to THE BUTTON THEY JUST CLICKED. The settle satisfied instantly and proved nothing about whether the menu opened. A settle that matches its own trigger is worse than no settle. Both now bind [data-testid='header-create-board-button'] inside [data-testid='header-create-menu-popover']. Do NOT widen them back to `button`.",
       "input_schema": {
