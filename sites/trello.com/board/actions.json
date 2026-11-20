@@ -2081,9 +2081,9 @@
               "args": {
                 "locator": {
                   "selector": "[data-testid='list-actions-archive-list-button']",
-                  "text_contains": "Archive this list",
-                  "timeout_ms": 400
-                }
+                  "text_contains": "Archive this list"
+                },
+                "timeout_ms": 400
               }
             },
             "on_error": "continue"
@@ -2104,8 +2104,8 @@
             "primitive": "locator.element_info",
             "args": {
               "locator": {
-                "selector": "button.ybVBgfOiuWZJtD",
-                "text_contains": "Archive list"
+                "selector": "button",
+                "text_equals": "Archive list"
               }
             },
             "retry_until": "{% $exists(steps.findConfirmArchiveList.output.clickable_center.x) %}",
